@@ -107,17 +107,57 @@ export function parseSkillCommand(
   return { def, input };
 }
 
-export function formatSkillCommandsHelp(): string {
+export function formatSkillCommandsHelp(format: "telegram" | "plain" = "telegram"): string {
+  const cryptoCmds = TELEGRAM_SKILL_COMMANDS.filter((x) =>
+    [
+      "price",
+      "token",
+      "wallet",
+      "networth",
+      "whale",
+      "portfolio",
+      "quality",
+      "rugcheck",
+      "jupiter",
+      "mintinfo",
+      "find",
+      "ayrascan",
+      "trending",
+      "sol",
+      "network",
+      "sns",
+      "dex",
+      "rpc",
+    ].includes(x.command)
+  );
+  const toolCmds = TELEGRAM_SKILL_COMMANDS.filter((x) =>
+    ["search", "rss", "health", "memory"].includes(x.command)
+  );
+
+  if (format === "plain") {
+    const lines = ["Skill commands", ""];
+    lines.push("Crypto");
+    for (const c of cryptoCmds) {
+      lines.push(`/${c.command} — ${c.description}`);
+      lines.push(`  ${c.usage}`);
+    }
+    lines.push("", "Research & tools");
+    for (const c of toolCmds) {
+      lines.push(`/${c.command} — ${c.description}`);
+      lines.push(`  ${c.usage}`);
+    }
+    lines.push("", "Instant — no LLM. Full CA/wallet in replies.");
+    return lines.join("\n");
+  }
+
   const lines = ["*Skill commands*", ""];
   lines.push("*Crypto*");
-  for (const c of TELEGRAM_SKILL_COMMANDS.filter((x) =>
-    ["price", "token", "wallet", "networth", "whale", "portfolio", "quality", "rugcheck", "jupiter", "mintinfo", "find", "ayrascan", "trending", "sol", "network", "sns", "dex", "rpc"].includes(x.command)
-  )) {
+  for (const c of cryptoCmds) {
     lines.push(`/${c.command} — ${c.description}`);
     lines.push(`  _${c.usage}_`);
   }
   lines.push("", "*Research & tools*");
-  for (const c of TELEGRAM_SKILL_COMMANDS.filter((x) => ["search", "rss", "health", "memory"].includes(x.command))) {
+  for (const c of toolCmds) {
     lines.push(`/${c.command} — ${c.description}`);
     lines.push(`  _${c.usage}_`);
   }

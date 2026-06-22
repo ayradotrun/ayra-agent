@@ -10,9 +10,9 @@ import { formatToolResultsFromMessages } from "@/lib/agent/format-reply";
 import { selectSkillSlugsForRun } from "@/lib/agent/select-tools";
 import { sanitizeAgentOutput, isUselessAgentReply, isMessyCryptoReply } from "@/lib/agent/sanitize-output";
 import { resolveChatModel } from "@/lib/user-models";
+import { buildUserMessageContent, historyContentForModel } from "@/lib/chat/message-content";
 import type { RunResult } from "@/lib/agent/types";
 
-const RUN_TIMEOUT = parseInt(process.env.AGENT_RUN_TIMEOUT_SECONDS || "60", 10) * 1000;
 const MAX_TOOL_CALLS = parseInt(process.env.MAX_TOOL_CALLS_PER_RUN || "5", 10);
 
 function collectImagePathsFromToolResult(result: unknown): string[] {
@@ -30,9 +30,17 @@ function collectImagePathsFromToolResult(result: unknown): string[] {
 }
 
 export interface RunAgentOptions {
-  trigger?: "manual" | "scheduled" | "telegram";
+  trigger?: "manual" | "scheduled" | "telegram" | "chat";
   userMessage?: string;
   replyViaTelegram?: boolean;
+  chatHistory?: Array<{
+    role: "user" | "assistant";
+    content: string;
+    imageUrls?: string[];
+  }>;
+  modelOverride?: string;
+  deepThinking?: boolean;
+  userImageUrls?: string[];
 }
 
 export async function runAgent(
@@ -43,6 +51,10 @@ export async function runAgent(
     typeof options === "string" ? { trigger: options } : options;
   const trigger = opts.trigger ?? "manual";
   const startTime = Date.now();
+  const runTimeoutMs =
+    opts.deepThinking && trigger === "chat"
+      ? parseInt(process.env.CHAT_DEEP_THINKING_TIMEOUT_SECONDS || "120", 10) * 1000
+      : parseInt(process.env.AGENT_RUN_TIMEOUT_SECONDS || "60", 10) * 1000;
 
   const agent = await prisma.agent.findUnique({
     where: { id: agentId },
@@ -74,12 +86,12 @@ export async function runAgent(
 
     const enabledSlugs = agent.skills.map((as) => as.skill.slug);
     const activeSlugs =
-      trigger === "telegram"
+      trigger === "telegram" || trigger === "chat"
         ? selectSkillSlugsForRun(enabledSlugs, trigger, opts.userMessage)
         : enabledSlugs;
 
-    if (trigger === "telegram" && activeSlugs.length < enabledSlugs.length) {
-      await logFn("INFO", `Telegram tools filtered: ${activeSlugs.length}/${enabledSlugs.length}`);
+    if ((trigger === "telegram" || trigger === "chat") && activeSlugs.length < enabledSlugs.length) {
+      await logFn("INFO", `${trigger} tools filtered: ${activeSlugs.length}/${enabledSlugs.length}`);
     }
 
     const workingSkills = activeSlugs
@@ -110,24 +122,57 @@ export async function runAgent(
       },
     }));
 
-    const chatModel = resolveChatModel(agent.model, agent.user.defaultModel);
+    const chatModel = opts.modelOverride
+      ? opts.modelOverride
+      : resolveChatModel(agent.model, agent.user.defaultModel);
     const llm = buildLlmCallParams(
       agent.user,
       getDecryptedUserKey(agent.user.openRouterApiKey),
       chatModel
     );
     await logFn("INFO", `Using chat model: ${chatModel} via ${llm.baseUrl}`);
+    if (opts.deepThinking) {
+      await logFn("INFO", "Deep thinking enabled (reasoning effort: high)");
+    }
 
-    const messages: OpenRouterMessage[] = [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: buildRunPrompt(trigger, opts.userMessage) },
-    ];
+    const reasoningConfig = opts.deepThinking ? { effort: "high" as const } : undefined;
+
+    const messages: OpenRouterMessage[] = [{ role: "system", content: systemPrompt }];
+
+    const history = opts.chatHistory?.slice(-12) ?? [];
+    if (history.length > 0 && (trigger === "chat" || trigger === "telegram")) {
+      for (const turn of history) {
+        messages.push({
+          role: turn.role,
+          content: historyContentForModel(turn.role, turn.content, turn.imageUrls),
+        });
+      }
+    }
+
+    const userImages = opts.userImageUrls?.filter(Boolean) ?? [];
+    const userText =
+      history.length > 0 && opts.userMessage
+        ? opts.userMessage
+        : buildRunPrompt(trigger, opts.userMessage);
+
+    if (userImages.length > 0 && (trigger === "chat" || trigger === "telegram")) {
+      messages.push({
+        role: "user",
+        content: buildUserMessageContent(userText, userImages),
+      });
+    } else {
+      messages.push({
+        role: "user",
+        content: userText,
+      });
+    }
 
     let totalTokens = 0;
     let toolCallCount = 0;
     let finalOutput = "";
+    let reasoningOutput = "";
     const generatedImagePaths: string[] = [];
-    const timeoutAt = startTime + RUN_TIMEOUT;
+    const timeoutAt = startTime + runTimeoutMs;
 
     while (Date.now() < timeoutAt) {
       const response = await callOpenRouter({
@@ -135,6 +180,8 @@ export async function runAgent(
         model: chatModel,
         messages,
         tools: tools.length > 0 ? tools : undefined,
+        reasoning: reasoningConfig,
+        maxTokens: opts.deepThinking ? 4096 : undefined,
       });
 
       totalTokens += response.usage?.total_tokens ?? 0;
@@ -227,6 +274,9 @@ export async function runAgent(
       }
 
       finalOutput = assistantMessage.content || "";
+      if (assistantMessage.reasoning?.trim()) {
+        reasoningOutput = assistantMessage.reasoning.trim();
+      }
       break;
     }
 
@@ -247,12 +297,13 @@ export async function runAgent(
             },
           ],
           maxTokens: 600,
+          reasoning: reasoningConfig,
         });
         finalOutput = synth.choices[0]?.message?.content?.trim() || "";
       }
     }
 
-    if (!finalOutput.trim() && toolCallCount === 0 && trigger === "telegram") {
+    if (!finalOutput.trim() && toolCallCount === 0 && (trigger === "telegram" || trigger === "chat")) {
       finalOutput =
         "Try directly:\n• `price bonk` — token price\n• paste CA mint\n• `trending` — hot tokens\n• `sol price`";
     }
@@ -262,7 +313,7 @@ export async function runAgent(
       finalOutput = formatToolResultsFromMessages(messages) || finalOutput;
     }
 
-    if (trigger === "telegram" && toolCallCount > 0) {
+    if ((trigger === "telegram" || trigger === "chat") && toolCallCount > 0) {
       const toolFormatted = formatToolResultsFromMessages(messages);
       const usedAyraTool = messages.some(
         (m) =>
@@ -280,7 +331,7 @@ export async function runAgent(
     if (isUselessAgentReply(finalOutput)) {
       finalOutput = formatToolResultsFromMessages(messages) || "";
     }
-    if (isUselessAgentReply(finalOutput) && trigger === "telegram") {
+    if (isUselessAgentReply(finalOutput) && (trigger === "telegram" || trigger === "chat")) {
       finalOutput =
         "Try directly:\n• `price bonk` — token price\n• paste CA mint\n• `trending` — hot tokens\n• `sol price`";
     }
@@ -321,15 +372,17 @@ export async function runAgent(
       }
     }
 
-    await prisma.alert.create({
-      data: {
-        userId: agent.userId,
-        agentId,
-        type: status === "TIMEOUT" ? "WARNING" : "SUCCESS",
-        title: `${agent.name} run ${status.toLowerCase()}`,
-        message: summary,
-      },
-    });
+    if (trigger !== "chat") {
+      await prisma.alert.create({
+        data: {
+          userId: agent.userId,
+          agentId,
+          type: status === "TIMEOUT" ? "WARNING" : "SUCCESS",
+          title: `${agent.name} run ${status.toLowerCase()}`,
+          message: summary,
+        },
+      });
+    }
 
     return {
       runId: run.id,
@@ -341,6 +394,7 @@ export async function runAgent(
       durationMs,
       error: timedOut ? "Run exceeded timeout limit" : undefined,
       imagePaths: generatedImagePaths.length > 0 ? generatedImagePaths : undefined,
+      reasoning: reasoningOutput || undefined,
     };
   } catch (error) {
     const durationMs = Date.now() - startTime;

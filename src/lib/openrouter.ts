@@ -7,9 +7,30 @@ import {
 
 export { getLlmApiKey, getOpenRouterKey } from "@/lib/llm-config";
 
+export type OpenRouterContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type OpenRouterMessageContent = string | OpenRouterContentPart[];
+
+export function messageContentToString(content: OpenRouterMessageContent): string {
+  if (typeof content === "string") return content;
+  return content
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("\n");
+}
+
+export interface OpenRouterReasoningConfig {
+  effort?: "xhigh" | "high" | "medium" | "low" | "minimal" | "none";
+  max_tokens?: number;
+  exclude?: boolean;
+  enabled?: boolean;
+}
+
 export interface OpenRouterMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content: string;
+  content: OpenRouterMessageContent;
   tool_call_id?: string;
   name?: string;
 }
@@ -29,6 +50,7 @@ export interface OpenRouterResponse {
     message: {
       role: string;
       content: string | null;
+      reasoning?: string | null;
       images?: Array<{
         image_url?: { url: string };
         imageUrl?: { url: string };
@@ -98,6 +120,7 @@ async function callOpenRouterOnce(params: {
   maxTokens?: number;
   modalities?: ("image" | "text")[];
   imageConfig?: { aspect_ratio?: string };
+  reasoning?: OpenRouterReasoningConfig;
 }): Promise<{ ok: true; data: OpenRouterResponse } | { ok: false; status: number; body: string }> {
   const baseUrl = params.baseUrl ?? DEFAULT_LLM_BASE_URL;
   const body: Record<string, unknown> = {
@@ -108,6 +131,7 @@ async function callOpenRouterOnce(params: {
   };
   if (params.modalities?.length) body.modalities = params.modalities;
   if (params.imageConfig) body.image_config = params.imageConfig;
+  if (params.reasoning) body.reasoning = params.reasoning;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${params.apiKey}`,
@@ -141,9 +165,11 @@ export async function callOpenRouter(params: {
   modalities?: ("image" | "text")[];
   imageConfig?: { aspect_ratio?: string };
   useOpenRouterFallbacks?: boolean;
+  reasoning?: OpenRouterReasoningConfig;
 }): Promise<OpenRouterResponse> {
   const baseUrl = params.baseUrl ?? DEFAULT_LLM_BASE_URL;
-  const useFallbacks = params.useOpenRouterFallbacks ?? isOpenRouterBaseUrl(baseUrl);
+  const useFallbacks =
+    (params.useOpenRouterFallbacks ?? isOpenRouterBaseUrl(baseUrl)) && !params.reasoning;
   const modelsToTry = useFallbacks ? getFreeModelFallbackChain(params.model) : [params.model];
   let lastStatus = 500;
   let lastBody = "Unknown error";

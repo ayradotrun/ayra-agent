@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Bot,
+  MessageSquare,
   Puzzle,
   Settings,
   type LucideIcon,
@@ -13,6 +14,7 @@ export const NAV_ITEMS: Array<{
   exact?: boolean;
 }> = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard/agents", label: "Agents", icon: Bot },
   { href: "/dashboard/skills", label: "Skills", icon: Puzzle },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

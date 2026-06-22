@@ -34,17 +34,18 @@ export function buildAgentPrompt(params: {
 }
 
 export function buildRunPrompt(
-  trigger: "manual" | "scheduled" | "telegram" = "manual",
+  trigger: "manual" | "scheduled" | "telegram" | "chat" = "manual",
   userMessage?: string
 ): string {
-  if (trigger === "telegram" && userMessage) {
-    return `The user sent this message via Telegram. You MUST use tools to fetch real data — never guess prices or facts.
+  if ((trigger === "telegram" || trigger === "chat") && userMessage) {
+    const channel = trigger === "chat" ? "dashboard chat" : "Telegram";
+    return `The user sent this message via ${channel}. You MUST use tools to fetch real data — never guess prices or facts.
 
 Rules:
 - "sol price" / SOL price → call sol_price_checker (no arguments)
 - Token price with mint address → token_price_tracker
 - Generate/draw image → image_generator
-- After tool results, reply clearly in English with concrete numbers
+- After tool results, reply clearly in the same language the user used, with concrete numbers
 
 User message:
 

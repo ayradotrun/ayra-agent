@@ -2,22 +2,40 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, Zap } from "lucide-react";
+import { Menu, Plus, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MOBILE_NAV_ITEMS, NEW_AGENT_HREF } from "@/components/layout/nav-config";
 
-export function MobileHeader() {
+interface MobileHeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
   return (
-    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-white/[0.06] bg-[hsl(220,20%,5%)]/95 px-4 backdrop-blur-xl md:hidden">
-      <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
-          <Zap className="h-4 w-4 text-emerald-400" />
+    <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-white/[0.06] bg-[hsl(220,20%,5%)]/95 px-3 backdrop-blur-xl md:hidden">
+      <div className="flex min-w-0 items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 shrink-0 p-0 text-muted-foreground hover:text-foreground"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
+            <Zap className="h-4 w-4 text-emerald-400" />
+          </div>
+          <span className="truncate text-sm font-semibold tracking-tight">AYRA Agent</span>
         </div>
-        <span className="text-sm font-semibold tracking-tight">AYRA Agent</span>
       </div>
       <Link href={NEW_AGENT_HREF}>
-        <Button size="sm" className="h-8 gap-1.5 rounded-lg bg-emerald-500/90 px-3 text-xs text-emerald-950 hover:bg-emerald-400">
+        <Button
+          size="sm"
+          className="h-8 shrink-0 gap-1.5 rounded-lg bg-emerald-500/90 px-3 text-xs text-emerald-950 hover:bg-emerald-400"
+        >
           <Plus className="h-3.5 w-3.5" />
           New
         </Button>
@@ -28,6 +46,11 @@ export function MobileHeader() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const isChatPage = pathname === "/dashboard/chat" || pathname.startsWith("/dashboard/chat");
+
+  if (isChatPage) {
+    return null;
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[hsl(220,20%,5%)]/95 backdrop-blur-xl md:hidden">
@@ -35,7 +58,7 @@ export function MobileNav() {
         {MOBILE_NAV_ITEMS.map((item) => {
           const active = item.exact
             ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+            : pathname === item.href || pathname.startsWith(`${item.href}/`) || pathname.startsWith(`${item.href}?`);
 
           return (
             <Link

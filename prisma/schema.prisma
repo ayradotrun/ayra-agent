@@ -24,6 +24,7 @@ model User {
   toolCredentials ToolCredential[]
   apiKeys         ApiKey[]
   alerts          Alert[]
+  chatSessions    ChatSession[]
 
   llmBaseUrl           String?
   openRouterApiKey     String?
@@ -118,6 +119,7 @@ model Agent {
   memories      AgentMemory[]
   scheduledJobs ScheduledJob[]
   alerts        Alert[]
+  chatSessions  ChatSession[]
 
   @@index([userId])
 }
@@ -316,4 +318,36 @@ model ApiKey {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model ChatSession {
+  id           String   @id @default(cuid())
+  userId       String
+  agentId      String
+  title        String?
+  chatModel    String?
+  deepThinking Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent    Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId, updatedAt])
+  @@index([agentId])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  sessionId String
+  role      String
+  content   String   @db.Text
+  runId     String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }

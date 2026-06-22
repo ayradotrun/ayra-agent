@@ -73,6 +73,50 @@ export const TELEGRAM_HELP_TEXT = `*AYRA Agent* — Telegram
 
 /help — this message`;
 
+/** Plain-text help for dashboard chat (no Telegram markdown) */
+export const CHAT_HELP_TEXT = `AYRA Agent — Dashboard Chat
+
+Skill commands (instant, no LLM)
+/price [ticker|CA] — token price
+/token [ticker|CA] — full info + safety
+/wallet [address] — SOL + SPL balance
+/networth [address] — wallet USD value
+/quality [CA] — AYRA quality report
+/rugcheck [CA] — rug risk score
+/ayrascan — AYRA scan (filtered meme coins)
+/trending — hot Solana tokens
+/sol — SOL price
+/find [name] — search token
+/whale [address] — whale check
+/network — Solana TPS & epoch
+/sns [name] — resolve .sol domain
+
+/skills — full command list
+
+Quick text (no slash)
+• paste CA mint — token info
+• price bonk — ticker lookup
+• ayra scan — same as /ayrascan
+
+Agent
+/agents · /use [name] · /status
+
+Image
+/image [prompt]
+
+/help — this message`;
+
+export const CHAT_COMMAND_HINTS = [
+  "/help",
+  "/skills",
+  "/sol",
+  "/ayrascan",
+  "/trending",
+  "/price bonk",
+  "/agents",
+  "/status",
+] as const;
+
 export const TELEGRAM_COMMANDS_UI: Array<{ cmd: string; desc: string }> = [
   { cmd: "/help", desc: "Show all commands" },
   { cmd: "/skills", desc: "List all skill commands" },

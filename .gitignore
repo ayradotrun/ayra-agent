@@ -43,3 +43,5 @@ next-env.d.ts
 # generated images
 /storage/generated/*
 !/storage/generated/.gitkeep
+/storage/chat-uploads/*
+!/storage/chat-uploads/.gitkeep

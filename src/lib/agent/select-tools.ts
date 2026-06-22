@@ -68,10 +68,10 @@ const MAX_TELEGRAM_TOOLS = 18;
 
 export function selectSkillSlugsForRun(
   enabledSlugs: string[],
-  trigger: "manual" | "scheduled" | "telegram",
+  trigger: "manual" | "scheduled" | "telegram" | "chat",
   userMessage?: string
 ): string[] {
-  if (trigger !== "telegram") return enabledSlugs;
+  if (trigger !== "telegram" && trigger !== "chat") return enabledSlugs;
 
   // Focused custom agents — use exactly the skills the user selected
   if (enabledSlugs.length <= MAX_TELEGRAM_TOOLS) {

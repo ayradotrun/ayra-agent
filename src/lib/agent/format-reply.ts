@@ -1,4 +1,5 @@
 import type { OpenRouterMessage } from "@/lib/openrouter";
+import { messageContentToString } from "@/lib/openrouter";
 import { formatTokenCard, type TokenCardData } from "@/lib/agent/token-card";
 import { formatMemeScanResults, formatAyraQualityReport, type MemeTokenSnapshot } from "@/lib/agent/meme-quality";
 
@@ -159,7 +160,9 @@ export function formatToolResultsFromMessages(messages: OpenRouterMessage[]): st
   if (toolMessages.length === 0) return null;
 
   for (let i = toolMessages.length - 1; i >= 0; i--) {
-    const formatted = formatToolResult(parseToolContent(toolMessages[i].content));
+    const formatted = formatToolResult(
+      parseToolContent(messageContentToString(toolMessages[i].content))
+    );
     if (formatted) return formatted;
   }
 

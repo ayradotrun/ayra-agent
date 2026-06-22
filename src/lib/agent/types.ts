@@ -14,6 +14,7 @@ export interface RunResult {
   durationMs: number;
   error?: string;
   imagePaths?: string[];
+  reasoning?: string;
 }
 
 export interface AgentConfig {
