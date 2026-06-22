@@ -1,188 +1,243 @@
 # AYRA Agent
 
-**Build and run AI agents for Solana devs and token builders.**
+<p align="center">
+  <strong>Autonomous AI agents for Solana developers and token builders.</strong>
+</p>
 
-AYRA Agent is a developer-focused platform (Hermes-style autonomous agents) specialized for **Solana**, **token projects**, and **X (Twitter)** workflows. Track wallets, research tokens on-chain, draft or auto-post to X, get Telegram alerts, and extend via skills — without building the agent stack from scratch.
+<p align="center">
+  Wallet tracking · on-chain research · X workflows · Telegram · skill marketplace · optional private database per user
+</p>
 
-## Features
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#private-database-byod">Private database</a> ·
+  <a href="#security">Security</a> ·
+  <a href="#license">License</a>
+</p>
 
-- **Agent builder** — Templates: Solana Token Scout, X Growth Agent, Dev Launch Assistant
-- **Solana skills** — Wallet tracker, token tracker, token research, RPC monitor
-- **X skills** — Draft generator, thread drafter, viral topics, optional auto-post (opt-in)
-- **Agent runtime** — OpenRouter-powered execution with tool calling, timeouts, and rate limits
-- **Scheduling** — Manual, 5min, 15min, hourly, or daily runs via worker process
-- **Logs & runs** — Terminal-style log viewer and run history with token usage
-- **Memory** — Persistent agent memory with search
-- **Notifications** — Telegram alerts on run completion
-- **Security** — Encrypted credentials, rate limits, max tool calls, explicit permissions
+---
 
-## Tech Stack
+AYRA Agent is a self-hostable platform for building and running **tool-using AI agents** focused on **Solana**, **meme/token research**, and **X (Twitter)** operations. Users bring their own LLM keys; optionally they bring their own Postgres for chat history and scheduled brain tasks so platform storage stays lean.
 
-- Next.js 14 (App Router)
-- TypeScript
-- Tailwind CSS + shadcn/ui
-- Framer Motion
-- Prisma + PostgreSQL
-- NextAuth (credentials)
-- OpenRouter API
-- Telegram Bot API
-- node-cron (scheduler)
-- Zod
-- PM2 compatible
+## Highlights
 
-## Local Setup
+| Area | What you get |
+|------|----------------|
+| **Agents** | Templates (Token Scout, X Growth, AYRA Brain / Nova), custom prompts, skill toggles |
+| **Solana** | Wallet watch, token research, RPC monitor, AYRA quality alerts |
+| **Social** | X drafts, threads, optional auto-post (double opt-in) |
+| **Chat** | Full dashboard chat with sessions, pins, slash commands, image uploads |
+| **Brain** | Scheduled tweets, reminders, content calendars — AYRA Brain worker |
+| **Privacy** | Per-user private Postgres (BYOD) for chat + brain; no Prisma required for users |
+| **Ops** | Run logs, token usage, Telegram notifications, cron worker |
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Platform Postgres (DATABASE_URL in .env)                   │
+│  Users · Agents · Auth · Runs · Settings (encrypted keys)   │
+└───────────────────────────┬─────────────────────────────────┘
+                            │
+         ┌──────────────────┼──────────────────┐
+         ▼                  ▼                  ▼
+   Dashboard chat      Telegram bot       Agent worker
+         │                  │                  │
+         ▼                  ▼                  ▼
+┌─────────────────┐  ┌──────────────────────────────────────┐
+│ Default storage │  │ Optional: user's private Postgres      │
+│ Chat → platform │  │ (Settings → Private Database URL)    │
+│ Brain → SQLite  │  │ chat_session · chat_message · brain_task│
+└─────────────────┘  └──────────────────────────────────────┘
+```
+
+**Platform operators** sync schema with Prisma (`db push`). **End users** who enable a private database only paste a Postgres URL — tables are created automatically on save.
+
+---
+
+## Quick start
 
 ### Prerequisites
 
-- Node.js 18+
-- PostgreSQL database
-- OpenRouter API key (optional for dev — set in env or user settings)
+- **Node.js 18+**
+- **PostgreSQL** (Supabase recommended for platform DB)
+- **OpenRouter** or compatible OpenAI API (user or global key)
 
-### Environment Setup
+### 1. Clone and configure
 
 ```bash
+git clone <your-repo-url> ayra-agent
+cd ayra-agent
 cp .env.example .env
 ```
 
-Fill in the required values (same file for dev and production — production notes are inline in `.env.example`):
+Edit `.env` — minimum required:
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (use pooler port 6543 + `pgbouncer=true` for Supabase) |
-| `DIRECT_DATABASE_URL` | Direct/session URL for Prisma migrations (Supabase port 5432) |
-| `NEXTAUTH_SECRET` | Random secret for session encryption |
-| `NEXTAUTH_URL` | App URL (`http://localhost:3000` dev, `https://your-domain.com` prod) |
-| `ENCRYPTION_KEY` | 32+ char key for credential encryption |
-| `X_CLIENT_ID` | X OAuth 2.0 Client ID — enables **Connect with X** in Settings |
-| `X_CLIENT_SECRET` | X OAuth 2.0 Client Secret |
-| `X_CALLBACK_URL` | OAuth callback (`http://localhost:3000/api/x/callback` dev) |
-| `OPENROUTER_API_KEY` | Optional global fallback (users set own key in Settings) |
-| `TELEGRAM_BOT_TOKEN` | Optional default Telegram bot |
-| `TELEGRAM_POLLING` | `true` for local Telegram chat (run worker); `false` in production |
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Platform Postgres (pooler URL for Supabase) |
+| `DIRECT_DATABASE_URL` | Direct Postgres URL for Prisma |
+| `NEXTAUTH_SECRET` | Session signing secret |
+| `NEXTAUTH_URL` | App URL (`http://localhost:3000` in dev) |
+| `ENCRYPTION_KEY` | 32+ char key for encrypting user secrets at rest |
 
-**Supabase:** use the transaction pooler (`6543` + `pgbouncer=true`) for `DATABASE_URL` and the session pooler (`5432`) for `DIRECT_DATABASE_URL`. Copy exact hosts from Supabase Dashboard → Connect.
+See [.env.example](./.env.example) for Telegram, X OAuth, Redis, alerts, and worker options.
 
-**X OAuth:** create an app at [developer.x.com](https://developer.x.com), enable OAuth 2.0, set callback to `X_CALLBACK_URL`, and add scopes `tweet.read`, `tweet.write`, `users.read`, `offline.access`.
-
-### Install & Database
+### 2. Install and sync database
 
 ```bash
 npm install
-npm run prisma:generate
-npm run prisma:migrate
+npx prisma generate
+npx prisma db push
 npm run prisma:seed
 ```
 
-### Running Dev Server
+> **Note:** If `prisma migrate deploy` fails with **P3005** (database already populated), use `npx prisma db push` for the platform database instead.
+
+### 3. Run
+
+Terminal 1 — web app:
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
-
-### Running Worker
-
-The worker process handles scheduled agent runs:
+Terminal 2 — worker (scheduler, Telegram polling, AYRA alerts, brain tasks):
 
 ```bash
 npm run worker
 ```
 
-Run alongside the dev server in a separate terminal.
+Open [http://localhost:3000](http://localhost:3000), register, create an agent, and open **Dashboard → Chat**.
 
-**Important:** Only run **one** worker instance. A second worker causes duplicate Telegram replies.
-
-The worker also runs **AYRA alerts** when `AYRA_ALERTS_ENABLED=true` (see `.env.example`).
-Enable per-user in Dashboard → Settings → **Auto AYRA alerts**.
-
-### Running with PM2
+For production:
 
 ```bash
 npm run build
-pm2 start ecosystem.config.js
+npm run start
+# plus worker via PM2: pm2 start ecosystem.config.js
 ```
 
-This starts both the Next.js web server and the agent worker.
+Run **only one worker** per deployment to avoid duplicate Telegram replies.
 
-## Adding New Skills
+---
 
-1. Create a skill file in `src/lib/skills/` implementing the `SkillDefinition` interface:
+## Private database (BYOD)
 
-```typescript
-import { z } from "zod";
-import type { SkillDefinition } from "./base";
+Users can store **dashboard chat history** and **AYRA Brain tasks** in their own Postgres instead of the platform database.
 
-export const mySkill: SkillDefinition = {
-  id: "my-skill",
-  name: "My Skill",
-  slug: "my-skill",
-  category: "Developer",
-  description: "What it does",
-  icon: "zap",
-  permission: "read",
-  isEnabled: true,
-  inputSchema: z.object({ input: z.string() }),
-  async execute(input, ctx) {
-    await ctx.log("INFO", "Running my skill", "my-skill");
-    return { result: "done" };
-  },
-};
+### What users do (no CLI)
+
+1. Create an empty Postgres database ([Supabase](https://supabase.com), [Neon](https://neon.tech), Railway, etc.)
+2. Copy the **connection string** (URI format)
+3. **Dashboard → Settings → Private Database (AYRA)** → paste URL → **Save**
+
+AYRA will:
+
+- Test the connection
+- Create tables automatically (`chat_session`, `chat_message`, `brain_task`)
+- Migrate existing chat/brain data on first connect
+- Encrypt the URL at rest (same as API keys)
+
+Users **never** run `prisma migrate` or `db push` on their database.
+
+### What operators do
+
+Only the **platform** database in `.env` uses Prisma. User private databases use raw SQL `CREATE TABLE IF NOT EXISTS` via the `pg` driver.
+
+Detailed user-facing steps are in the Settings UI and in [docs/private-database.md](./docs/private-database.md).
+
+---
+
+## Security
+
+| Control | Detail |
+|---------|--------|
+| **Encryption at rest** | User API keys, Telegram token, X credentials, RPC keys, private DB URLs — AES-256-GCM via `ENCRYPTION_KEY` |
+| **Auth** | NextAuth credentials; session scoped to user |
+| **Isolation** | APIs filter by `userId`; private DB holds only that user's chat/brain rows |
+| **Rate limits** | Chat and API routes throttled per user/IP |
+| **Agent bounds** | Run timeout, max tool calls, no default shell access |
+| **X posting** | Draft-by-default; auto-post requires user + agent opt-in |
+| **Logging** | Agent runs and tool usage recorded for audit |
+
+Report vulnerabilities privately — see [SECURITY.md](./SECURITY.md).
+
+---
+
+## Project structure
+
+```
+src/
+├── app/              # Next.js routes (dashboard, API)
+├── lib/
+│   ├── agent/        # Runtime, prompts, meme quality
+│   ├── brain/        # AYRA Brain store, worker, tasks
+│   ├── chat/         # Chat store, commands, private DB routing
+│   ├── skills/       # Tool definitions
+│   └── telegram/     # Bot handler, polling
+├── workers/          # agent-worker.ts (cron + alerts + brain)
+prisma/               # Platform schema only
+storage/              # Generated images, uploads, local brain SQLite fallback
 ```
 
-2. Register it in `src/lib/skills/index.ts` (`WORKING_SKILLS` array)
-3. Add to `ALL_SKILL_DEFINITIONS` for the marketplace
-4. Run `npm run prisma:seed` to sync to database
+---
 
-## Safety Model
+## Adding skills
 
-- API keys are never exposed to the frontend
-- Tool credentials are encrypted at rest with AES-256-GCM
-- Rate limits on API routes (60 req/min default)
-- Max tool calls per run (default: 5)
-- Run timeout (default: 60 seconds)
-- No shell execution by default
-- All agent actions are logged
-- Tool permissions must be explicitly enabled per agent
-- X Draft Generator never auto-posts
+1. Create `src/lib/skills/my-skill.ts` implementing `SkillDefinition`
+2. Register in `src/lib/skills/index.ts`
+3. Run `npm run prisma:seed`
 
-## Working Skills (v1)
+See existing skills in `src/lib/skills/` for patterns (Zod input schema, `ctx.log`, permissions).
 
-| Skill | Category | Status |
-|-------|----------|--------|
-| Website Health Check | Website | ✅ Working |
-| Telegram Notify | Notification | ✅ Working |
-| RSS Reader | Research | ✅ Working |
-| Solana RPC Monitor | Crypto | ✅ Working |
-| Memory Storage | Agent Core | ✅ Working |
-| Memory Search | Agent Core | ✅ Working |
-| X Draft Generator | Social | ✅ Working (draft only) |
-| GitHub Repo Analyzer | Developer | ✅ Placeholder |
-
-## Future Integrations
-
-- Discord, Slack, and email notifications
-- GitHub API integration for repo analysis
-- BullMQ + Redis for distributed job queue
-- Webhook triggers
-- Custom skill SDK
-- Team workspaces
-- API key management for external access
+---
 
 ## Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start development server |
+| `npm run dev` | Development server |
 | `npm run build` | Production build |
-| `npm run start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run prisma:generate` | Generate Prisma client |
-| `npm run prisma:migrate` | Run database migrations |
-| `npm run prisma:studio` | Open Prisma Studio |
-| `npm run prisma:seed` | Seed skills to database |
-| `npm run worker` | Start agent scheduler worker |
+| `npm run start` | Production server |
+| `npm run worker` | Scheduler, Telegram, alerts, brain worker |
+| `npm run db:push` | Sync platform schema (`prisma db push`) |
+| `npm run prisma:generate` | Regenerate Prisma client |
+| `npm run prisma:seed` | Seed skill catalog |
+| `npm run prisma:studio` | Database GUI |
+| `npm run lint` | ESLint |
+
+---
+
+## Environment reference
+
+Production checklist:
+
+- [ ] Strong `NEXTAUTH_SECRET` and `ENCRYPTION_KEY`
+- [ ] HTTPS and correct `NEXTAUTH_URL`
+- [ ] Supabase pooler on `DATABASE_URL`, direct on `DIRECT_DATABASE_URL`
+- [ ] `TELEGRAM_POLLING=false` + webhook URL in production
+- [ ] Single worker instance
+- [ ] X OAuth callback registered at `X_CALLBACK_URL`
+
+Full variable list: [.env.example](./.env.example)
+
+---
+
+## Contributing
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md). Security reports: [SECURITY.md](./SECURITY.md) (private disclosure only).
+
+---
 
 ## License
 
-Private — All rights reserved.
+This project is licensed under the **MIT License** — see [LICENSE](./LICENSE).
+
+You may use, modify, and distribute the software with attribution. The software is provided **as is**, without warranty.
+
+---
+
+<p align="center">
+  Built for builders who ship on Solana.
+</p>

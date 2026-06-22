@@ -18,7 +18,7 @@ const FREE_MODELS: ModelOption[] = [
   { value: "openai/gpt-oss-120b:free", label: "GPT-OSS 120B", tier: "free" },
   { value: "nvidia/nemotron-3-ultra-550b-a55b:free", label: "Nemotron 3 Ultra 550B", tier: "free" },
   { value: "google/gemma-4-31b-it:free", label: "Gemma 4 31B", tier: "free" },
-  { value: "nousresearch/hermes-3-llama-3.1-405b:free", label: "Hermes 3 405B · Free", tier: "free" },
+  { value: "nousresearch/hermes-3-llama-3.1-405b:free", label: "Nous 405B · Free", tier: "free" },
   { value: "nex-agi/nex-n2-pro:free", label: "Nex N2 Pro", tier: "free" },
 ];
 
@@ -46,7 +46,7 @@ const STANDARD_MODELS: ModelOption[] = [
   { value: "minimax/minimax-m3", label: "MiniMax M3", tier: "standard" },
   { value: "anthropic/claude-fable-5", label: "Claude Fable 5", tier: "standard" },
   { value: "z-ai/glm-5.2", label: "GLM 5.2", tier: "standard" },
-  { value: "nousresearch/hermes-4-405b", label: "Hermes 4 405B · Paid", tier: "standard" },
+  { value: "nousresearch/hermes-4-405b", label: "Nous 405B · Paid", tier: "standard" },
 ];
 
 const PREMIUM_MODELS: ModelOption[] = [

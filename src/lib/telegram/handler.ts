@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { runAgent } from "@/lib/agent/runtime";
 import {
+  deliverTelegramTextReply,
   getBotTokenFromUser,
+  sendTelegramChatAction,
   sendTelegramMessage,
   sendTelegramPhoto,
   type TelegramUpdate,
@@ -9,6 +11,7 @@ import {
 import { handleChatInput, resolveAgentIdForTelegram } from "@/lib/chat/handle-input";
 import { ensureAgentModelsMatchUser } from "@/lib/user-models";
 import { claimTelegramUpdate } from "./dedup";
+import { shouldShowTelegramThinking, TELEGRAM_THINKING_MESSAGE } from "./thinking";
 
 async function sendRunImages(
   botToken: string,
@@ -25,6 +28,20 @@ async function sendRunImages(
       i === 0 ? caption : undefined
     );
   }
+}
+
+async function beginTelegramProcessing(
+  botToken: string,
+  chatId: string,
+  text: string
+): Promise<number | undefined> {
+  if (!shouldShowTelegramThinking(text)) return undefined;
+
+  const imageCmd = text.trim().toLowerCase().startsWith("/image ");
+  await sendTelegramChatAction(botToken, chatId, imageCmd ? "upload_photo" : "typing");
+
+  const status = await sendTelegramMessage(botToken, chatId, TELEGRAM_THINKING_MESSAGE);
+  return status.messageId;
 }
 
 export async function handleTelegramUpdate(
@@ -59,29 +76,36 @@ export async function handleTelegramUpdate(
   }
 
   const text = message.text.trim();
-
   const agentId = (await resolveAgentIdForTelegram(userId)) ?? "";
-
-  if (text.startsWith("/image ") && agentId) {
-    await sendTelegramMessage(botToken, chatId, "🎨 Generating image…");
-  }
+  const statusMessageId = await beginTelegramProcessing(botToken, chatId, text);
 
   const result = await handleChatInput(userId, agentId, text, { telegram: true });
 
   if (result.handled) {
     if (result.imagePaths?.length) {
-      await sendRunImages(botToken, chatId, result.imagePaths, result.content);
+      if (result.content) {
+        await deliverTelegramTextReply(botToken, chatId, result.content, statusMessageId);
+      }
+      await sendRunImages(
+        botToken,
+        chatId,
+        result.imagePaths,
+        statusMessageId ? undefined : result.content
+      );
     } else if (result.content) {
-      await sendTelegramMessage(botToken, chatId, result.content);
+      await deliverTelegramTextReply(botToken, chatId, result.content, statusMessageId);
+    } else if (statusMessageId) {
+      await deliverTelegramTextReply(botToken, chatId, "Done.", statusMessageId);
     }
     return;
   }
 
   if (!agentId) {
-    await sendTelegramMessage(
+    await deliverTelegramTextReply(
       botToken,
       chatId,
-      "No active agent. Create one in the dashboard, then try again."
+      "No active agent. Create one in the dashboard, then try again.",
+      statusMessageId
     );
     return;
   }
@@ -93,7 +117,12 @@ export async function handleTelegramUpdate(
     select: { name: true },
   });
 
-  await sendTelegramMessage(botToken, chatId, `⏳ Running *${agent?.name ?? "agent"}*…`);
+  let activeStatusId = statusMessageId;
+  if (!activeStatusId) {
+    await sendTelegramChatAction(botToken, chatId, "typing");
+    const status = await sendTelegramMessage(botToken, chatId, TELEGRAM_THINKING_MESSAGE);
+    activeStatusId = status.messageId;
+  }
 
   try {
     const runResult = await runAgent(agentId, {
@@ -113,20 +142,19 @@ export async function handleTelegramUpdate(
       reply.includes("AYRA Quality") ||
       reply.includes("🍃");
 
-    if (isAyraFormatted) {
-      await sendTelegramMessage(botToken, chatId, reply);
-    } else {
-      const prefix =
-        runResult.status === "COMPLETED" ? "✅" : runResult.status === "TIMEOUT" ? "⏱️" : "❌";
-      await sendTelegramMessage(botToken, chatId, `${prefix} *${agent?.name ?? "Agent"}*\n\n${reply}`);
-    }
+    const finalText = isAyraFormatted
+      ? reply
+      : `${runResult.status === "COMPLETED" ? "✅" : runResult.status === "TIMEOUT" ? "⏱️" : "❌"} *${agent?.name ?? "Agent"}*\n\n${reply}`;
+
+    await deliverTelegramTextReply(botToken, chatId, finalText, activeStatusId);
 
     if (runResult.imagePaths && runResult.imagePaths.length > 0) {
+      await sendTelegramChatAction(botToken, chatId, "upload_photo");
       await sendRunImages(botToken, chatId, runResult.imagePaths);
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Run failed";
-    await sendTelegramMessage(botToken, chatId, `❌ Error: ${msg}`);
+    await deliverTelegramTextReply(botToken, chatId, `❌ Error: ${msg}`, activeStatusId);
   }
 }
 

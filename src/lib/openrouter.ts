@@ -86,7 +86,7 @@ function formatLlmError(status: number, body: string, model?: string, baseUrl?: 
       if (model && isFreeModel(model)) {
         parts.push("Free model is routing to a paid provider — try another free model via `/model gemma`.");
       } else if (model?.includes("hermes") && !model.endsWith(":free")) {
-        parts.push("Free Hermes: `nousresearch/hermes-3-llama-3.1-405b:free`.");
+        parts.push("Free alternative: `nousresearch/hermes-3-llama-3.1-405b:free`.");
       } else if (freeVariant) {
         parts.push(`Free variant: \`${freeVariant}\`.`);
       }

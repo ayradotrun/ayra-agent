@@ -45,3 +45,5 @@ next-env.d.ts
 !/storage/generated/.gitkeep
 /storage/chat-uploads/*
 !/storage/chat-uploads/.gitkeep
+/storage/brain/**/*
+!/storage/brain/.gitkeep

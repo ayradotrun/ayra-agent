@@ -2,34 +2,42 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser, unauthorizedResponse } from "@/lib/auth-helpers";
 import { resolveChatAgent } from "@/lib/chat";
+import { createChatSession, getLastChatMessage, listChatSessions } from "@/lib/chat/chat-store";
 import { z } from "zod";
 
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return unauthorizedResponse();
 
-  const sessions = await prisma.chatSession.findMany({
-    where: { userId: user.id },
-    orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
-    take: 40,
-    select: {
-      id: true,
-      title: true,
-      pinned: true,
-      updatedAt: true,
-      chatModel: true,
-      deepThinking: true,
-      agentId: true,
-      agent: { select: { id: true, name: true } },
-      messages: {
-        orderBy: { createdAt: "desc" },
-        take: 1,
-        select: { content: true, role: true, createdAt: true },
-      },
-    },
-  });
+  const sessions = await listChatSessions(user.id, 40);
+  const agentIds = Array.from(new Set(sessions.map((s) => s.agentId)));
 
-  return NextResponse.json(sessions);
+  const agents = await prisma.agent.findMany({
+    where: { id: { in: agentIds }, userId: user.id },
+    select: { id: true, name: true },
+  });
+  const agentMap = new Map(agents.map((a) => [a.id, a]));
+
+  const enriched = await Promise.all(
+    sessions.map(async (session) => {
+      const last = await getLastChatMessage(user.id, session.id);
+      return {
+        id: session.id,
+        title: session.title,
+        pinned: session.pinned,
+        updatedAt: session.updatedAt,
+        chatModel: session.chatModel,
+        deepThinking: session.deepThinking,
+        agentId: session.agentId,
+        agent: agentMap.get(session.agentId) ?? { id: session.agentId, name: "Agent" },
+        messages: last
+          ? [{ content: last.content, role: last.role, createdAt: last.createdAt }]
+          : [],
+      };
+    })
+  );
+
+  return NextResponse.json(enriched);
 }
 
 const createSessionSchema = z.object({
@@ -54,10 +62,10 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const session = await prisma.chatSession.create({
-    data: { userId: user.id, agentId: agent.id },
-    include: { agent: { select: { id: true, name: true, model: true } } },
-  });
+  const session = await createChatSession(user.id, agent.id);
 
-  return NextResponse.json(session);
+  return NextResponse.json({
+    ...session,
+    agent: { id: agent.id, name: agent.name, model: agent.model },
+  });
 }

@@ -2,6 +2,7 @@ import "dotenv/config";
 import { acquireWorkerLock } from "../lib/worker/single-instance";
 import { startScheduler } from "../lib/agent/scheduler-worker";
 import { startMemeAlertWorker } from "../lib/agent/meme-alert-worker";
+import { startBrainWorker } from "../lib/brain/brain-worker";
 import { startTelegramPolling } from "../lib/telegram/polling";
 
 async function main() {
@@ -9,6 +10,7 @@ async function main() {
   console.log("[AYRA Worker] Starting...");
   await startScheduler();
   startMemeAlertWorker();
+  startBrainWorker();
 
   if (process.env.TELEGRAM_POLLING === "true") {
     await startTelegramPolling();

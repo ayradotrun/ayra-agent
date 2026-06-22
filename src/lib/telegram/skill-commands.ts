@@ -1,4 +1,5 @@
 import { isSolanaMint } from "@/lib/agent/token-card";
+import { QUALITY_MAX_PAIR_AGE_HOURS } from "@/lib/agent/meme-quality";
 
 const WALLET_OR_MINT = /^[1-9A-HJ-NP-Za-km-z]{32,50}$/;
 
@@ -66,9 +67,10 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
     command: "q",
     aliases: ["quality"],
     skillSlug: "token-quality-report",
-    description: "✅ AYRA quality report",
+    description: "✅ AYRA quality (max pair 7d)",
     usage: "/q [CA]",
     arg: "mint",
+    defaults: { maxPairAgeHours: QUALITY_MAX_PAIR_AGE_HOURS },
   },
   {
     command: "rug",

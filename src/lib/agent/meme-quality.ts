@@ -2,6 +2,176 @@
 
 export const AYRA_LEAF = "🍃";
 
+/** /q quality command — max pair age window */
+export const QUALITY_MAX_PAIR_AGE_HOURS = 7 * 24;
+export const QUALITY_MAX_PAIR_AGE_MINUTES = QUALITY_MAX_PAIR_AGE_HOURS * 60;
+
+/** Round MC milestones for legacy BUY band targets */
+const MCAP_MILESTONES = [
+  50_000, 100_000, 250_000, 500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000,
+];
+
+export interface MemeMcapTargets {
+  /** MC ~24h ago from DexScreener h24 change */
+  mcap24hAgoUsd: number | null;
+  /** Estimated 24h range low (MC) */
+  mcap24hLowUsd: number | null;
+  /** Pullback / support zone (MC) */
+  correctionMcapUsd: number | null;
+  /** Extension target (MC) */
+  upsideMcapUsd: number | null;
+  correctionNote: string;
+  upsideNote: string;
+}
+
+export function computeTargetMcapMilestone(currentMcap: number): number {
+  if (currentMcap < 100_000) return 500_000;
+  if (currentMcap < 500_000) return 1_000_000;
+  if (currentMcap < 1_000_000) return 2_000_000;
+  if (currentMcap < 2_500_000) return 5_000_000;
+  if (currentMcap < 5_000_000) return 10_000_000;
+  for (const milestone of MCAP_MILESTONES) {
+    if (milestone > currentMcap * 1.5) return milestone;
+  }
+  return 10_000_000;
+}
+
+function roundMcapEstimate(value: number): number {
+  if (value >= 1_000_000) return Math.round(value / 25_000) * 25_000;
+  if (value >= 100_000) return Math.round(value / 5_000) * 5_000;
+  if (value >= 10_000) return Math.round(value / 1_000) * 1_000;
+  return Math.round(value / 100) * 100;
+}
+
+function mcapFromPctAgo(currentMcap: number, changePct: number): number {
+  return currentMcap / (1 + changePct / 100);
+}
+
+/**
+ * Data-driven MC zones from DexScreener price change + pool liquidity (not round-number guesses).
+ */
+export function computeDataDrivenMcapTargets(token: {
+  marketCapUsd: number | null;
+  liquidityUsd: number | null;
+  volume24hUsd?: number | null;
+  change24hPct?: number | null;
+  change6hPct?: number | null;
+  change1hPct?: number | null;
+}): MemeMcapTargets | null {
+  const current = token.marketCapUsd;
+  if (current == null || current <= 0 || !Number.isFinite(current)) return null;
+
+  const ch24 = token.change24hPct ?? null;
+  const mcap24hAgo =
+    ch24 != null && Number.isFinite(ch24) ? roundMcapEstimate(mcapFromPctAgo(current, ch24)) : null;
+
+  const lows: number[] = [];
+  if (mcap24hAgo != null && mcap24hAgo > 0) lows.push(mcap24hAgo);
+  if (token.change6hPct != null && Number.isFinite(token.change6hPct)) {
+    lows.push(roundMcapEstimate(mcapFromPctAgo(current, token.change6hPct)));
+  }
+  if (token.change1hPct != null && Number.isFinite(token.change1hPct)) {
+    lows.push(roundMcapEstimate(mcapFromPctAgo(current, token.change1hPct)));
+  }
+  const mcap24hLow = lows.length > 0 ? Math.min(...lows) : mcap24hAgo;
+
+  const liqFloor =
+    token.liquidityUsd != null && token.liquidityUsd > 0
+      ? roundMcapEstimate(token.liquidityUsd * 5.5)
+      : null;
+
+  let correctionMcap: number | null = null;
+  let correctionNote = "Insufficient 24h price data";
+
+  if (mcap24hLow != null && mcap24hLow < current * 0.98) {
+    const range = current - mcap24hLow;
+    let retrace = 0.382;
+    if (ch24 != null && ch24 > 150) retrace = 0.5;
+    else if (ch24 != null && ch24 > 30 && ch24 <= 150) retrace = 1;
+    else if (ch24 != null && ch24 <= 30) retrace = 0.382;
+
+    const fibLevel = roundMcapEstimate(current - retrace * range);
+    const pool: number[] = [fibLevel];
+    if (retrace >= 1 && mcap24hAgo != null) pool.push(mcap24hAgo);
+    if (liqFloor != null) pool.push(liqFloor);
+    if (retrace < 1 && mcap24hAgo != null && mcap24hAgo > current * 0.35) pool.push(mcap24hAgo);
+
+    const candidates = pool.filter((v) => v > current * 0.12 && v < current * 0.97);
+
+    if (candidates.length > 0) {
+      correctionMcap = roundMcapEstimate(
+        candidates.reduce((sum, v) => sum + v, 0) / candidates.length
+      );
+      if (retrace >= 1) correctionNote = "24h base retrace (DexScreener h24)";
+      else if (retrace >= 0.5) correctionNote = "50% fib retrace of 24h range";
+      else correctionNote = "38% fib retrace of 24h range";
+      if (liqFloor != null && liqFloor >= (correctionMcap ?? 0) * 0.85) {
+        correctionNote += " · liq floor";
+      }
+    }
+  } else if (liqFloor != null && liqFloor < current * 0.95) {
+    correctionMcap = liqFloor;
+    correctionNote = "Liquidity-based support (MC ≈ 5.5× pool)";
+  }
+
+  let upsideMcap: number | null = null;
+  let upsideNote = "Insufficient range data";
+  if (mcap24hLow != null && mcap24hLow < current) {
+    const range = current - mcap24hLow;
+    let extension = 0.618;
+    const volMc =
+      token.volume24hUsd != null && token.volume24hUsd > 0 ? token.volume24hUsd / current : null;
+    if (volMc != null && volMc >= 1.5) extension = 1;
+    if (ch24 != null && ch24 > 250) extension = Math.min(extension, 0.5);
+
+    upsideMcap = roundMcapEstimate(current + extension * range);
+    upsideNote =
+      extension >= 1
+        ? "1× 24h range extension · high vol/mc"
+        : extension <= 0.5
+          ? "0.5× range ext (extended move)"
+          : "0.618× 24h range extension";
+  }
+
+  return {
+    mcap24hAgoUsd: mcap24hAgo,
+    mcap24hLowUsd: mcap24hLow,
+    correctionMcapUsd: correctionMcap,
+    upsideMcapUsd: upsideMcap,
+    correctionNote,
+    upsideNote,
+  };
+}
+
+function formatMcapDeltaPct(from: number, to: number): string {
+  const pct = ((to - from) / from) * 100;
+  const sign = pct >= 0 ? "+" : "";
+  return `${sign}${pct.toFixed(0)}%`;
+}
+
+function formatMcapTargetLines(token: MemeTokenSnapshot): string[] {
+  const lines: string[] = [];
+  const targets = token.mcapTargets ?? computeDataDrivenMcapTargets(token);
+  if (!targets || token.marketCapUsd == null) return lines;
+
+  const current = token.marketCapUsd;
+  if (targets.correctionMcapUsd != null) {
+    lines.push(
+      `Correction target: *${formatUsd(targets.correctionMcapUsd)}* (${formatMcapDeltaPct(current, targets.correctionMcapUsd)} · _${targets.correctionNote}_)`
+    );
+  }
+  if (targets.upsideMcapUsd != null && targets.upsideMcapUsd > current * 1.03) {
+    lines.push(
+      `Upside target: *${formatUsd(targets.upsideMcapUsd)}* (${formatMcapDeltaPct(current, targets.upsideMcapUsd)} · _${targets.upsideNote}_)`
+    );
+  }
+  return lines;
+}
+
+export const QUALITY_REPORT_FILTERS: MemeQualityFilters = {
+  maxPairAgeMinutes: QUALITY_MAX_PAIR_AGE_MINUTES,
+};
+
 /** Tokens at or below this 24h change are excluded from memescan/trending lists */
 export const MAX_DUMP_24H_PCT = -50;
 
@@ -34,9 +204,12 @@ export interface MemeTokenSnapshot {
   top10HolderPct: number | null;
   pairAgeMinutes: number | null;
   change24hPct: number | null;
+  change6hPct: number | null;
+  change1hPct: number | null;
   rugScoreNormalised: number | null;
   verdict: string | null;
   dexUrl: string | null;
+  mcapTargets: MemeMcapTargets | null;
   passed: boolean;
   rejectReasons: string[];
 }
@@ -103,7 +276,7 @@ async function fetchDexBestPair(mint: string) {
       pairCreatedAt?: number;
       baseToken?: { symbol?: string; name?: string };
       priceUsd?: string;
-      priceChange?: { h24?: number };
+      priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number };
       volume?: { h24?: number };
       liquidity?: { usd?: number };
       marketCap?: number;
@@ -407,14 +580,33 @@ function shouldRecommendBuy(token: MemeTokenSnapshot): boolean {
   return true;
 }
 
-function computeBuyTargets(token: MemeTokenSnapshot): { entry: number; target: number } | null {
-  if (token.priceUsd == null) return null;
-  const multiplier =
-    token.verdict === "looks safe" || token.verdict === "low risk" ? 2 : 1.5;
-  return {
-    entry: token.priceUsd * 0.97,
-    target: token.priceUsd * multiplier,
-  };
+function computeBuyTargets(token: MemeTokenSnapshot): {
+  entry: number;
+  target: number;
+  targetMcap: number | null;
+} | null {
+  if (token.priceUsd == null || token.marketCapUsd == null || token.marketCapUsd <= 0) return null;
+
+  const targets = token.mcapTargets ?? computeDataDrivenMcapTargets(token);
+  let entry = token.priceUsd;
+  let targetMcap: number | null = null;
+  let target = token.priceUsd;
+
+  if (targets?.correctionMcapUsd != null && targets.correctionMcapUsd < token.marketCapUsd) {
+    entry = token.priceUsd * (targets.correctionMcapUsd / token.marketCapUsd);
+  } else {
+    entry = token.priceUsd * 0.97;
+  }
+
+  if (targets?.upsideMcapUsd != null && targets.upsideMcapUsd > token.marketCapUsd) {
+    targetMcap = targets.upsideMcapUsd;
+    target = token.priceUsd * (targets.upsideMcapUsd / token.marketCapUsd);
+  } else {
+    targetMcap = computeTargetMcapMilestone(token.marketCapUsd);
+    target = token.priceUsd * (targetMcap / token.marketCapUsd);
+  }
+
+  return { entry, target, targetMcap };
 }
 
 function buildQualityRecommendations(
@@ -476,6 +668,8 @@ export async function analyzeMemeToken(
 
   const rugScore = rug?.scoreNormalised ?? null;
   const change24hPct = pair?.priceChange?.h24 ?? jup?.priceChange24h ?? null;
+  const change6hPct = pair?.priceChange?.h6 ?? null;
+  const change1hPct = pair?.priceChange?.h1 ?? null;
   const base = {
     mint,
     symbol: pair?.baseToken?.symbol ?? jup?.symbol ?? null,
@@ -488,10 +682,15 @@ export async function analyzeMemeToken(
     top10HolderPct: rug?.top10Pct ?? null,
     pairAgeMinutes,
     change24hPct,
+    change6hPct,
+    change1hPct,
     rugScoreNormalised: rugScore,
     verdict: rugVerdict(rugScore),
     dexUrl: pair?.url ?? `https://dexscreener.com/solana/${mint}`,
+    mcapTargets: null as MemeMcapTargets | null,
   };
+
+  base.mcapTargets = computeDataDrivenMcapTargets(base);
 
   const { passed, rejectReasons } = applyMemeFilters(base, filters);
   return { ...base, passed, rejectReasons };
@@ -602,7 +801,10 @@ function formatTokenStatsLines(token: MemeTokenSnapshot, compact = false): strin
   } else {
     if (typeof token.priceUsd === "number") lines.push(`Price: ${formatUsd(token.priceUsd, 6)}`);
     if (typeof token.change24hPct === "number") lines.push(`PNL 24h: ${formatPnl24h(token.change24hPct)}`);
-    if (typeof token.marketCapUsd === "number") lines.push(`MCAP: ${formatUsd(token.marketCapUsd)}`);
+    if (typeof token.marketCapUsd === "number") {
+      lines.push(`MCAP: ${formatUsd(token.marketCapUsd)}`);
+      lines.push(...formatMcapTargetLines(token));
+    }
     if (typeof token.volume24hUsd === "number") lines.push(`Vol 24h: ${formatUsd(token.volume24hUsd)}`);
     if (typeof token.liquidityUsd === "number") lines.push(`Liquidity: ${formatUsd(token.liquidityUsd)}`);
     if (typeof token.holderCount === "number") lines.push(`Holders: ${token.holderCount.toLocaleString()}`);
@@ -635,7 +837,7 @@ export function formatAyraQualityReport(
   options?: { agentName?: string }
 ): string {
   const sym = token.symbol || token.name || token.mint.slice(0, 8);
-  const checks = getMemeFilterChecks(token);
+  const checks = getMemeFilterChecks(token, QUALITY_REPORT_FILTERS);
   const failedChecks = checks.filter((c) => !c.passed);
   const passedChecks = checks.filter((c) => c.passed);
 
@@ -643,8 +845,8 @@ export function formatAyraQualityReport(
     `${AYRA_LEAF} *AYRA Quality Report*`,
     `*${sym}*`,
     token.passed
-      ? "✅ *Passed AYRA filters*"
-      : `❌ *Failed AYRA filters* (${failedChecks.length} checks)`,
+      ? "✅ *Passed AYRA filters* (max pair 7d)"
+      : `❌ *Failed AYRA filters* (${failedChecks.length} checks · max pair 7d)`,
     "",
   ];
 
@@ -657,6 +859,13 @@ export function formatAyraQualityReport(
   lines.push(
     `💰 MCAP ${formatUsd(token.marketCapUsd)} · 📊 Vol ${formatUsd(token.volume24hUsd)} · 💧 Liq ${formatUsd(token.liquidityUsd)}`
   );
+  for (const targetLine of formatMcapTargetLines(token)) {
+    lines.push(
+      targetLine
+        .replace("Correction target:", "📉 Correction MC:")
+        .replace("Upside target:", "📈 Upside MC:")
+    );
+  }
   if (typeof token.holderCount === "number" || typeof token.top10HolderPct === "number") {
     const holders =
       typeof token.holderCount === "number" ? token.holderCount.toLocaleString() : "—";
@@ -678,7 +887,13 @@ export function formatAyraQualityReport(
       lines.push("");
       lines.push(`🤖 *${agentLabel}* recommends *BUY* ✅`);
       lines.push(`🎯 Entry target: *${formatScanPrice(targets.entry)}*`);
+      if (token.mcapTargets?.correctionMcapUsd != null) {
+        lines.push(`📉 Entry MC zone: *${formatUsd(token.mcapTargets.correctionMcapUsd)}*`);
+      }
       lines.push(`🚀 Price target: *${formatScanPrice(targets.target)}*`);
+      if (targets.targetMcap != null) {
+        lines.push(`📈 Upside MC: *${formatUsd(targets.targetMcap)}*`);
+      }
     }
   } else if (token.passed) {
     lines.push("");

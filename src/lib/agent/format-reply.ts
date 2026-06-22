@@ -136,6 +136,31 @@ export function formatToolResult(data: unknown, context?: FormatToolResultContex
     return lines.join("\n");
   }
 
+  if (typeof r.query === "string" && (Array.isArray(r.related) || r.summary != null || r.error)) {
+    const lines = [`🔍 *Search: ${String(r.query)}*`];
+    if (typeof r.summary === "string" && r.summary.trim()) {
+      lines.push("", r.summary.trim());
+      if (typeof r.sourceUrl === "string" && r.sourceUrl.trim()) {
+        lines.push(`[Source](${r.sourceUrl})`);
+      }
+    }
+    const related = Array.isArray(r.related)
+      ? (r.related as Array<{ title?: string; url?: string; snippet?: string }>)
+      : [];
+    if (related.length > 0) {
+      lines.push("", "*Results:*");
+      related.slice(0, 8).forEach((item, index) => {
+        lines.push(`${index + 1}. *${item.title || "Link"}*`);
+        if (item.url) lines.push(`   ${item.url}`);
+        if (item.snippet) lines.push(`   ${item.snippet.slice(0, 180)}`);
+      });
+    }
+    if (r.ok === false && typeof r.error === "string") {
+      lines.push("", `⚠️ ${r.error}`);
+    }
+    if (lines.length > 1) return lines.join("\n");
+  }
+
   if (typeof r.briefing === "string" && r.briefing.trim()) {
     return r.briefing.slice(0, 3000);
   }
@@ -150,6 +175,18 @@ export function formatToolResult(data: unknown, context?: FormatToolResultContex
 
   if (typeof r.message === "string" && r.message.trim()) {
     return r.message.slice(0, 3000);
+  }
+
+  if (Array.isArray(r.tasks) && r.tasks.length > 0 && r.ok === true && r.count != null) {
+    const lines = ["🧠 *Brain tasks*"];
+    (r.tasks as Array<{ type?: string; title?: string; scheduledAt?: string; status?: string }>)
+      .slice(0, 12)
+      .forEach((t, i) => {
+        lines.push(
+          `${i + 1}. [${t.type || "?"}] ${t.title || "Task"} — ${t.scheduledAt?.slice(0, 16) || "?"}`
+        );
+      });
+    return lines.join("\n");
   }
 
   if (Array.isArray(r.results) && r.results.length > 0) {

@@ -3,6 +3,7 @@ import {
   isSolanaMint,
 } from "@/lib/agent/token-card";
 import { runSkillFast, runTokenLookupFast } from "./skill-runner";
+import { QUALITY_MAX_PAIR_AGE_HOURS } from "@/lib/agent/meme-quality";
 
 const SOL_PRICE_PATTERN =
   /\b(harga|price|cek|check|berapa|brp|kurs|nilai).{0,20}\b(sol|solana)\b|\b(sol|solana).{0,20}\b(harga|price)\b/i;
@@ -52,7 +53,7 @@ export async function tryTelegramFastPath(
       userId,
       agentId,
       "token-quality-report",
-      { mint: mintMatch },
+      { mint: mintMatch, maxPairAgeHours: QUALITY_MAX_PAIR_AGE_HOURS },
       "Could not run quality report."
     );
   }

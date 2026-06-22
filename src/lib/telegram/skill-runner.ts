@@ -2,6 +2,15 @@ import { prisma } from "@/lib/prisma";
 import { getSkill } from "@/lib/skills";
 import { formatToolResult } from "@/lib/agent/format-reply";
 import { formatTokenCard, lookupToken } from "@/lib/agent/token-card";
+import { formatSearchFetchError } from "@/lib/search/web-search";
+
+function formatSkillError(error: unknown, fallback: string): string {
+  const message = error instanceof Error ? error.message : fallback;
+  if (message === "fetch failed" || message.includes("certificate")) {
+    return formatSearchFetchError(error);
+  }
+  return message;
+}
 
 export async function runSkillFast(
   userId: string,
@@ -44,7 +53,7 @@ export async function runSkillFast(
     });
     return { handled: true, message };
   } catch (error) {
-    const errMsg = error instanceof Error ? error.message : fallbackMsg;
+    const errMsg = formatSkillError(error, fallbackMsg);
     await prisma.agentRun.update({
       where: { id: run.id },
       data: { status: "FAILED", completedAt: new Date(), error: errMsg, summary: errMsg },

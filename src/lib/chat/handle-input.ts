@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { listBrainTasks } from "@/lib/brain/brain-store";
+import { updateChatSession } from "@/lib/chat/chat-store";
 import {
   CHAT_MODEL_OPTIONS,
   IMAGE_MODEL_OPTIONS,
@@ -133,6 +135,35 @@ export async function handleChatInput(
       ? `*${agent.name}*\nChat: \`${chatModel}\`\nImage: \`${imageModel}\`\nID: \`${agent.id.slice(0, 8)}…\`\n\n_Synced with Dashboard → Settings_`
       : `${agent.name}\nChat: ${chatModel}\nImage: ${imageModel}\nID: ${agent.id.slice(0, 8)}…\n\nSynced with Dashboard → Settings`;
     return { handled: true, content };
+  }
+
+  if (cmdIs(trimmed, "tasks")) {
+    const agent = await resolveAgentRecord(userId, agentId);
+    if (!agent) {
+      return {
+        handled: true,
+        content: "No active agent. Create one in the dashboard first.",
+      };
+    }
+    const tasks = await listBrainTasks(userId, {
+      agentId: agent.id,
+      status: "PENDING",
+      limit: 15,
+      order: "asc",
+    });
+    if (tasks.length === 0) {
+      return {
+        handled: true,
+        content: formatReply("No pending brain tasks. Ask the agent to schedule tweets, reminders, or a content calendar.", telegram),
+      };
+    }
+    const lines = telegram ? ["*Pending brain tasks:*", ""] : ["Pending brain tasks:", ""];
+    tasks.forEach((t, i) => {
+      const when = t.scheduledAt.toISOString().replace("T", " ").slice(0, 16);
+      lines.push(`${i + 1}. [${t.type}] ${t.title} — ${when} UTC`);
+      lines.push(`   id: \`${t.id.slice(0, 8)}…\``);
+    });
+    return { handled: true, content: formatReply(lines.join("\n"), telegram) };
   }
 
   if (trimmed === "/models" || trimmed === "/models chat" || trimmed === "/models image") {
@@ -342,10 +373,7 @@ export async function handleChatInput(
     }
 
     if (chatSessionId) {
-      await prisma.chatSession.update({
-        where: { id: chatSessionId },
-        data: { agentId: match.id },
-      });
+      await updateChatSession(userId, chatSessionId, { agentId: match.id });
     } else {
       await prisma.user.update({
         where: { id: userId },

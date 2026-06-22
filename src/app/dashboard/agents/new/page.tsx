@@ -58,8 +58,9 @@ export default function CreateAgentPage() {
   }, []);
 
   function applyTemplate(templateId: string) {
-    setSelectedTemplate(templateId);
-    const template = AGENT_TEMPLATES.find((t) => t.id === templateId);
+    const resolvedId = templateId === "nova-hermes" ? "nova-ayra" : templateId;
+    setSelectedTemplate(resolvedId);
+    const template = AGENT_TEMPLATES.find((t) => t.id === resolvedId);
     if (!template) return;
     setForm((prev) => ({
       ...prev,

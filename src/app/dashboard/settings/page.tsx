@@ -67,6 +67,20 @@ interface Settings {
   hasXAccessToken?: boolean;
   hasXAccessSecret?: boolean;
   hasSolanaRpcApiKey?: boolean;
+  hasBrainDatabaseUrl?: boolean;
+}
+
+async function fetchSettingsData(): Promise<Settings> {
+  const res = await fetch("/api/settings");
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    throw new Error(`Settings API returned ${res.status} (expected JSON)`);
+  }
+  const data = (await res.json()) as Settings & { error?: string };
+  if (!res.ok) {
+    throw new Error(data.error || `Failed to load settings (${res.status})`);
+  }
+  return data;
 }
 
 function SecretField({
@@ -137,6 +151,9 @@ function SettingsContent() {
   const [xAccessToken, setXAccessToken] = useState("");
   const [xAccessSecret, setXAccessSecret] = useState("");
   const [solanaRpcApiKey, setSolanaRpcApiKey] = useState("");
+  const [brainDatabaseUrl, setBrainDatabaseUrl] = useState("");
+  const [clearBrainDatabase, setClearBrainDatabase] = useState(false);
+  const [privateDbGuide, setPrivateDbGuide] = useState<"supabase" | "neon" | "other">("supabase");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -151,9 +168,11 @@ function SettingsContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
+    fetchSettingsData()
       .then(setSettings)
+      .catch((err) => {
+        setMessage(err instanceof Error ? err.message : "Failed to load settings");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -161,7 +180,7 @@ function SettingsContent() {
     if (!confirm("Disconnect X account from AYRA Agent?")) return;
     setDisconnectingX(true);
     await fetch("/api/x/disconnect", { method: "POST" });
-    const refreshed = await fetch("/api/settings").then((r) => r.json());
+    const refreshed = await fetchSettingsData();
     setSettings(refreshed);
     setMessage("X account disconnected");
     setDisconnectingX(false);
@@ -193,6 +212,11 @@ function SettingsContent() {
     if (xAccessToken) body.xAccessToken = xAccessToken;
     if (xAccessSecret) body.xAccessSecret = xAccessSecret;
     if (solanaRpcApiKey) body.solanaRpcApiKey = solanaRpcApiKey;
+    if (clearBrainDatabase) {
+      body.brainDatabaseUrl = null;
+    } else if (brainDatabaseUrl) {
+      body.brainDatabaseUrl = brainDatabaseUrl;
+    }
 
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -210,7 +234,9 @@ function SettingsContent() {
       setXAccessToken("");
       setXAccessSecret("");
       setSolanaRpcApiKey("");
-      const refreshed = await fetch("/api/settings").then((r) => r.json());
+      setBrainDatabaseUrl("");
+      setClearBrainDatabase(false);
+      const refreshed = await fetchSettingsData();
       setSettings(refreshed);
     } else {
       const err = await res.json().catch(() => ({}));
@@ -535,6 +561,166 @@ function SettingsContent() {
                 configured={settings.hasSolanaRpcApiKey}
                 placeholder="Helius / QuickNode API key"
               />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Private Database (AYRA)</CardTitle>
+              <CardDescription>
+                {settings.hasBrainDatabaseUrl
+                  ? "Private Postgres connected — chat history, brain tasks & calendar live in your database"
+                  : "Optional: use your own Postgres so chat + brain data stay off AYRA servers (default: platform storage)"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <SecretField
+                id="brain-database-url"
+                label="Postgres connection URL"
+                value={brainDatabaseUrl}
+                onChange={(value) => {
+                  setBrainDatabaseUrl(value);
+                  if (value) setClearBrainDatabase(false);
+                }}
+                configured={settings.hasBrainDatabaseUrl && !clearBrainDatabase}
+                placeholder="postgresql://user:pass@host:5432/brain_db"
+              />
+              {settings.hasBrainDatabaseUrl && (
+                <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
+                  <div>
+                    <p className="text-sm font-medium">Use platform default storage</p>
+                    <p className="text-xs text-muted-foreground">
+                      Remove private DB URL — chat returns to platform storage; brain uses local SQLite
+                    </p>
+                  </div>
+                  <Switch
+                    checked={clearBrainDatabase}
+                    onCheckedChange={(checked) => {
+                      setClearBrainDatabase(checked);
+                      if (checked) setBrainDatabaseUrl("");
+                    }}
+                  />
+                </div>
+              )}
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">No Prisma or migrations needed</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Paste a Postgres URL from an empty database. AYRA creates tables automatically and
+                    migrates your existing chat and brain data on first save.
+                  </p>
+                </div>
+                <ol className="list-decimal list-inside space-y-1.5 text-xs text-muted-foreground">
+                  <li>Create a free Postgres project (Supabase, Neon, Railway, …)</li>
+                  <li>Copy the <span className="text-foreground/90">connection string</span> (URI format)</li>
+                  <li>Paste above and click <span className="text-foreground/90">Save settings</span></li>
+                </ol>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Setup guide
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["supabase", "Supabase"],
+                      ["neon", "Neon"],
+                      ["other", "Other"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setPrivateDbGuide(id)}
+                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                        privateDbGuide === id
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-xs text-muted-foreground space-y-2">
+                  {privateDbGuide === "supabase" && (
+                    <>
+                      <p className="font-medium text-foreground/90">Supabase (recommended)</p>
+                      <ol className="list-decimal list-inside space-y-1.5 pl-0.5">
+                        <li>
+                          <a
+                            href="https://supabase.com/dashboard"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline-offset-2 hover:underline"
+                          >
+                            supabase.com
+                          </a>{" "}
+                          → New project → wait until ready
+                        </li>
+                        <li>Project Settings → Database → Connection string → URI</li>
+                        <li>Use Session/Direct mode (port 5432); replace{" "}
+                          <code className="text-[11px] text-foreground/80">[YOUR-PASSWORD]</code>
+                        </li>
+                        <li>Paste here → Save — tables{" "}
+                          <code className="text-[11px]">chat_session</code>,{" "}
+                          <code className="text-[11px]">chat_message</code>,{" "}
+                          <code className="text-[11px]">brain_task</code> appear automatically
+                        </li>
+                      </ol>
+                    </>
+                  )}
+                  {privateDbGuide === "neon" && (
+                    <>
+                      <p className="font-medium text-foreground/90">Neon</p>
+                      <ol className="list-decimal list-inside space-y-1.5 pl-0.5">
+                        <li>
+                          <a
+                            href="https://console.neon.tech"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline-offset-2 hover:underline"
+                          >
+                            console.neon.tech
+                          </a>{" "}
+                          → Create project
+                        </li>
+                        <li>Dashboard → Connection details → copy PostgreSQL URL</li>
+                        <li>Paste here → Save</li>
+                      </ol>
+                    </>
+                  )}
+                  {privateDbGuide === "other" && (
+                    <>
+                      <p className="font-medium text-foreground/90">Railway, Render, self-hosted</p>
+                      <ol className="list-decimal list-inside space-y-1.5 pl-0.5">
+                        <li>Provision an empty PostgreSQL instance</li>
+                        <li>Copy the provider&apos;s Postgres connection URL</li>
+                        <li>Must start with <code className="text-[11px]">postgresql://</code> or{" "}
+                          <code className="text-[11px]">postgres://</code>
+                        </li>
+                        <li>Paste here → Save</li>
+                      </ol>
+                    </>
+                  )}
+                  <p className="pt-1 border-t border-border/40">
+                    Operator docs: <code className="text-[11px] text-foreground/80">docs/private-database.md</code>{" "}
+                    in the repository. Your URL is encrypted like other API keys.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground space-y-2">
+                <p>
+                  <span className="font-medium text-foreground/90">Default (no URL):</span> chat stays on
+                  the platform database; brain tasks use local SQLite on the server host.
+                </p>
+                <p>
+                  <span className="font-medium text-foreground/90">With private URL:</span> chat history
+                  and brain tasks live only in your Postgres — the platform DB stays lighter.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

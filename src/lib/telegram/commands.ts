@@ -13,6 +13,7 @@ export const META_COMMANDS_UI = [
   { cmd: "/agents", desc: "🤖 List agents" },
   { cmd: "/use [name]", desc: "🔄 Switch agent" },
   { cmd: "/status", desc: "📊 Agent + models" },
+  { cmd: "/tasks", desc: "📅 Pending brain tasks" },
   { cmd: "/image [prompt]", desc: "🎨 Generate image" },
 ] as const;
 
@@ -25,6 +26,7 @@ export const TELEGRAM_BOT_COMMANDS = [
   { command: "agents", description: "🤖 List agents" },
   { command: "use", description: "🔄 Switch agent" },
   { command: "status", description: "📊 Agent status" },
+  { command: "tasks", description: "📅 Brain task queue" },
   { command: "image", description: "🎨 Generate image" },
 ] as const;
 
@@ -47,10 +49,10 @@ export function getAllTelegramBotCommands(): Array<{ command: string; descriptio
   return merged;
 }
 
-const CHAT_HELP_META = `Agent: 🤖 /agents · 🔄 /use · 📊 /status · 🎨 /image
+const CHAT_HELP_META = `Agent: 🤖 /agents · 🔄 /use · 📊 /status · 📅 /tasks · 🎨 /image
 💡 Paste a CA mint, or /p [token|CA]`;
 
-const TELEGRAM_HELP_META = `*Agent:* 🤖 /agents · 🔄 /use · 📊 /status · 🎨 /image
+const TELEGRAM_HELP_META = `*Agent:* 🤖 /agents · 🔄 /use · 📊 /status · 📅 /tasks · 🎨 /image
 _💡 Paste a CA mint, or /p \\[token|CA\\]_`;
 
 export const CHAT_HELP_TEXT = `${formatSkillCommandsHelp("plain")}

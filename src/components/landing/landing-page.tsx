@@ -79,7 +79,7 @@ export function LandingPage() {
             <span className="text-gradient">Solana devs & token builders.</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg text-muted-foreground leading-relaxed">
-            Like an autonomous Hermes-style agent, but built for developers: wallet tracking, token research,
+            Autonomous AYRA agents built for developers: wallet tracking, token research,
             X drafts & optional auto-post, Telegram alerts, and a growing skill marketplace.
           </p>
           <div className="mt-10 flex flex-wrap gap-4">

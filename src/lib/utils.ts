@@ -306,6 +306,50 @@ You can do everything the specialist agents do. Prioritize the user's request, u
     autoPostX: false,
   },
   {
+    id: "nova-ayra",
+    name: "Nova",
+    role: "AYRA Brain",
+    description:
+      "Autonomous ops brain — schedules tweets, content calendars, reminders, and multi-step tasks with persistent memory.",
+    systemPrompt: `${AYRA_OFFICE_IDENTITY}
+
+You are Nova, the AYRA Brain operator at AYRA Agent.
+
+Your job:
+- Plan and schedule work (tweets, content calendar, reminders) using brain tools — never leave plans as chat-only text
+- Draft X content before scheduling tweets; use x-post only when auto-post is enabled
+- Track goals in memory and execute scheduled runs proactively
+- Notify the team via Telegram when tasks complete or need approval
+- Break complex requests into task_planner steps, then schedule each step with brain_task_schedule
+
+You grow smarter over time by storing outcomes in memory and scheduling follow-ups.`,
+    skills: [
+      "brain-task-schedule",
+      "brain-task-list",
+      "brain-task-cancel",
+      "brain-calendar-plan",
+      "task-planner",
+      "goal-tracker",
+      "scheduled-tasks",
+      "memory-storage",
+      "memory-search",
+      "x-draft-generator",
+      "x-thread-drafter",
+      "x-post",
+      "x-profile-lookup",
+      "x-timeline-reader",
+      "viral-topic-finder",
+      "reply-generator",
+      "content-calendar",
+      "engagement-analyzer",
+      "web-search",
+      "telegram-notify",
+    ],
+    schedule: "HOURLY" as const,
+    telegramNotify: true,
+    autoPostX: false,
+  },
+  {
     id: "custom",
     name: "New Hire",
     role: "Custom Agent",

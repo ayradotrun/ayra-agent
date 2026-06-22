@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { SkillDefinition } from "./base";
 import { runLlm } from "./helpers";
 import { prisma } from "@/lib/prisma";
+import { listBrainTasks } from "@/lib/brain/brain-store";
 
 export const taskPlanner: SkillDefinition = {
   id: "task-planner",
@@ -83,6 +84,12 @@ export const scheduledTasks: SkillDefinition = {
       orderBy: { nextRunAt: "asc" },
       take: 5,
     });
+    const brainTasks = await listBrainTasks(ctx.userId, {
+      agentId: ctx.agentId,
+      status: "PENDING",
+      limit: 10,
+      order: "asc",
+    });
     const recentRuns = await prisma.agentRun.findMany({
       where: { agentId: ctx.agentId },
       orderBy: { startedAt: "desc" },
@@ -94,6 +101,12 @@ export const scheduledTasks: SkillDefinition = {
       schedule: agent?.schedule,
       status: agent?.status,
       scheduledJobs: jobs,
+      brainTasks: brainTasks.map((t) => ({
+        id: t.id,
+        type: t.type,
+        title: t.title,
+        scheduledAt: t.scheduledAt.toISOString(),
+      })),
       recentRuns,
       ok: true,
     };

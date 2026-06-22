@@ -4,7 +4,6 @@ import {
   getSessionUser,
   unauthorizedResponse,
   notFoundResponse,
-  forbiddenResponse,
   rateLimitResponse,
 } from "@/lib/auth-helpers";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
@@ -12,6 +11,12 @@ import { runAgent } from "@/lib/agent/runtime";
 import { resolveEffectiveChatModel, sessionTitleFromMessage } from "@/lib/chat";
 import { handleChatInput } from "@/lib/chat/handle-input";
 import type { ChatMessageMetadata } from "@/lib/chat/message-content";
+import {
+  createChatMessage,
+  getChatSession,
+  listChatMessages,
+  updateChatSession,
+} from "@/lib/chat/chat-store";
 import { z } from "zod";
 
 const sendMessageSchema = z
@@ -25,6 +30,26 @@ const sendMessageSchema = z
     message: "Message or image is required",
   });
 
+function toApiMessage(message: {
+  id: string;
+  sessionId: string;
+  role: string;
+  content: string;
+  runId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: Date;
+}) {
+  return {
+    id: message.id,
+    sessionId: message.sessionId,
+    role: message.role,
+    content: message.content,
+    runId: message.runId,
+    metadata: message.metadata,
+    createdAt: message.createdAt,
+  };
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -36,18 +61,23 @@ export async function POST(
   const limit = rateLimit(`chat:${user.id}:${ip}`, 20, 60_000);
   if (!limit.success) return rateLimitResponse();
 
-  const session = await prisma.chatSession.findUnique({
-    where: { id: params.id },
-    include: {
-      agent: { select: { id: true, status: true, name: true, model: true } },
-      messages: { orderBy: { createdAt: "asc" }, take: 24 },
-      user: { select: { defaultModel: true } },
-    },
-  });
-
+  const session = await getChatSession(user.id, params.id);
   if (!session) return notFoundResponse("Chat not found");
-  if (session.userId !== user.id) return forbiddenResponse();
-  if (session.agent.status === "PAUSED") {
+
+  const [agent, dbUser, recentMessages] = await Promise.all([
+    prisma.agent.findFirst({
+      where: { id: session.agentId, userId: user.id },
+      select: { id: true, status: true, name: true, model: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { defaultModel: true },
+    }),
+    listChatMessages(user.id, session.id, { order: "asc", limit: 24 }),
+  ]);
+
+  if (!agent) return notFoundResponse("Chat not found");
+  if (agent.status === "PAUSED") {
     return NextResponse.json({ error: "Agent is paused" }, { status: 400 });
   }
 
@@ -62,8 +92,8 @@ export async function POST(
   const deepThinking = parsed.data.deepThinking ?? session.deepThinking;
   const effectiveModel = resolveEffectiveChatModel(
     parsed.data.model ?? session.chatModel,
-    session.user.defaultModel,
-    session.agent.model
+    dbUser?.defaultModel,
+    agent.model
   );
 
   if (imageUrls.length > 0) {
@@ -76,7 +106,7 @@ export async function POST(
     }
   }
 
-  const history = session.messages.map((m) => {
+  const history = recentMessages.map((m) => {
     const meta = m.metadata as ChatMessageMetadata | null;
     return {
       role: m.role as "user" | "assistant",
@@ -88,13 +118,10 @@ export async function POST(
   const userMetadata: ChatMessageMetadata | undefined =
     imageUrls.length > 0 ? { imageUrls } : undefined;
 
-  const userMessage = await prisma.chatMessage.create({
-    data: {
-      sessionId: session.id,
-      role: "user",
-      content: content || "(image)",
-      metadata: userMetadata as object | undefined,
-    },
+  const userMessage = await createChatMessage(user.id, session.id, {
+    role: "user",
+    content: content || "(image)",
+    metadata: userMetadata ? (userMetadata as Record<string, unknown>) : null,
   });
 
   try {
@@ -106,27 +133,21 @@ export async function POST(
 
       if (commandResult.handled && commandResult.content) {
         const cmdImages = commandResult.imageUrls ?? [];
-        const assistantMessage = await prisma.chatMessage.create({
-          data: {
-            sessionId: session.id,
-            role: "assistant",
-            content: commandResult.content,
-            metadata: cmdImages.length > 0 ? ({ imageUrls: cmdImages } as object) : undefined,
-          },
+        const assistantMessage = await createChatMessage(user.id, session.id, {
+          role: "assistant",
+          content: commandResult.content,
+          metadata: cmdImages.length > 0 ? ({ imageUrls: cmdImages } as Record<string, unknown>) : null,
         });
 
-        await prisma.chatSession.update({
-          where: { id: session.id },
-          data: {
-            updatedAt: new Date(),
-            title: session.title ?? sessionTitleFromMessage(content),
-            ...(commandResult.switchAgentId ? { agentId: commandResult.switchAgentId } : {}),
-          },
+        await updateChatSession(user.id, session.id, {
+          updatedAt: new Date(),
+          title: session.title ?? sessionTitleFromMessage(content),
+          ...(commandResult.switchAgentId ? { agentId: commandResult.switchAgentId } : {}),
         });
 
         return NextResponse.json({
-          userMessage,
-          assistantMessage,
+          userMessage: toApiMessage(userMessage),
+          assistantMessage: toApiMessage(assistantMessage),
           agent: commandResult.switchAgentId
             ? { id: commandResult.switchAgentId, name: commandResult.switchAgentName }
             : undefined,
@@ -134,9 +155,7 @@ export async function POST(
       }
     }
 
-    const agentId = session.agentId;
-
-    const result = await runAgent(agentId, {
+    const result = await runAgent(session.agentId, {
       trigger: "chat",
       userMessage: content || "Describe this image and answer helpfully.",
       chatHistory: history,
@@ -159,27 +178,21 @@ export async function POST(
           }
         : undefined;
 
-    const assistantMessage = await prisma.chatMessage.create({
-      data: {
-        sessionId: session.id,
-        role: "assistant",
-        content: result.output || result.error || "No response.",
-        runId: result.runId,
-        metadata: assistantMetadata as object | undefined,
-      },
+    const assistantMessage = await createChatMessage(user.id, session.id, {
+      role: "assistant",
+      content: result.output || result.error || "No response.",
+      runId: result.runId,
+      metadata: assistantMetadata ? (assistantMetadata as Record<string, unknown>) : null,
     });
 
-    await prisma.chatSession.update({
-      where: { id: session.id },
-      data: {
-        updatedAt: new Date(),
-        title: session.title ?? sessionTitleFromMessage(content || "Image chat"),
-      },
+    await updateChatSession(user.id, session.id, {
+      updatedAt: new Date(),
+      title: session.title ?? sessionTitleFromMessage(content || "Image chat"),
     });
 
     return NextResponse.json({
-      userMessage,
-      assistantMessage,
+      userMessage: toApiMessage(userMessage),
+      assistantMessage: toApiMessage(assistantMessage),
       run: {
         status: result.status,
         tokenUsage: result.tokenUsage,
@@ -189,13 +202,17 @@ export async function POST(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Chat failed";
-    const assistantMessage = await prisma.chatMessage.create({
-      data: {
-        sessionId: session.id,
-        role: "assistant",
-        content: `❌ ${message}`,
-      },
+    const assistantMessage = await createChatMessage(user.id, session.id, {
+      role: "assistant",
+      content: `❌ ${message}`,
     });
-    return NextResponse.json({ userMessage, assistantMessage, error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        userMessage: toApiMessage(userMessage),
+        assistantMessage: toApiMessage(assistantMessage),
+        error: message,
+      },
+      { status: 500 }
+    );
   }
 }

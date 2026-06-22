@@ -13,11 +13,24 @@ export interface TelegramUpdate {
   };
 }
 
+export interface TelegramSendResult {
+  ok: boolean;
+  messageId?: number;
+}
+
+function parseSendMessageResponse(data: unknown): TelegramSendResult {
+  const payload = data as { ok?: boolean; result?: { message_id?: number } };
+  return {
+    ok: payload.ok === true,
+    messageId: payload.result?.message_id,
+  };
+}
+
 export async function sendTelegramMessage(
   botToken: string,
   chatId: string | number,
   text: string
-): Promise<boolean> {
+): Promise<TelegramSendResult> {
   const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -28,16 +41,91 @@ export async function sendTelegramMessage(
     }),
   });
 
-  if (!response.ok) {
-    // Retry without markdown if parse failed
-    const fallback = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4096) }),
-    });
-    return fallback.ok;
+  if (response.ok) {
+    return parseSendMessageResponse(await response.json());
   }
-  return true;
+
+  const fallback = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4096) }),
+  });
+
+  if (!fallback.ok) return { ok: false };
+  return parseSendMessageResponse(await fallback.json());
+}
+
+export async function editTelegramMessage(
+  botToken: string,
+  chatId: string | number,
+  messageId: number,
+  text: string
+): Promise<boolean> {
+  const response = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text: text.slice(0, 4096),
+      parse_mode: "Markdown",
+    }),
+  });
+
+  if (response.ok) return true;
+
+  const fallback = await fetch(`https://api.telegram.org/bot${botToken}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      text: text.slice(0, 4096),
+    }),
+  });
+
+  return fallback.ok;
+}
+
+export async function deleteTelegramMessage(
+  botToken: string,
+  chatId: string | number,
+  messageId: number
+): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${botToken}/deleteMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+  });
+}
+
+export async function sendTelegramChatAction(
+  botToken: string,
+  chatId: string | number,
+  action: "typing" | "upload_photo" = "typing"
+): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${botToken}/sendChatAction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, action }),
+  });
+}
+
+export async function deliverTelegramTextReply(
+  botToken: string,
+  chatId: string | number,
+  text: string,
+  statusMessageId?: number
+): Promise<void> {
+  if (!text.trim()) return;
+
+  if (statusMessageId) {
+    const edited = await editTelegramMessage(botToken, chatId, statusMessageId, text);
+    if (edited) return;
+    await deleteTelegramMessage(botToken, chatId, statusMessageId);
+  }
+
+  await sendTelegramMessage(botToken, chatId, text);
 }
 
 export async function sendTelegramPhoto(

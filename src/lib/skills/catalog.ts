@@ -79,4 +79,8 @@ export const ALL_SKILL_DEFINITIONS = [
   { slug: "task-planner", name: "Task Planner", category: "Agent Core", description: "Plan multi-step tasks.", icon: "list-checks", isEnabled: true },
   { slug: "goal-tracker", name: "Goal Tracker", category: "Agent Core", description: "Track agent goals.", icon: "target", isEnabled: true },
   { slug: "scheduled-tasks", name: "Scheduled Tasks", category: "Agent Core", description: "Manage scheduled tasks.", icon: "clock", isEnabled: true },
+  { slug: "brain-task-schedule", name: "Brain Task Schedule", category: "Agent Core", description: "Schedule persisted tweets, reminders, and calendar tasks.", icon: "calendar", isEnabled: true },
+  { slug: "brain-task-list", name: "Brain Task List", category: "Agent Core", description: "List upcoming brain tasks.", icon: "list-checks", isEnabled: true },
+  { slug: "brain-task-cancel", name: "Brain Task Cancel", category: "Agent Core", description: "Cancel a pending brain task.", icon: "clock", isEnabled: true },
+  { slug: "brain-calendar-plan", name: "Brain Calendar Plan", category: "Social", description: "Plan and schedule a multi-day content calendar.", icon: "calendar-days", isEnabled: true },
 ];

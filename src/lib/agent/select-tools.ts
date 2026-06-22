@@ -13,6 +13,11 @@ const TELEGRAM_ALWAYS = [
   "image-generator",
   "web-search",
   "memory-search",
+  "brain-task-schedule",
+  "brain-task-list",
+  "brain-calendar-plan",
+  "task-planner",
+  "goal-tracker",
 ] as const;
 
 const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
@@ -43,8 +48,27 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
     slugs: ["image-generator"],
   },
   {
-    pattern: /\b(tweet|thread|twitter|\bx\b|posting)\b/i,
-    slugs: ["x-draft-generator", "x-thread-drafter", "viral-topic-finder", "x-post"],
+    pattern: /\b(tweet|thread|twitter|\bx\b|posting|calendar|schedule|content plan)\b/i,
+    slugs: [
+      "x-draft-generator",
+      "x-thread-drafter",
+      "viral-topic-finder",
+      "x-post",
+      "brain-calendar-plan",
+      "brain-task-schedule",
+      "content-calendar",
+    ],
+  },
+  {
+    pattern: /\b(task|reminder|todo|goals?|plan my|schedule)\b/i,
+    slugs: [
+      "brain-task-schedule",
+      "brain-task-list",
+      "brain-task-cancel",
+      "task-planner",
+      "goal-tracker",
+      "scheduled-tasks",
+    ],
   },
   {
     pattern: /\b(github|repo|pull request|issue|code review)\b/i,

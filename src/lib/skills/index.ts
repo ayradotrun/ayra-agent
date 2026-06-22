@@ -39,6 +39,12 @@ import { whaleTracker, dexMonitor, newTokenMonitor, portfolioTracker } from "./c
 import { csvReader, excelReader, databaseQuery, reportGenerator, chartGenerator } from "./data-skills";
 import { discordNotify, slackNotify, emailNotify } from "./notification-skills-extra";
 import { taskPlanner, goalTracker, scheduledTasks } from "./agent-core-skills";
+import {
+  brainTaskSchedule,
+  brainTaskList,
+  brainTaskCancel,
+  brainCalendarPlan,
+} from "@/lib/brain/brain-task-skills";
 import { imageGenerator } from "./image-generator";
 import { tokenPriceTracker } from "./token-price-tracker";
 import { solPriceChecker } from "./sol-price-checker";
@@ -105,6 +111,10 @@ export const WORKING_SKILLS: SkillDefinition[] = [
   taskPlanner,
   goalTracker,
   scheduledTasks,
+  brainTaskSchedule,
+  brainTaskList,
+  brainTaskCancel,
+  brainCalendarPlan,
   imageGenerator,
   tokenPriceTracker,
   solPriceChecker,

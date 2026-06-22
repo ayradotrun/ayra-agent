@@ -1,4 +1,5 @@
 import { DEFAULT_AGENT_PROMPT } from "@/lib/utils";
+import { AYRA_BRAIN_INSTRUCTIONS } from "@/lib/brain/ayra-brain";
 
 export const DEFAULT_SYSTEM_PROMPT = DEFAULT_AGENT_PROMPT;
 
@@ -7,8 +8,14 @@ export function buildAgentPrompt(params: {
   agentName: string;
   skills: Array<{ name: string; description: string }>;
   memories?: Array<{ content: string }>;
+  brainContext?: string;
+  ayraBrain?: boolean;
 }): string {
   const parts = [params.systemPrompt];
+
+  if (params.ayraBrain) {
+    parts.push("\n" + AYRA_BRAIN_INSTRUCTIONS);
+  }
 
   parts.push(`\nAgent name: ${params.agentName}`);
 
@@ -30,7 +37,16 @@ export function buildAgentPrompt(params: {
     }
   }
 
+  if (params.brainContext) {
+    parts.push(params.brainContext);
+  }
+
   return parts.join("\n");
+}
+
+export async function buildScheduledRunPrompt(agentId: string): Promise<string> {
+  const { buildBrainScheduledPrompt } = await import("@/lib/brain/ayra-brain");
+  return buildBrainScheduledPrompt(agentId);
 }
 
 export function buildRunPrompt(

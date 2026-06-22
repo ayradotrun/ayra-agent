@@ -11,13 +11,21 @@ import { getXConnectionInfo, getXCallbackUrl, isXOAuthConfigured } from "@/lib/x
 import { isValidModelId, normalizeModelId, normalizeChatModel } from "@/lib/models";
 import { isValidLlmBaseUrl, resolveLlmBaseUrl, normalizeLlmBaseUrl } from "@/lib/llm-config";
 import { syncUserChatModel, syncUserImageModel } from "@/lib/user-models";
+import { isValidBrainDatabaseUrl } from "@/lib/brain/brain-db-url";
+import {
+  clearBrainPgPool,
+  migrateSqliteBrainToPostgres,
+  testBrainPgConnection,
+} from "@/lib/brain/brain-store";
+import { migratePrismaChatToPrivatePostgres } from "@/lib/chat/chat-store";
 import { z } from "zod";
 
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return unauthorizedResponse();
 
-  const dbUser = await prisma.user.findUnique({
+  try {
+    const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: {
       id: true,
@@ -42,6 +50,7 @@ export async function GET() {
       xAutoPostEnabled: true,
       solanaDefaultRpc: true,
       solanaRpcApiKey: true,
+      brainDatabaseUrl: true,
     },
   });
 
@@ -79,6 +88,8 @@ export async function GET() {
     hasXAccessToken: !!dbUser?.xAccessToken,
     hasXAccessSecret: !!dbUser?.xAccessSecret,
     hasSolanaRpcApiKey: !!dbUser?.solanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
+    hasBrainDatabaseUrl: !!dbUser?.brainDatabaseUrl,
+    brainDatabaseUrl: undefined,
     openRouterApiKey: undefined,
     telegramBotToken: undefined,
     xApiKey: undefined,
@@ -87,6 +98,11 @@ export async function GET() {
     xAccessSecret: undefined,
     telegramWebhookSecret: undefined,
   });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to load settings";
+    console.error("[Settings GET]", error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 const updateSettingsSchema = z.object({
@@ -133,6 +149,7 @@ const updateSettingsSchema = z.object({
   xAutoPostEnabled: z.boolean().optional(),
   solanaDefaultRpc: z.string().optional(),
   solanaRpcApiKey: z.string().optional(),
+  brainDatabaseUrl: z.union([z.string(), z.null()]).optional(),
 });
 
 export async function PATCH(request: NextRequest) {
@@ -162,6 +179,35 @@ export async function PATCH(request: NextRequest) {
     if (data.xAutoPostEnabled !== undefined) updateData.xAutoPostEnabled = data.xAutoPostEnabled;
     if (data.solanaDefaultRpc !== undefined) updateData.solanaDefaultRpc = data.solanaDefaultRpc || null;
     if (data.solanaRpcApiKey) updateData.solanaRpcApiKey = encryptSafe(data.solanaRpcApiKey);
+
+    if (data.brainDatabaseUrl !== undefined) {
+      const trimmed =
+        data.brainDatabaseUrl === null ? "" : data.brainDatabaseUrl.trim();
+
+      if (!trimmed) {
+        updateData.brainDatabaseUrl = null;
+        clearBrainPgPool(user.id);
+      } else {
+        if (!isValidBrainDatabaseUrl(trimmed)) {
+          return NextResponse.json(
+            { error: "Invalid brain database URL. Use postgresql:// or postgres:// format." },
+            { status: 400 }
+          );
+        }
+
+        try {
+          await testBrainPgConnection(trimmed);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Connection failed";
+          return NextResponse.json(
+            { error: `Could not connect to brain database: ${message}` },
+            { status: 400 }
+          );
+        }
+
+        updateData.brainDatabaseUrl = encryptSafe(trimmed);
+      }
+    }
 
     if (data.llmBaseUrl !== undefined) {
       updateData.llmBaseUrl = data.llmBaseUrl ? normalizeLlmBaseUrl(data.llmBaseUrl) : null;
@@ -204,6 +250,7 @@ export async function PATCH(request: NextRequest) {
         xAutoPostEnabled: true,
         solanaDefaultRpc: true,
         solanaRpcApiKey: true,
+        brainDatabaseUrl: true,
         openRouterApiKey: true,
         telegramBotToken: true,
         xApiKey: true,
@@ -212,6 +259,29 @@ export async function PATCH(request: NextRequest) {
         xAccessSecret: true,
       },
     });
+
+    if (data.brainDatabaseUrl !== undefined && updateData.brainDatabaseUrl) {
+      const privateUrl = decryptSafe(String(updateData.brainDatabaseUrl));
+      try {
+        const imported = await migrateSqliteBrainToPostgres(user.id, privateUrl);
+        if (imported > 0) {
+          console.log(`[Brain] Imported ${imported} task(s) into private DB for ${user.id.slice(0, 8)}…`);
+        }
+      } catch (error) {
+        console.warn("[Brain] SQLite → private Postgres import skipped:", error);
+      }
+
+      try {
+        const chatImported = await migratePrismaChatToPrivatePostgres(user.id, privateUrl);
+        if (chatImported.sessions > 0 || chatImported.messages > 0) {
+          console.log(
+            `[Chat] Imported ${chatImported.sessions} session(s) and ${chatImported.messages} message(s) into private DB for ${user.id.slice(0, 8)}…`
+          );
+        }
+      } catch (error) {
+        console.warn("[Chat] Main DB → private Postgres import skipped:", error);
+      }
+    }
 
     if (data.defaultModel) {
       await syncUserChatModel(user.id, normalizeChatModel(data.defaultModel), updated.telegramDefaultAgentId);
@@ -284,6 +354,7 @@ export async function PATCH(request: NextRequest) {
       hasXAccessToken: !!updated.xAccessToken,
       hasXAccessSecret: !!updated.xAccessSecret,
       hasSolanaRpcApiKey: !!updated.solanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
+      hasBrainDatabaseUrl: !!updated.brainDatabaseUrl,
       xConnection,
     });
   } catch (error) {

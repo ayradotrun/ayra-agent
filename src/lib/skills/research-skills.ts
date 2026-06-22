@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { SkillDefinition } from "./base";
+import { performWebSearch } from "@/lib/search/web-search";
 import { fetchText, stripHtml, runLlm } from "./helpers";
 
 export const webSearch: SkillDefinition = {
@@ -17,26 +18,13 @@ export const webSearch: SkillDefinition = {
   }),
   async execute(input, ctx) {
     await ctx.log("INFO", `Searching: ${input.query}`, "web-search");
-    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(input.query)}&format=json&no_html=1`;
-    const res = await fetch(url, { headers: { "User-Agent": "AYRA-Agent" } });
-    const data = (await res.json()) as {
-      AbstractText?: string;
-      AbstractURL?: string;
-      RelatedTopics?: Array<{ Text?: string; FirstURL?: string }>;
-    };
-
-    const related = (data.RelatedTopics ?? [])
-      .filter((t) => t.Text)
-      .slice(0, input.maxResults ?? 5)
-      .map((t) => ({ title: t.Text, url: t.FirstURL }));
-
-    return {
-      query: input.query,
-      summary: data.AbstractText || null,
-      sourceUrl: data.AbstractURL || null,
-      related,
-      ok: !!(data.AbstractText || related.length),
-    };
+    const result = await performWebSearch(input.query, input.maxResults ?? 5);
+    if (!result.ok) {
+      await ctx.log("WARN", result.error ?? "No search results", "web-search");
+    } else {
+      await ctx.log("INFO", `Search via ${result.provider ?? "unknown"}`, "web-search");
+    }
+    return result;
   },
 };
 

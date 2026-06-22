@@ -4,9 +4,14 @@ import {
   getSessionUser,
   unauthorizedResponse,
   notFoundResponse,
-  forbiddenResponse,
 } from "@/lib/auth-helpers";
 import { normalizeChatModel } from "@/lib/models";
+import {
+  deleteChatSession,
+  getChatSession,
+  listChatMessages,
+  updateChatSession,
+} from "@/lib/chat/chat-store";
 import { z } from "zod";
 
 const patchSessionSchema = z.object({
@@ -23,25 +28,39 @@ export async function GET(
   const user = await getSessionUser();
   if (!user) return unauthorizedResponse();
 
-  const session = await prisma.chatSession.findUnique({
-    where: { id: params.id },
-    include: {
-      agent: { select: { id: true, name: true, model: true, status: true } },
-      messages: { orderBy: { createdAt: "asc" } },
-      user: { select: { defaultModel: true } },
-    },
-  });
-
+  const session = await getChatSession(user.id, params.id);
   if (!session) return notFoundResponse("Chat not found");
-  if (session.userId !== user.id) return forbiddenResponse();
 
-  const { user: sessionUser, ...rest } = session;
-  const effectiveModel = rest.chatModel || sessionUser.defaultModel || rest.agent.model;
+  const [agent, dbUser, messages] = await Promise.all([
+    prisma.agent.findFirst({
+      where: { id: session.agentId, userId: user.id },
+      select: { id: true, name: true, model: true, status: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { defaultModel: true },
+    }),
+    listChatMessages(user.id, session.id, { order: "asc" }),
+  ]);
+
+  if (!agent) return notFoundResponse("Chat not found");
+
+  const effectiveModel = session.chatModel || dbUser?.defaultModel || agent.model;
 
   return NextResponse.json({
-    ...rest,
+    ...session,
+    agent,
+    messages: messages.map((m) => ({
+      id: m.id,
+      sessionId: m.sessionId,
+      role: m.role,
+      content: m.content,
+      runId: m.runId,
+      metadata: m.metadata,
+      createdAt: m.createdAt,
+    })),
     effectiveModel,
-    defaultModel: sessionUser.defaultModel,
+    defaultModel: dbUser?.defaultModel,
   });
 }
 
@@ -52,9 +71,8 @@ export async function PATCH(
   const user = await getSessionUser();
   if (!user) return unauthorizedResponse();
 
-  const session = await prisma.chatSession.findUnique({ where: { id: params.id } });
-  if (!session) return notFoundResponse("Chat not found");
-  if (session.userId !== user.id) return forbiddenResponse();
+  const existing = await getChatSession(user.id, params.id);
+  if (!existing) return notFoundResponse("Chat not found");
 
   const body = await request.json();
   const parsed = patchSessionSchema.safeParse(body);
@@ -62,39 +80,42 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const data: {
+  const patch: {
     chatModel?: string | null;
     deepThinking?: boolean;
     title?: string;
     pinned?: boolean;
   } = {};
+
   if (parsed.data.chatModel !== undefined) {
-    data.chatModel = parsed.data.chatModel
+    patch.chatModel = parsed.data.chatModel
       ? normalizeChatModel(parsed.data.chatModel)
       : null;
   }
   if (parsed.data.deepThinking !== undefined) {
-    data.deepThinking = parsed.data.deepThinking;
+    patch.deepThinking = parsed.data.deepThinking;
   }
   if (parsed.data.title !== undefined) {
-    data.title = parsed.data.title.trim();
+    patch.title = parsed.data.title.trim();
   }
   if (parsed.data.pinned !== undefined) {
-    data.pinned = parsed.data.pinned;
+    patch.pinned = parsed.data.pinned;
   }
 
-  if (Object.keys(data).length === 0) {
+  if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: "No fields to update" }, { status: 400 });
   }
 
   try {
-    const updated = await prisma.chatSession.update({
-      where: { id: params.id },
-      data,
-      include: { agent: { select: { id: true, name: true, model: true } } },
+    const updated = await updateChatSession(user.id, params.id, patch);
+    if (!updated) return notFoundResponse("Chat not found");
+
+    const agent = await prisma.agent.findFirst({
+      where: { id: updated.agentId, userId: user.id },
+      select: { id: true, name: true, model: true },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({ ...updated, agent });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Update failed";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -108,10 +129,8 @@ export async function DELETE(
   const user = await getSessionUser();
   if (!user) return unauthorizedResponse();
 
-  const session = await prisma.chatSession.findUnique({ where: { id: params.id } });
-  if (!session) return notFoundResponse("Chat not found");
-  if (session.userId !== user.id) return forbiddenResponse();
+  const deleted = await deleteChatSession(user.id, params.id);
+  if (!deleted) return notFoundResponse("Chat not found");
 
-  await prisma.chatSession.delete({ where: { id: params.id } });
   return NextResponse.json({ success: true });
 }

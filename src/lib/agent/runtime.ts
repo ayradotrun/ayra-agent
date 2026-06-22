@@ -5,7 +5,12 @@ import { buildLlmCallParams } from "@/lib/llm-config";
 import { getDecryptedUserKey } from "@/lib/user-keys";
 import { getSkill } from "@/lib/skills";
 import { zodToJsonSchema } from "@/lib/skills/base";
-import { buildAgentPrompt, buildRunPrompt } from "@/lib/agent/prompts";
+import { buildAgentPrompt, buildRunPrompt, buildScheduledRunPrompt } from "@/lib/agent/prompts";
+import {
+  loadBrainContext,
+  formatBrainContextForPrompt,
+  agentHasBrainSkills,
+} from "@/lib/brain/ayra-brain";
 import { formatToolResultsFromMessages } from "@/lib/agent/format-reply";
 import { selectSkillSlugsForRun } from "@/lib/agent/select-tools";
 import { sanitizeAgentOutput, isUselessAgentReply, isMessyCryptoReply } from "@/lib/agent/sanitize-output";
@@ -106,11 +111,16 @@ export async function runAgent(
         })
       : [];
 
+    const ayraBrain = agentHasBrainSkills(activeSlugs);
+    const brainCtx = ayraBrain ? await loadBrainContext(agentId, agent.userId) : null;
+
     const systemPrompt = buildAgentPrompt({
       systemPrompt: agent.systemPrompt,
       agentName: agent.name,
       skills: workingSkills.map((s) => ({ name: s!.name, description: s!.description })),
       memories,
+      ayraBrain,
+      brainContext: brainCtx ? formatBrainContextForPrompt(brainCtx) : undefined,
     });
 
     const tools: OpenRouterTool[] = workingSkills.map((skill) => ({
@@ -150,10 +160,14 @@ export async function runAgent(
     }
 
     const userImages = opts.userImageUrls?.filter(Boolean) ?? [];
-    const userText =
-      history.length > 0 && opts.userMessage
-        ? opts.userMessage
-        : buildRunPrompt(trigger, opts.userMessage);
+    let userText: string;
+    if (opts.userMessage?.trim()) {
+      userText = opts.userMessage;
+    } else if (trigger === "scheduled") {
+      userText = await buildScheduledRunPrompt(agentId);
+    } else {
+      userText = buildRunPrompt(trigger, opts.userMessage);
+    }
 
     if (userImages.length > 0 && (trigger === "chat" || trigger === "telegram")) {
       messages.push({
@@ -250,12 +264,26 @@ export async function runAgent(
           toolCallCount++;
           await logFn("INFO", `Executing tool: ${skill.name}`, toolName);
 
-          const result = await skill.execute(validated.data, {
-            agentId,
-            userId: agent.userId,
-            runId: run.id,
-            log: logFn,
-          });
+          let result: unknown;
+          try {
+            result = await skill.execute(validated.data, {
+              agentId,
+              userId: agent.userId,
+              runId: run.id,
+              log: logFn,
+            });
+          } catch (toolError) {
+            const errMsg =
+              toolError instanceof Error ? toolError.message : "Tool execution failed";
+            await logFn("ERROR", `Tool failed: ${errMsg}`, toolName);
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              name: toolCall.function.name,
+              content: JSON.stringify({ error: errMsg, ok: false }),
+            });
+            continue;
+          }
 
           if (skill.slug === "image-generator") {
             generatedImagePaths.push(...collectImagePathsFromToolResult(result));

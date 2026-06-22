@@ -56,6 +56,7 @@ model User {
   xAutoPostEnabled     Boolean @default(false)
   solanaDefaultRpc     String?
   solanaRpcApiKey      String?
+  brainDatabaseUrl     String?
   solanaWatchWallets   String[] @default([])
   solanaWatchMints     String[] @default([])
 }

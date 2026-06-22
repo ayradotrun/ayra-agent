@@ -80,7 +80,7 @@ async function runMemeAlertCycle(): Promise<void> {
 
       const card = formatAyraPushAlert(token);
       const sent = await sendTelegramMessage(botToken, chatId, card);
-      if (!sent) {
+      if (!sent.ok) {
         console.warn(`[AYRA alert] Telegram send failed for ${token.symbol ?? token.mint.slice(0, 8)}`);
         continue;
       }
