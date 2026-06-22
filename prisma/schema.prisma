@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  sessions        Session[]
+  agents          Agent[]
+  toolCredentials ToolCredential[]
+  apiKeys         ApiKey[]
+  alerts          Alert[]
+
+  llmBaseUrl           String?
+  openRouterApiKey     String?
+  telegramBotToken     String?
+  telegramChatId       String?
+  defaultModel         String  @default("google/gemma-4-31b-it:free")
+  defaultImageModel    String?
+  emailNotifications   Boolean @default(false)
+  telegramNotifications Boolean @default(true)
+  telegramChatEnabled     Boolean @default(true)
+  telegramDefaultAgentId  String?
+  telegramWebhookSecret   String? @unique
+  telegramLastUpdateId    Int     @default(0)
+  memeAlertsEnabled       Boolean @default(true)
+
+  memeAlertsSent MemeAlertSent[]
+
+  // X (Twitter) — OAuth2 login or manual OAuth1 keys (encrypted)
+  xApiKey              String?
+  xApiSecret           String?
+  xAccessToken         String?
+  xAccessSecret        String?
+  xRefreshToken        String?
+  xAuthMethod          String?   // oauth2 | oauth1
+  xUsername            String?
+  xUserId              String?
+  xTokenExpiresAt      DateTime?
+  xConnectedAt         DateTime?
+  xAutoPostEnabled     Boolean @default(false)
+  solanaDefaultRpc     String?
+  solanaRpcApiKey      String?
+  solanaWatchWallets   String[] @default([])
+  solanaWatchMints     String[] @default([])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Agent {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  description  String?
+  systemPrompt String   @default("You are an autonomous developer workflow agent. You help developers research, monitor, summarize, draft, and execute safe tool-based tasks. Be concise, useful, and precise. Never invent facts. Never claim actions were completed unless a tool actually completed them. Respect tool permissions. Do not expose secrets.")
+  model        String   @default("google/gemma-4-31b-it:free")
+  imageModel   String?
+  template     String   @default("custom")
+  status       AgentStatus @default(ACTIVE)
+  memoryEnabled Boolean @default(true)
+  schedule     ScheduleInterval @default(MANUAL)
+  telegramNotify Boolean @default(false)
+  autoPostX      Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skills        AgentSkill[]
+  runs          AgentRun[]
+  logs          AgentLog[]
+  memories      AgentMemory[]
+  scheduledJobs ScheduledJob[]
+  alerts        Alert[]
+
+  @@index([userId])
+}
+
+enum AgentStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
+enum ScheduleInterval {
+  MANUAL
+  EVERY_5_MIN
+  EVERY_15_MIN
+  HOURLY
+  DAILY
+}
+
+model Skill {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  category    String
+  description String
+  icon        String   @default("zap")
+  permission  String   @default("read")
+  isEnabled   Boolean  @default(true)
+  isBuiltIn   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  agentSkills AgentSkill[]
+}
+
+model AgentSkill {
+  id        String   @id @default(cuid())
+  agentId   String
+  skillId   String
+  enabled   Boolean  @default(true)
+  config    Json?
+  createdAt DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, skillId])
+}
+
+model AgentRun {
+  id           String    @id @default(cuid())
+  agentId      String
+  status       RunStatus @default(PENDING)
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+  durationMs   Int?
+  tokenUsage   Int       @default(0)
+  toolCalls    Int       @default(0)
+  output       String?   @db.Text
+  error        String?   @db.Text
+  summary      String?   @db.Text
+
+  agent Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  logs  AgentLog[]
+
+  @@index([agentId])
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  TIMEOUT
+}
+
+model AgentLog {
+  id        String   @id @default(cuid())
+  agentId   String
+  runId     String?
+  level     LogLevel @default(INFO)
+  message   String   @db.Text
+  toolUsed  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  agent Agent     @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  run   AgentRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([runId])
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+model AgentMemory {
+  id        String   @id @default(cuid())
+  agentId   String
+  content   String   @db.Text
+  embedding String?  @db.Text
+  tags      String[]
+  createdAt DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+}
+
+model ToolCredential {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  encryptedValue String @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model MemeAlertSent {
+  id        String   @id @default(cuid())
+  userId    String
+  mint      String
+  symbol    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mint])
+  @@index([userId, createdAt])
+}
+
+model TelegramBotOffset {
+  id             String   @id
+  lastUpdateId   Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model TelegramProcessedUpdate {
+  id        String   @id
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Alert {
+  id        String      @id @default(cuid())
+  userId    String
+  agentId   String?
+  type      AlertType   @default(INFO)
+  title     String
+  message   String
+  read      Boolean     @default(false)
+  createdAt DateTime    @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agent Agent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+enum AlertType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model ScheduledJob {
+  id        String   @id @default(cuid())
+  agentId   String
+  cronExpr  String
+  nextRunAt DateTime?
+  lastRunAt DateTime?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  keyHash   String
+  lastUsed  DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

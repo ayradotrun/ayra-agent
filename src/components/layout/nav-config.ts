@@ -1,0 +1,23 @@
+import {
+  LayoutDashboard,
+  Bot,
+  Puzzle,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+
+export const NAV_ITEMS: Array<{
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  exact?: boolean;
+}> = [
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard/agents", label: "Agents", icon: Bot },
+  { href: "/dashboard/skills", label: "Skills", icon: Puzzle },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+];
+
+export const MOBILE_NAV_ITEMS = NAV_ITEMS;
+
+export const NEW_AGENT_HREF = "/dashboard/agents/new";
