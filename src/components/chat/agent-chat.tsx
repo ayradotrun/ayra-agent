@@ -8,7 +8,7 @@ import {
   ImagePlus,
   Lightbulb,
   Loader2,
-  MessageSquarePlus,
+  Menu,
   Send,
   X,
 } from "lucide-react";
@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CHAT_COMMAND_HINTS, TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
 import { ChatModelSelect } from "@/components/chat/chat-model-select";
+import { ChatRecentsDrawer } from "@/components/chat/chat-sidebar";
 import { DEFAULT_MODEL } from "@/lib/models";
 import { chatSessionHref, notifyChatSessionsChanged } from "@/lib/chat/recents";
 
@@ -123,6 +124,7 @@ export function AgentChat() {
   const [deepThinking, setDeepThinking] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [recentsOpen, setRecentsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -239,18 +241,6 @@ export function AgentChat() {
     setPendingImages((prev) => prev.filter((u) => u !== url));
   }
 
-  function startNewChat() {
-    router.push("/dashboard/chat");
-    setActiveSessionId(null);
-    setMessages([]);
-    setAgentName("");
-    setChatModel("");
-    setDeepThinking(false);
-    setPendingImages([]);
-    setError(null);
-    textareaRef.current?.focus();
-  }
-
   async function sendMessage() {
     const text = input.trim();
     if ((!text && pendingImages.length === 0) || sending) return;
@@ -336,7 +326,7 @@ export function AgentChat() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-8rem)] items-center justify-center text-muted-foreground">
+      <div className="flex h-full items-center justify-center text-muted-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
         Loading chat…
       </div>
@@ -345,7 +335,7 @@ export function AgentChat() {
 
   if (agents.length === 0) {
     return (
-      <div className="surface-card flex h-[calc(100vh-8rem)] flex-col items-center justify-center gap-4 p-8 text-center">
+      <div className="surface-card flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <Bot className="h-10 w-10 text-muted-foreground" />
         <div>
           <p className="font-medium">No active agent</p>
@@ -361,9 +351,20 @@ export function AgentChat() {
   }
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-4rem)] overflow-hidden border-y border-border/60 md:rounded-xl md:border md:bg-card/30">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-2 border-b border-border/60 px-3 py-2.5 sm:px-4">
+    <div className="flex h-full min-h-0 w-full overflow-hidden">
+      <ChatRecentsDrawer open={recentsOpen} onClose={() => setRecentsOpen(false)} />
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 py-2.5 sm:px-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0 md:hidden"
+            onClick={() => setRecentsOpen(true)}
+            aria-label="Open chats"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{agentName || "AYRA Chat"}</p>
           </div>
@@ -381,13 +382,9 @@ export function AgentChat() {
               </SelectContent>
             </Select>
           )}
-          <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs" onClick={startNewChat}>
-            <MessageSquarePlus className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">New chat</span>
-          </Button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-6">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
           {messages.length === 0 && !sending && (
             <div className="mx-auto max-w-lg text-center pt-[10vh]">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
@@ -395,7 +392,7 @@ export function AgentChat() {
               </div>
               <h2 className="text-lg font-medium">Chat with your agent</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Use slash commands like Telegram — /help, /sol, /ayrascan, /quality [CA], and more.
+                Slash commands — type /help or browse skills below
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 {CHAT_COMMAND_HINTS.map((hint) => (
@@ -409,20 +406,28 @@ export function AgentChat() {
                   </button>
                 ))}
               </div>
-              <details className="mt-6 text-left">
-                <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">
-                  All commands
+              <details className="mx-auto mt-6 max-w-md text-left">
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
+                  Skill commands
                 </summary>
-                <ul className="mt-3 max-h-48 space-y-1 overflow-y-auto rounded-lg border border-border/60 p-3 text-xs text-muted-foreground">
+                <ul className="mt-3 max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border/60 p-3 text-xs text-muted-foreground">
                   {TELEGRAM_COMMANDS_UI.map((c) => (
                     <li key={c.cmd}>
                       <button
                         type="button"
-                        className="w-full text-left hover:text-foreground"
-                        onClick={() => setInput(c.cmd.split(" ")[0] + (c.cmd.includes("[") ? " " : ""))}
+                        className="flex w-full items-start gap-2 text-left hover:text-foreground"
+                        onClick={() =>
+                          setInput(
+                            c.cmd.includes("[")
+                              ? `${c.cmd.split(" [")[0]} `
+                              : c.cmd
+                          )
+                        }
                       >
-                        <span className="font-mono text-foreground/90">{c.cmd}</span>
-                        <span className="ml-2">{c.desc}</span>
+                        <span className="shrink-0 font-mono text-[11px] text-foreground/90">
+                          {c.cmd}
+                        </span>
+                        <span>{c.desc}</span>
                       </button>
                     </li>
                   ))}
@@ -447,9 +452,9 @@ export function AgentChat() {
           </div>
         </div>
 
-        <div className="border-t border-border/60 p-3 sm:p-4">
+        <div className="shrink-0 border-t border-white/[0.06] p-3 sm:p-4">
           {error && <p className="mb-2 text-center text-xs text-destructive">{error}</p>}
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto w-full max-w-3xl">
             {pendingImages.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2 px-1">
                 {pendingImages.map((url) => (

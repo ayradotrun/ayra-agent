@@ -13,6 +13,7 @@ export function chatSessionHref(sessionId?: string | null) {
 export interface ChatSessionSummary {
   id: string;
   title: string | null;
+  pinned?: boolean;
   updatedAt: string;
   agent: { id: string; name: string };
 }

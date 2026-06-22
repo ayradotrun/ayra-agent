@@ -305,7 +305,7 @@ export async function runAgent(
 
     if (!finalOutput.trim() && toolCallCount === 0 && (trigger === "telegram" || trigger === "chat")) {
       finalOutput =
-        "Try directly:\n• `price bonk` — token price\n• paste CA mint\n• `trending` — hot tokens\n• `sol price`";
+        "Try directly:\n• /p [token|CA]\n• paste CA mint\n• /trending";
     }
 
     finalOutput = sanitizeAgentOutput(finalOutput);
@@ -333,7 +333,7 @@ export async function runAgent(
     }
     if (isUselessAgentReply(finalOutput) && (trigger === "telegram" || trigger === "chat")) {
       finalOutput =
-        "Try directly:\n• `price bonk` — token price\n• paste CA mint\n• `trending` — hot tokens\n• `sol price`";
+        "Try directly:\n• /p [token|CA]\n• paste CA mint\n• /trending";
     }
 
     const durationMs = Date.now() - startTime;

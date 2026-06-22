@@ -1,18 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { SidebarContent } from "@/components/layout/sidebar-content";
+import { ChatRecentsList } from "@/components/chat/chat-recents-list";
 
-interface MobileSidebarDrawerProps {
+interface ChatRecentsDrawerProps {
   open: boolean;
   onClose: () => void;
-  user?: {
-    name?: string | null;
-    email?: string | null;
-  };
 }
 
-export function MobileSidebarDrawer({ open, onClose, user }: MobileSidebarDrawerProps) {
+/** Mobile-only drawer — desktop recents live in workspace sidebar */
+export function ChatRecentsDrawer({ open, onClose }: ChatRecentsDrawerProps) {
   return (
     <>
       <div
@@ -30,7 +27,9 @@ export function MobileSidebarDrawer({ open, onClose, user }: MobileSidebarDrawer
         )}
         aria-hidden={!open}
       >
-        <SidebarContent user={user} onNavigate={onClose} showRecents />
+        <div className="flex h-full flex-col px-3 pb-4 pt-4">
+          <ChatRecentsList onNavigate={onClose} className="min-h-0 flex-1" />
+        </div>
       </aside>
     </>
   );

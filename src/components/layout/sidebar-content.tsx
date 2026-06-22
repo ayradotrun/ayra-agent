@@ -16,7 +16,6 @@ interface SidebarContentProps {
     email?: string | null;
   };
   onNavigate?: () => void;
-  showRecents?: boolean;
 }
 
 function getInitials(name?: string | null, email?: string | null) {
@@ -31,13 +30,13 @@ function getInitials(name?: string | null, email?: string | null) {
   return email?.[0]?.toUpperCase() ?? "A";
 }
 
-export function SidebarContent({ user, onNavigate, showRecents = true }: SidebarContentProps) {
+export function SidebarContent({ user, onNavigate }: SidebarContentProps) {
   const pathname = usePathname();
   const workspaceItems = NAV_ITEMS.filter((item) => item.href !== "/dashboard/settings");
   const settingsItem = NAV_ITEMS.find((item) => item.href === "/dashboard/settings");
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-[60px] shrink-0 items-center gap-3 px-5">
         <div className="relative flex h-9 w-9 items-center justify-center rounded-[10px] border border-emerald-500/20 bg-emerald-500/10">
           <Zap className="h-4 w-4 text-emerald-400" />
@@ -70,7 +69,9 @@ export function SidebarContent({ user, onNavigate, showRecents = true }: Sidebar
         {workspaceItems.map((item) => {
           const active = item.exact
             ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`) || pathname.startsWith(`${item.href}?`);
+            : pathname === item.href ||
+              pathname.startsWith(`${item.href}/`) ||
+              pathname.startsWith(`${item.href}?`);
 
           return (
             <Link
@@ -92,48 +93,50 @@ export function SidebarContent({ user, onNavigate, showRecents = true }: Sidebar
             </Link>
           );
         })}
+
+        {settingsItem && (
+          <>
+            <div className="pt-2" />
+            {(() => {
+              const item = settingsItem;
+              const active =
+                pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all duration-150",
+                    active
+                      ? "bg-white/[0.06] text-foreground"
+                      : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground"
+                  )}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-emerald-400" />
+                  )}
+                  <item.icon
+                    className={cn("h-4 w-4", active ? "text-emerald-400" : "opacity-70")}
+                  />
+                  {item.label}
+                </Link>
+              );
+            })()}
+          </>
+        )}
       </nav>
 
-      {settingsItem && (
-        <nav className="shrink-0 px-3 pt-1">
-          {(() => {
-            const item = settingsItem;
-            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-            return (
-              <Link
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all duration-150",
-                  active
-                    ? "bg-white/[0.06] text-foreground"
-                    : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground"
-                )}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-emerald-400" />
-                )}
-                <item.icon className={cn("h-4 w-4", active ? "text-emerald-400" : "opacity-70")} />
-                {item.label}
-              </Link>
-            );
-          })()}
-        </nav>
-      )}
+      <div className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-2">
+        <Suspense
+          fallback={
+            <p className="px-2 py-2 text-[11px] text-muted-foreground">Loading recents…</p>
+          }
+        >
+          <ChatRecentsList className="min-h-0 flex-1" />
+        </Suspense>
+      </div>
 
-      {showRecents && (
-        <div className="flex min-h-0 flex-1 flex-col px-3 pt-4 pb-2">
-          <Suspense
-            fallback={
-              <p className="px-2 py-2 text-[11px] text-muted-foreground">Loading recents…</p>
-            }
-          >
-            <ChatRecentsList onNavigate={onNavigate} className="min-h-0 flex-1" />
-          </Suspense>
-        </div>
-      )}
-
-      <div className="mt-auto shrink-0 border-t border-white/[0.06] p-3">
+      <div className="shrink-0 border-t border-white/[0.06] p-3">
         <div className="mb-2 flex items-center gap-3 rounded-lg px-2 py-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] font-medium text-emerald-300">
             {getInitials(user?.name, user?.email)}
@@ -153,6 +156,6 @@ export function SidebarContent({ user, onNavigate, showRecents = true }: Sidebar
           Sign out
         </Button>
       </div>
-    </>
+    </div>
   );
 }

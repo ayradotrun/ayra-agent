@@ -158,8 +158,8 @@ export function getMemeFilterChecks(
       label: "Market cap",
       passed: false,
       detail: `${formatUsd(snapshot.marketCapUsd)} · min ${formatUsd(f.minMarketCapUsd)}`,
-      failReason: `MCAP di bawah minimum ${formatUsd(f.minMarketCapUsd)}`,
-      recommendation: "Market cap terlalu kecil — risiko manipulasi tinggi, tunggu pertumbuhan atau skip.",
+      failReason: `MCAP below minimum ${formatUsd(f.minMarketCapUsd)}`,
+      recommendation: "Market cap too small — high manipulation risk; wait for growth or skip.",
     });
   } else {
     checks.push({
@@ -169,11 +169,11 @@ export function getMemeFilterChecks(
       detail:
         snapshot.marketCapUsd != null
           ? `${formatUsd(snapshot.marketCapUsd)} · min ${formatUsd(f.minMarketCapUsd)}`
-          : "Data tidak tersedia · min " + formatUsd(f.minMarketCapUsd),
+          : "No data · min " + formatUsd(f.minMarketCapUsd),
       passNote:
         snapshot.marketCapUsd != null
-          ? "MCAP di atas batas minimum AYRA"
-          : "Data MCAP tidak ada — filter dilewati",
+          ? "MCAP above AYRA minimum"
+          : "No MCAP data — filter skipped",
     });
   }
 
@@ -183,8 +183,8 @@ export function getMemeFilterChecks(
       label: "Volume 24h",
       passed: false,
       detail: `${formatUsd(snapshot.volume24hUsd)} · min ${formatUsd(f.minVolume24hUsd)}`,
-      failReason: `Volume 24h di bawah ${formatUsd(f.minVolume24hUsd)}`,
-      recommendation: "Aktivitas trading lemah — slippage & exit risk lebih tinggi.",
+      failReason: `24h volume below ${formatUsd(f.minVolume24hUsd)}`,
+      recommendation: "Weak trading activity — higher slippage and exit risk.",
     });
   } else {
     checks.push({
@@ -194,36 +194,36 @@ export function getMemeFilterChecks(
       detail:
         snapshot.volume24hUsd != null
           ? `${formatUsd(snapshot.volume24hUsd)} · min ${formatUsd(f.minVolume24hUsd)}`
-          : "Data tidak tersedia · min " + formatUsd(f.minVolume24hUsd),
+          : "No data · min " + formatUsd(f.minVolume24hUsd),
       passNote:
         snapshot.volume24hUsd != null
-          ? "Volume cukup untuk likuiditas trading"
-          : "Data volume tidak ada — filter dilewati",
+          ? "Enough volume for trading liquidity"
+          : "No volume data — filter skipped",
     });
   }
 
   if (snapshot.liquidityUsd != null && snapshot.liquidityUsd < f.minLiquidityUsd) {
     checks.push({
       id: "liquidity",
-      label: "Likuiditas",
+      label: "Liquidity",
       passed: false,
       detail: `${formatUsd(snapshot.liquidityUsd)} · min ${formatUsd(f.minLiquidityUsd)}`,
-      failReason: `Likuiditas di bawah ${formatUsd(f.minLiquidityUsd)}`,
-      recommendation: "Pool tipis — hati-hati slippage besar saat beli/jual.",
+      failReason: `Liquidity below ${formatUsd(f.minLiquidityUsd)}`,
+      recommendation: "Thin pool — watch for large slippage on buy/sell.",
     });
   } else {
     checks.push({
       id: "liquidity",
-      label: "Likuiditas",
+      label: "Liquidity",
       passed: true,
       detail:
         snapshot.liquidityUsd != null
           ? `${formatUsd(snapshot.liquidityUsd)} · min ${formatUsd(f.minLiquidityUsd)}`
-          : "Data tidak tersedia · min " + formatUsd(f.minLiquidityUsd),
+          : "No data · min " + formatUsd(f.minLiquidityUsd),
       passNote:
         snapshot.liquidityUsd != null
-          ? "Likuiditas pool memadai"
-          : "Data likuiditas tidak ada — filter dilewati",
+          ? "Pool liquidity is adequate"
+          : "No liquidity data — filter skipped",
     });
   }
 
@@ -233,8 +233,8 @@ export function getMemeFilterChecks(
       label: "Holders",
       passed: false,
       detail: `${snapshot.holderCount.toLocaleString()} · min ${f.minHolders}`,
-      failReason: `Holder di bawah ${f.minHolders}`,
-      recommendation: "Distribusi holder terlalu sempit — risiko dump dari whale.",
+      failReason: `Holders below ${f.minHolders}`,
+      recommendation: "Holder distribution too narrow — whale dump risk.",
     });
   } else {
     checks.push({
@@ -244,11 +244,11 @@ export function getMemeFilterChecks(
       detail:
         snapshot.holderCount != null
           ? `${snapshot.holderCount.toLocaleString()} · min ${f.minHolders}`
-          : `Data tidak tersedia · min ${f.minHolders}`,
+          : `No data · min ${f.minHolders}`,
       passNote:
         snapshot.holderCount != null
-          ? "Jumlah holder cukup untuk distribusi dasar"
-          : "Data holder tidak ada — filter dilewati",
+          ? "Holder count meets baseline distribution"
+          : "No holder data — filter skipped",
     });
   }
 
@@ -257,9 +257,9 @@ export function getMemeFilterChecks(
       id: "top10",
       label: "Top-10 holders",
       passed: false,
-      detail: "Data tidak tersedia · max 35%",
-      failReason: "Konsentrasi top-10 holder tidak diketahui",
-      recommendation: "Cek manual di Rugcheck/Solscan sebelum masuk — data holder tidak lengkap.",
+      detail: "No data · max 35%",
+      failReason: "Top-10 holder concentration unknown",
+      recommendation: "Check Rugcheck/Solscan manually — incomplete holder data.",
     });
   } else if (snapshot.top10HolderPct > f.maxTop10HolderPct) {
     checks.push({
@@ -267,8 +267,8 @@ export function getMemeFilterChecks(
       label: "Top-10 holders",
       passed: false,
       detail: `${snapshot.top10HolderPct.toFixed(1)}% · max ${f.maxTop10HolderPct}%`,
-      failReason: `Top-10 pegang ${snapshot.top10HolderPct.toFixed(1)}% — di atas batas ${f.maxTop10HolderPct}%`,
-      recommendation: "Whale dominance tinggi — pantau wallet besar & jangan oversize.",
+      failReason: `Top-10 hold ${snapshot.top10HolderPct.toFixed(1)}% — above ${f.maxTop10HolderPct}% limit`,
+      recommendation: "High whale dominance — monitor large wallets; keep size small.",
     });
   } else {
     checks.push({
@@ -276,7 +276,7 @@ export function getMemeFilterChecks(
       label: "Top-10 holders",
       passed: true,
       detail: `${snapshot.top10HolderPct.toFixed(1)}% · max ${f.maxTop10HolderPct}%`,
-      passNote: "Konsentrasi holder top-10 dalam batas aman",
+      passNote: "Top-10 holder concentration within safe range",
     });
   }
 
@@ -286,8 +286,8 @@ export function getMemeFilterChecks(
       label: "Rug score",
       passed: false,
       detail: `${snapshot.rugScoreNormalised} · max ${f.maxRugScore}`,
-      failReason: `Rug score ${snapshot.rugScoreNormalised} — di atas batas ${f.maxRugScore}`,
-      recommendation: "Skor rugcheck tinggi — verifikasi LP lock, mint authority, & contract flags.",
+      failReason: `Rug score ${snapshot.rugScoreNormalised} — above ${f.maxRugScore} limit`,
+      recommendation: "High rugcheck score — verify LP lock, mint authority, and contract flags.",
     });
   } else {
     checks.push({
@@ -297,22 +297,22 @@ export function getMemeFilterChecks(
       detail:
         snapshot.rugScoreNormalised != null
           ? `${snapshot.rugScoreNormalised} · max ${f.maxRugScore}${snapshot.verdict ? ` (${snapshot.verdict})` : ""}`
-          : "Data tidak tersedia · max " + f.maxRugScore,
+          : "No data · max " + f.maxRugScore,
       passNote:
         snapshot.rugScoreNormalised != null
           ? `Rugcheck: ${snapshot.verdict ?? "ok"}`
-          : "Data rug score tidak ada — filter dilewati",
+          : "No rug score data — filter skipped",
     });
   }
 
   if (snapshot.pairAgeMinutes != null && snapshot.pairAgeMinutes < f.minPairAgeMinutes) {
     checks.push({
       id: "pair_new",
-      label: "Umur pair",
+      label: "Pair age",
       passed: false,
       detail: `${formatPairAge(snapshot.pairAgeMinutes)} · min ${formatPairAge(f.minPairAgeMinutes)}`,
-      failReason: `Pair terlalu baru (${formatPairAge(snapshot.pairAgeMinutes)})`,
-      recommendation: "Launch terlalu fresh — tunggu stabilisasi harga & likuiditas.",
+      failReason: `Pair too new (${formatPairAge(snapshot.pairAgeMinutes)})`,
+      recommendation: "Launch too fresh — wait for price and liquidity to stabilize.",
     });
   } else if (
     snapshot.pairAgeMinutes != null &&
@@ -321,25 +321,25 @@ export function getMemeFilterChecks(
   ) {
     checks.push({
       id: "pair_old",
-      label: "Umur pair",
+      label: "Pair age",
       passed: false,
       detail: `${formatPairAge(snapshot.pairAgeMinutes)} · max ${formatPairAge(f.maxPairAgeMinutes)}`,
-      failReason: `Pair sudah ${formatPairAge(snapshot.pairAgeMinutes)} — di luar window ${formatPairAge(f.maxPairAgeMinutes)}`,
-      recommendation: "Momentum launch sudah lewat — cari setup fresh atau skip.",
+      failReason: `Pair is ${formatPairAge(snapshot.pairAgeMinutes)} — outside ${formatPairAge(f.maxPairAgeMinutes)} window`,
+      recommendation: "Launch momentum faded — look for a fresh setup or skip.",
     });
   } else {
     checks.push({
       id: "pair_age",
-      label: "Umur pair",
+      label: "Pair age",
       passed: true,
       detail:
         snapshot.pairAgeMinutes != null
           ? `${formatPairAge(snapshot.pairAgeMinutes)} · window 0–${formatPairAge(f.maxPairAgeMinutes)}`
-          : "Data tidak tersedia",
+          : "No data",
       passNote:
         snapshot.pairAgeMinutes != null
-          ? "Pair dalam window usia yang AYRA pantau"
-          : "Data umur pair tidak ada — filter dilewati",
+          ? "Pair within AYRA age window"
+          : "No pair age data — filter skipped",
     });
   }
 
@@ -349,8 +349,8 @@ export function getMemeFilterChecks(
       label: "PNL 24h",
       passed: false,
       detail: `${formatPnl24h(snapshot.change24hPct)} · min ${formatPnl24h(f.minChange24hPct)}`,
-      failReason: `Dump ${formatPnl24h(snapshot.change24hPct)} — di bawah batas ${formatPnl24h(f.minChange24hPct)}`,
-      recommendation: "Sell-off berat 24 jam — tunggu stabilisasi sebelum entry.",
+      failReason: `Dump ${formatPnl24h(snapshot.change24hPct)} — below ${formatPnl24h(f.minChange24hPct)} floor`,
+      recommendation: "Heavy 24h sell-off — wait for stabilization before entry.",
     });
   } else {
     checks.push({
@@ -360,15 +360,61 @@ export function getMemeFilterChecks(
       detail:
         snapshot.change24hPct != null
           ? `${formatPnl24h(snapshot.change24hPct)} · min ${formatPnl24h(f.minChange24hPct)}`
-          : "Data tidak tersedia · min " + formatPnl24h(f.minChange24hPct),
+          : "No data · min " + formatPnl24h(f.minChange24hPct),
       passNote:
         snapshot.change24hPct != null
-          ? "Tidak ada dump ekstrem 24 jam"
-          : "Data PNL tidak ada — filter dilewati",
+          ? "No extreme 24h dump"
+          : "No PNL data — filter skipped",
     });
   }
 
   return checks;
+}
+
+const CHECK_EMOJI: Record<string, string> = {
+  mcap: "💰",
+  volume: "📊",
+  liquidity: "💧",
+  holders: "👥",
+  top10: "🐋",
+  rug: "🛡️",
+  pair_new: "⏱️",
+  pair_old: "⏱️",
+  pair_age: "⏱️",
+  pnl: "📈",
+};
+
+function formatQualityCheckLine(check: MemeFilterCheck): string {
+  const icon = CHECK_EMOJI[check.id] ?? "•";
+  const status = check.passed ? "✅" : "❌";
+  return `${icon} ${check.label}: ${check.detail}  ${status}`;
+}
+
+function formatQualityCheckNote(check: MemeFilterCheck): string | null {
+  if (check.passed && check.passNote) {
+    return `   _${check.passNote}_`;
+  }
+  if (!check.passed && check.failReason) {
+    return `   → ${check.failReason}`;
+  }
+  return null;
+}
+
+function shouldRecommendBuy(token: MemeTokenSnapshot): boolean {
+  if (!token.passed || token.priceUsd == null) return false;
+  if (token.verdict === "high risk") return false;
+  if (typeof token.change24hPct === "number" && token.change24hPct > 300) return false;
+  return true;
+}
+
+function computeBuyTargets(token: MemeTokenSnapshot): { entry: number; target: number } | null {
+  if (token.priceUsd == null) return null;
+  const multiplier =
+    token.verdict === "looks safe" || token.verdict === "low risk" ? 2 : 1.5;
+  return {
+    entry: token.priceUsd * 0.97,
+    target: token.priceUsd * multiplier,
+  };
 }
 
 function buildQualityRecommendations(
@@ -379,14 +425,14 @@ function buildQualityRecommendations(
   const recs: string[] = [];
 
   if (token.passed) {
-    recs.push("Token memenuhi semua filter dasar AYRA — tetap DYOR sebelum masuk.");
-    recs.push("Cek socials, dev wallet, LP lock, & mint authority di Rugcheck/Solscan.");
-    recs.push("Gunakan ukuran posisi kecil; pantau likuiditas & holder growth.");
+    recs.push("Token passes AYRA baseline filters — still DYOR before entry.");
+    recs.push("Verify socials, dev wallet, LP lock, and mint authority on Rugcheck/Solscan.");
+    recs.push("Use a small position size; monitor liquidity and holder growth.");
     if (token.verdict === "medium risk" || token.verdict === "high risk") {
-      recs.push(`Rugcheck: *${token.verdict}* — extra hati-hati meski lolos filter.`);
+      recs.push(`Rugcheck: *${token.verdict}* — extra caution even though filters passed.`);
     }
     if (typeof token.change24hPct === "number" && token.change24hPct > 100) {
-      recs.push("PNL 24h sangat tinggi — risiko pullback, jangan chase FOMO.");
+      recs.push("24h PNL is very high — pullback risk; avoid FOMO chasing.");
     }
     return recs;
   }
@@ -395,9 +441,9 @@ function buildQualityRecommendations(
     if (c.recommendation) recs.push(c.recommendation);
   }
   if (recs.length === 0) {
-    recs.push("Perbaiki metrik yang gagal sebelum dipertimbangkan lagi.");
+    recs.push("Improve failed metrics before reconsidering this token.");
   }
-  recs.push("Bandingkan dengan token lain via `/memescan` setelah kondisi membaik.");
+  recs.push("Compare with other tokens via `/ayrascan` once conditions improve.");
 
   return recs.slice(0, 5);
 }
@@ -584,7 +630,10 @@ export function formatMemeAlertCard(token: MemeTokenSnapshot): string {
 }
 
 /** Single-token quality report for /quality [CA] */
-export function formatAyraQualityReport(token: MemeTokenSnapshot): string {
+export function formatAyraQualityReport(
+  token: MemeTokenSnapshot,
+  options?: { agentName?: string }
+): string {
   const sym = token.symbol || token.name || token.mint.slice(0, 8);
   const checks = getMemeFilterChecks(token);
   const failedChecks = checks.filter((c) => !c.passed);
@@ -593,64 +642,84 @@ export function formatAyraQualityReport(token: MemeTokenSnapshot): string {
   const lines = [
     `${AYRA_LEAF} *AYRA Quality Report*`,
     `*${sym}*`,
-    token.passed ? "✅ *Lolos filter AYRA*" : `❌ *Tidak lolos filter AYRA* (${failedChecks.length} gagal)`,
+    token.passed
+      ? "✅ *Passed AYRA filters*"
+      : `❌ *Failed AYRA filters* (${failedChecks.length} checks)`,
     "",
   ];
 
   if (typeof token.priceUsd === "number") {
-    lines.push(`Price: ${formatScanPrice(token.priceUsd)}`);
+    lines.push(`💵 Price: ${formatScanPrice(token.priceUsd)}`);
   }
   if (typeof token.change24hPct === "number") {
-    lines.push(`PNL 24h: ${formatPnl24h(token.change24hPct)}`);
+    lines.push(`📈 24h PNL: ${formatPnl24h(token.change24hPct)}`);
   }
   lines.push(
-    `MCAP ${formatUsd(token.marketCapUsd)} · Vol ${formatUsd(token.volume24hUsd)} · Liq ${formatUsd(token.liquidityUsd)}`
+    `💰 MCAP ${formatUsd(token.marketCapUsd)} · 📊 Vol ${formatUsd(token.volume24hUsd)} · 💧 Liq ${formatUsd(token.liquidityUsd)}`
   );
   if (typeof token.holderCount === "number" || typeof token.top10HolderPct === "number") {
     const holders =
       typeof token.holderCount === "number" ? token.holderCount.toLocaleString() : "—";
     const top10 =
       typeof token.top10HolderPct === "number" ? `${token.top10HolderPct.toFixed(1)}%` : "—";
-    lines.push(`Holders: ${holders} · Top-10: ${top10}`);
+    lines.push(`👥 Holders: ${holders} · 🐋 Top-10: ${top10}`);
   }
   if (token.pairAgeMinutes != null) {
-    lines.push(`Pair age: ${formatPairAge(token.pairAgeMinutes)}`);
+    lines.push(`⏱️ Pair age: ${formatPairAge(token.pairAgeMinutes)}`);
   }
   if (token.verdict) {
-    lines.push(`Rugcheck: *${token.verdict}* (${token.rugScoreNormalised ?? "?"})`);
+    lines.push(`🛡️ Rugcheck: *${token.verdict}* (${token.rugScoreNormalised ?? "?"})`);
+  }
+
+  if (shouldRecommendBuy(token)) {
+    const targets = computeBuyTargets(token);
+    const agentLabel = options?.agentName?.trim() || "AYRA Agent";
+    if (targets) {
+      lines.push("");
+      lines.push(`🤖 *${agentLabel}* recommends *BUY* ✅`);
+      lines.push(`🎯 Entry target: *${formatScanPrice(targets.entry)}*`);
+      lines.push(`🚀 Price target: *${formatScanPrice(targets.target)}*`);
+    }
+  } else if (token.passed) {
+    lines.push("");
+    lines.push("⚠️ *Watch only* — passed filters but setup is extended or higher risk.");
   }
 
   lines.push("");
   if (token.passed) {
-    lines.push("*Kenapa lolos:*");
+    lines.push("*Why it passed:*");
     for (const c of passedChecks) {
-      lines.push(`✅ ${c.label}: ${c.detail}`);
-      if (c.passNote) lines.push(`   _${c.passNote}_`);
+      lines.push(formatQualityCheckLine(c));
+      const note = formatQualityCheckNote(c);
+      if (note) lines.push(note);
     }
   } else {
-    lines.push("*Kenapa tidak lolos:*");
+    lines.push("*Why it failed:*");
     for (const c of failedChecks) {
-      lines.push(`❌ ${c.label}: ${c.detail}`);
-      if (c.failReason) lines.push(`   → ${c.failReason}`);
+      lines.push(formatQualityCheckLine(c));
+      const note = formatQualityCheckNote(c);
+      if (note) lines.push(note);
     }
     if (passedChecks.length > 0) {
-      lines.push("", "*Yang masih ok:*");
+      lines.push("", "*Still OK:*");
       for (const c of passedChecks) {
-        lines.push(`✅ ${c.label}: ${c.detail}`);
+        lines.push(formatQualityCheckLine(c));
+        const note = formatQualityCheckNote(c);
+        if (note) lines.push(note);
       }
     }
   }
 
   const recommendations = buildQualityRecommendations(token, checks);
-  lines.push("", "*Rekomendasi:*");
+  lines.push("", "*Notes:*");
   for (const rec of recommendations) {
-    lines.push(`• ${rec}`);
+    lines.push(`💡 ${rec}`);
   }
 
   lines.push("", "CA (tap to copy):");
   lines.push(`\`${token.mint}\``);
   if (token.dexUrl) lines.push(`[DexScreener](${token.dexUrl})`);
-  lines.push("", "_Filter AYRA — bukan saran finansial. DYOR._");
+  lines.push("", "_AYRA filters — not financial advice. DYOR._");
 
   return lines.join("\n").trim();
 }

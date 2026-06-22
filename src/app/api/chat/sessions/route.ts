@@ -10,9 +10,16 @@ export async function GET() {
 
   const sessions = await prisma.chatSession.findMany({
     where: { userId: user.id },
-    orderBy: { updatedAt: "desc" },
+    orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
     take: 40,
-    include: {
+    select: {
+      id: true,
+      title: true,
+      pinned: true,
+      updatedAt: true,
+      chatModel: true,
+      deepThinking: true,
+      agentId: true,
       agent: { select: { id: true, name: true } },
       messages: {
         orderBy: { createdAt: "desc" },

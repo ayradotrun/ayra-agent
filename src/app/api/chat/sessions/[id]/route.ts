@@ -12,6 +12,8 @@ import { z } from "zod";
 const patchSessionSchema = z.object({
   chatModel: z.string().nullable().optional(),
   deepThinking: z.boolean().optional(),
+  title: z.string().min(1).max(120).optional(),
+  pinned: z.boolean().optional(),
 });
 
 export async function GET(
@@ -60,7 +62,12 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const data: { chatModel?: string | null; deepThinking?: boolean } = {};
+  const data: {
+    chatModel?: string | null;
+    deepThinking?: boolean;
+    title?: string;
+    pinned?: boolean;
+  } = {};
   if (parsed.data.chatModel !== undefined) {
     data.chatModel = parsed.data.chatModel
       ? normalizeChatModel(parsed.data.chatModel)
@@ -69,14 +76,29 @@ export async function PATCH(
   if (parsed.data.deepThinking !== undefined) {
     data.deepThinking = parsed.data.deepThinking;
   }
+  if (parsed.data.title !== undefined) {
+    data.title = parsed.data.title.trim();
+  }
+  if (parsed.data.pinned !== undefined) {
+    data.pinned = parsed.data.pinned;
+  }
 
-  const updated = await prisma.chatSession.update({
-    where: { id: params.id },
-    data,
-    include: { agent: { select: { id: true, name: true, model: true } } },
-  });
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+  }
 
-  return NextResponse.json(updated);
+  try {
+    const updated = await prisma.chatSession.update({
+      where: { id: params.id },
+      data,
+      include: { agent: { select: { id: true, name: true, model: true } } },
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Update failed";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 export async function DELETE(

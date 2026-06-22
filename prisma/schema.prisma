@@ -325,6 +325,7 @@ model ChatSession {
   userId       String
   agentId      String
   title        String?
+  pinned       Boolean  @default(false)
   chatModel    String?
   deepThinking Boolean  @default(false)
   createdAt    DateTime @default(now())
@@ -334,7 +335,7 @@ model ChatSession {
   agent    Agent         @relation(fields: [agentId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
 
-  @@index([userId, updatedAt])
+  @@index([userId, pinned, updatedAt])
   @@index([agentId])
 }
 

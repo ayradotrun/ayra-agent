@@ -18,7 +18,8 @@ import {
 } from "@/lib/user-models";
 import { tryTelegramFastPath } from "@/lib/telegram/fast-path";
 import { CHAT_HELP_TEXT, TELEGRAM_HELP_TEXT } from "@/lib/telegram/commands";
-import { parseSkillCommand, formatSkillCommandsHelp } from "@/lib/telegram/skill-commands";
+import { cmdIs, cmdStarts } from "@/lib/telegram/command-utils";
+import { parseSkillCommand } from "@/lib/telegram/skill-commands";
 import { runSkillFast, runTokenLookupFast } from "@/lib/telegram/skill-runner";
 import { generateImageForAgent } from "@/lib/chat/image-gen";
 
@@ -41,10 +42,6 @@ export interface HandleChatInputResult {
 
 function helpText(telegram?: boolean): string {
   return telegram ? TELEGRAM_HELP_TEXT : CHAT_HELP_TEXT;
-}
-
-function skillsHelp(telegram?: boolean): string {
-  return formatSkillCommandsHelp(telegram ? "telegram" : "plain");
 }
 
 function stripTelegramMarkdown(text: string): string {
@@ -75,12 +72,8 @@ export async function handleChatInput(
   const trimmed = text.trim();
   const { chatSessionId, telegram } = options;
 
-  if (trimmed === "/start" || trimmed === "/help") {
+  if (cmdIs(trimmed, "help", "start")) {
     return { handled: true, content: helpText(telegram) };
-  }
-
-  if (trimmed === "/skills") {
-    return { handled: true, content: skillsHelp(telegram) };
   }
 
   const skillCmd = parseSkillCommand(trimmed);
@@ -122,7 +115,7 @@ export async function handleChatInput(
     return { handled: true, content: "Command completed." };
   }
 
-  if (trimmed === "/status") {
+  if (cmdIs(trimmed, "status")) {
     const agent = await resolveAgentRecord(userId, agentId);
     if (!agent) {
       return {
@@ -287,8 +280,9 @@ export async function handleChatInput(
     return { handled: true, content };
   }
 
-  if (trimmed.startsWith("/image ")) {
-    const prompt = trimmed.slice(7).trim();
+  const imageCmd = cmdStarts(trimmed, "image");
+  if (imageCmd) {
+    const prompt = imageCmd.args.trim();
     if (!prompt) {
       return { handled: true, content: "Usage: /image [prompt]" };
     }
@@ -312,7 +306,7 @@ export async function handleChatInput(
     };
   }
 
-  if (trimmed === "/agents") {
+  if (cmdIs(trimmed, "agents")) {
     const agents = await prisma.agent.findMany({
       where: { userId },
       select: { id: true, name: true, status: true },
@@ -327,12 +321,13 @@ export async function handleChatInput(
       .join("\n");
     const content = telegram
       ? `*Your agents:*\n${list}\n\nSet default: /use Agent Name`
-      : `Your agents:\n${list}\n\nSwitch agent in this chat: /use Agent Name`;
+      : `Your agents:\n${list}\n\nSwitch agent: /use Agent Name`;
     return { handled: true, content };
   }
 
-  if (trimmed.startsWith("/use ")) {
-    const nameQuery = trimmed.slice(5).trim().toLowerCase();
+  const useCmd = cmdStarts(trimmed, "use");
+  if (useCmd) {
+    const nameQuery = useCmd.args.toLowerCase();
     if (!nameQuery) {
       return { handled: true, content: "Usage: /use [agent name or id prefix]" };
     }

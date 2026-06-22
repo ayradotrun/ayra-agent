@@ -1,25 +1,31 @@
 /** Telegram bot command menu + help text (shared by handler & dashboard) */
 
-import { getTelegramSkillMenuCommands } from "./skill-commands";
+import {
+  formatSkillCommandsHelp,
+  getTelegramSkillMenuCommands,
+  TELEGRAM_SKILL_COMMANDS,
+} from "./skill-commands";
+
+export { getTelegramSkillMenuCommands };
+
+export const META_COMMANDS_UI = [
+  { cmd: "/help", desc: "📋 All commands" },
+  { cmd: "/agents", desc: "🤖 List agents" },
+  { cmd: "/use [name]", desc: "🔄 Switch agent" },
+  { cmd: "/status", desc: "📊 Agent + models" },
+  { cmd: "/image [prompt]", desc: "🎨 Generate image" },
+] as const;
 
 export const TELEGRAM_BOT_COMMANDS = [
-  { command: "help", description: "Show all commands" },
-  { command: "skills", description: "List skill slash commands" },
-  { command: "price", description: "Token price by ticker or CA" },
-  { command: "token", description: "Full token info + safety" },
-  { command: "wallet", description: "Wallet SOL + SPL balance" },
-  { command: "quality", description: "AYRA quality report for CA" },
-  { command: "rugcheck", description: "Rug risk score for CA" },
-  { command: "ayrascan", description: "AYRA scan — filtered meme coins" },
-  { command: "trending", description: "Hot Solana tokens" },
-  { command: "sol", description: "SOL price" },
-  { command: "networth", description: "Wallet USD net worth" },
-  { command: "find", description: "Search token by name" },
-  { command: "network", description: "Solana network stats" },
-  { command: "agents", description: "List your agents" },
-  { command: "use", description: "Set default agent" },
-  { command: "status", description: "Agent + chat/image models" },
-  { command: "image", description: "Generate image: /image [prompt]" },
+  { command: "help", description: "📋 All commands" },
+  ...TELEGRAM_SKILL_COMMANDS.map((c) => ({
+    command: c.command,
+    description: c.description,
+  })),
+  { command: "agents", description: "🤖 List agents" },
+  { command: "use", description: "🔄 Switch agent" },
+  { command: "status", description: "📊 Agent status" },
+  { command: "image", description: "🎨 Generate image" },
 ] as const;
 
 export function getAllTelegramBotCommands(): Array<{ command: string; description: string }> {
@@ -38,98 +44,41 @@ export function getAllTelegramBotCommands(): Array<{ command: string; descriptio
     merged.push(c);
   }
 
-  return merged.slice(0, 100);
+  return merged;
 }
 
-export const TELEGRAM_HELP_TEXT = `*AYRA Agent* — Telegram
+const CHAT_HELP_META = `Agent: 🤖 /agents · 🔄 /use · 📊 /status · 🎨 /image
+💡 Paste a CA mint, or /p [token|CA]`;
 
-*Skill commands* (instant, no LLM)
-/price \\[ticker|CA\\] — token price
-/token \\[ticker|CA\\] — full info + safety
-/wallet \\[address\\] — SOL + SPL balance
-/networth \\[address\\] — wallet USD value
-/quality \\[CA\\] — AYRA quality report
-/rugcheck \\[CA\\] — rug risk score
-/ayrascan — AYRA scan (filtered meme coins)
-/trending — hot Solana tokens
-/sol — SOL price
-/find \\[name\\] — search token
-/whale \\[address\\] — whale check
-/network — Solana TPS & epoch
-/sns \\[name\\] — resolve .sol domain
+const TELEGRAM_HELP_META = `*Agent:* 🤖 /agents · 🔄 /use · 📊 /status · 🎨 /image
+_💡 Paste a CA mint, or /p \\[token|CA\\]_`;
 
-/skills — full command list
+export const CHAT_HELP_TEXT = `${formatSkillCommandsHelp("plain")}
 
-*Quick text* (no slash)
-• paste CA mint — token info
-• \`price bonk\` — ticker lookup
-• \`ayra scan\` — same as /ayrascan
+${CHAT_HELP_META}`;
 
-*Agent*
-/agents · /use \\[name\\] · /status
+export const TELEGRAM_HELP_TEXT = `${formatSkillCommandsHelp("telegram")}
 
-*Image*
-/image \\[prompt\\]
-
-/help — this message`;
-
-/** Plain-text help for dashboard chat (no Telegram markdown) */
-export const CHAT_HELP_TEXT = `AYRA Agent — Dashboard Chat
-
-Skill commands (instant, no LLM)
-/price [ticker|CA] — token price
-/token [ticker|CA] — full info + safety
-/wallet [address] — SOL + SPL balance
-/networth [address] — wallet USD value
-/quality [CA] — AYRA quality report
-/rugcheck [CA] — rug risk score
-/ayrascan — AYRA scan (filtered meme coins)
-/trending — hot Solana tokens
-/sol — SOL price
-/find [name] — search token
-/whale [address] — whale check
-/network — Solana TPS & epoch
-/sns [name] — resolve .sol domain
-
-/skills — full command list
-
-Quick text (no slash)
-• paste CA mint — token info
-• price bonk — ticker lookup
-• ayra scan — same as /ayrascan
-
-Agent
-/agents · /use [name] · /status
-
-Image
-/image [prompt]
-
-/help — this message`;
+${TELEGRAM_HELP_META}`;
 
 export const CHAT_COMMAND_HINTS = [
   "/help",
-  "/skills",
-  "/sol",
+  "/p",
+  "/t",
+  "/q",
   "/ayrascan",
   "/trending",
-  "/price bonk",
-  "/agents",
-  "/status",
+  "/w",
+  "/rug",
+  "/f",
 ] as const;
 
+const SKILL_COMMANDS_UI = TELEGRAM_SKILL_COMMANDS.map((c) => ({
+  cmd: c.usage,
+  desc: c.description,
+}));
+
 export const TELEGRAM_COMMANDS_UI: Array<{ cmd: string; desc: string }> = [
-  { cmd: "/help", desc: "Show all commands" },
-  { cmd: "/skills", desc: "List all skill commands" },
-  { cmd: "/price [ticker|CA]", desc: "Token price" },
-  { cmd: "/token [ticker|CA]", desc: "Full token card" },
-  { cmd: "/wallet [address]", desc: "Wallet balance" },
-  { cmd: "/quality [CA]", desc: "AYRA quality report" },
-  { cmd: "/rugcheck [CA]", desc: "Rug check" },
-  { cmd: "/ayrascan", desc: "AYRA scan — filtered meme coins" },
-  { cmd: "/trending", desc: "Trending tokens" },
-  { cmd: "/sol", desc: "SOL price" },
-  { cmd: "/agents", desc: "List your agents" },
-  { cmd: "/use [name]", desc: "Set default agent" },
-  { cmd: "/status", desc: "Agent + models" },
-  { cmd: "/image [prompt]", desc: "Generate image" },
+  ...SKILL_COMMANDS_UI,
+  ...META_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })),
 ];

@@ -15,7 +15,6 @@ import {
   type ModelTier,
 } from "@/lib/models";
 import { cn } from "@/lib/utils";
-import { ChevronDown } from "lucide-react";
 
 const CHAT_TIERS: ModelTier[] = ["free", "standard", "premium"];
 const DEFAULT_VALUE = "__default__";
@@ -50,22 +49,13 @@ export function ChatModelSelect({
       <SelectTrigger
         className={cn(
           variant === "inline"
-            ? "h-7 max-w-[min(160px,42vw)] gap-1 rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 text-[11px] font-medium shadow-none hover:bg-white/[0.06] focus:ring-0 [&>span]:line-clamp-1"
+            ? "h-7 max-w-[min(160px,42vw)] rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 text-[11px] font-medium shadow-none hover:bg-white/[0.06] focus:ring-0 [&>span]:line-clamp-1 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:opacity-60"
             : "h-8 max-w-[200px] text-xs"
         )}
       >
-        {variant === "inline" ? (
-          <>
-            <SelectValue>{label}</SelectValue>
-            <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
-          </>
-        ) : (
-          <SelectValue placeholder="Model">
-            {selectValue === DEFAULT_VALUE
-              ? `Default · ${getModelLabel(defaultModel)}`
-              : getModelLabel(selectValue)}
-          </SelectValue>
-        )}
+        <SelectValue placeholder="Model">
+          {label}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent className="max-h-80">
         <SelectItem value={DEFAULT_VALUE}>

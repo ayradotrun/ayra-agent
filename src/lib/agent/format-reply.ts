@@ -22,7 +22,12 @@ function formatPct(value: number | null | undefined): string {
   return `${sign}${value.toFixed(2)}% (24h)`;
 }
 
-export function formatToolResult(data: unknown): string | null {
+export interface FormatToolResultContext {
+  agentName?: string;
+  skillSlug?: string;
+}
+
+export function formatToolResult(data: unknown, context?: FormatToolResultContext): string | null {
   if (!data || typeof data !== "object") return null;
   const r = data as Record<string, unknown>;
 
@@ -75,7 +80,9 @@ export function formatToolResult(data: unknown): string | null {
     Array.isArray(r.rejectReasons) &&
     typeof r.scanned !== "number"
   ) {
-    return formatAyraQualityReport(r as unknown as MemeTokenSnapshot);
+    return formatAyraQualityReport(r as unknown as MemeTokenSnapshot, {
+      agentName: context?.agentName,
+    });
   }
 
   if (typeof r.solBalance === "number" && r.wallet) {

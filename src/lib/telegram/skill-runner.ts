@@ -24,8 +24,14 @@ export async function runSkillFast(
   };
 
   try {
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { name: true },
+    });
     const result = await skill.execute(input, { agentId, userId, runId: run.id, log: logFn });
-    const message = formatToolResult(result) || fallbackMsg;
+    const message =
+      formatToolResult(result, { agentName: agent?.name ?? undefined, skillSlug: slug }) ||
+      fallbackMsg;
     await prisma.agentRun.update({
       where: { id: run.id },
       data: {
