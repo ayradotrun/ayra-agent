@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AyraLogo } from "@/components/brand/ayra-logo";
 
 const iconMap: Record<string, React.ElementType> = {
   wallet: Wallet,
@@ -50,10 +51,8 @@ export function LandingPage() {
       <div className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-emerald-500/5 blur-3xl" />
 
       <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
-            <Bot className="h-4 w-4 text-primary" />
-          </div>
+        <div className="flex items-center gap-2.5">
+          <AyraLogo size={36} priority className="ring-1 ring-primary/30" />
           <span className="font-semibold tracking-tight">AYRA Agent</span>
         </div>
         <div className="flex items-center gap-3">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot } from "lucide-react";
+import { AyraLogo } from "@/components/brand/ayra-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridBackground } from "@/components/layout/grid-background";
@@ -10,8 +10,8 @@ export default function ForgotPasswordPage() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/15">
-              <Bot className="h-5 w-5 text-primary" />
+            <div className="mx-auto mb-4 flex justify-center">
+              <AyraLogo size={48} className="ring-1 ring-primary/30" />
             </div>
             <CardTitle>Reset password</CardTitle>
             <CardDescription>

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus, Zap } from "lucide-react";
+import { Plus } from "lucide-react";
+import { AyraLogo } from "@/components/brand/ayra-logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MOBILE_NAV_ITEMS, NEW_AGENT_HREF } from "@/components/layout/nav-config";
@@ -11,9 +12,7 @@ export function MobileHeader() {
   return (
     <header className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-white/[0.06] bg-[hsl(220,20%,5%)]/95 px-4 backdrop-blur-xl md:hidden">
       <div className="flex items-center gap-2.5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10">
-          <Zap className="h-4 w-4 text-emerald-400" />
-        </div>
+        <AyraLogo size={32} className="ring-1 ring-emerald-500/25" />
         <span className="text-sm font-semibold tracking-tight">AYRA Agent</span>
       </div>
       <Link href={NEW_AGENT_HREF}>

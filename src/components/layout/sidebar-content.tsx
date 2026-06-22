@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LogOut, Plus, Zap } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
+import { AyraLogo } from "@/components/brand/ayra-logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChatRecentsList } from "@/components/chat/chat-recents-list";
@@ -38,10 +39,7 @@ export function SidebarContent({ user, onNavigate }: SidebarContentProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex h-[60px] shrink-0 items-center gap-3 px-5">
-        <div className="relative flex h-9 w-9 items-center justify-center rounded-[10px] border border-emerald-500/20 bg-emerald-500/10">
-          <Zap className="h-4 w-4 text-emerald-400" />
-          <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-[hsl(220,20%,5%)]" />
-        </div>
+        <AyraLogo size={36} className="ring-1 ring-emerald-500/25" />
         <div className="min-w-0">
           <p className="truncate text-[13px] font-semibold tracking-[-0.01em] text-foreground">
             AYRA Agent

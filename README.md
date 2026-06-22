@@ -1,7 +1,18 @@
-# AYRA Agent
+<p align="center">
+  <img src="docs/assets/ayra-logo.png" alt="AYRA Agent logo" width="200" />
+</p>
+
+<h1 align="center">AYRA Agent</h1>
 
 <p align="center">
   <strong>Autonomous AI agents for Solana developers and token builders.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/License-MIT-2D5A27?style=for-the-badge" alt="MIT License" />
+  <img src="https://img.shields.io/badge/Solana-Dev_Agents-A8D08D?style=for-the-badge&logo=solana&logoColor=2D5A27" alt="Solana" />
+  <img src="https://img.shields.io/badge/Element-Wind-5A8F4E?style=for-the-badge" alt="Wind" />
+  <img src="https://img.shields.io/badge/Role-Strategist-2D5A27?style=for-the-badge&labelColor=F5F9F2" alt="Strategist" />
 </p>
 
 <p align="center">
@@ -9,6 +20,7 @@
 </p>
 
 <p align="center">
+  <a href="#meet-ayra">Meet Ayra</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#private-database-byod">Private database</a> ·
   <a href="#security">Security</a> ·
@@ -17,7 +29,36 @@
 
 ---
 
+## Meet Ayra
+
+<p align="center">
+  <em>Calm · Smart · Determined — your strategist for on-chain ops and agent automation.</em>
+</p>
+
+<table align="center">
+  <tr>
+    <td align="center"><strong>Name</strong><br/>Ayra · アイラ</td>
+    <td align="center"><strong>Age</strong><br/>17</td>
+    <td align="center"><strong>Role</strong><br/>Strategist</td>
+    <td align="center"><strong>Element</strong><br/>Wind</td>
+  </tr>
+  <tr>
+    <td align="center" colspan="4">
+      AYRA Agent is named after Ayra — she plans, schedules, and executes: brain tasks, token research, X content, and Telegram workflows without losing the thread.
+    </td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="docs/assets/ayra-character-sheet.png" alt="AYRA Agent — Ayra character design sheet" width="100%" />
+</p>
+
+---
+
 AYRA Agent is a self-hostable platform for building and running **tool-using AI agents** focused on **Solana**, **meme/token research**, and **X (Twitter)** operations. Users bring their own LLM keys; optionally they bring their own Postgres for chat history and scheduled brain tasks so platform storage stays lean.
+
+> **Brand palette:** forest green `#2D5A27` · leaf `#5A8F4E` · mint `#A8D08D` · cream `#F5F9F2`
+
 
 ## Highlights
 
