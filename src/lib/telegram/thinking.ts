@@ -16,6 +16,8 @@ export function shouldShowTelegramThinking(text: string): boolean {
   if (cmdStarts(trimmed, "imagemodel")) return false;
   if (cmdStarts(trimmed, "customimagemodel")) return false;
 
+  if (cmdStarts(trimmed, "post")) return false;
+
   const skillCmd = parseSkillCommand(trimmed);
   if (skillCmd && "error" in skillCmd) return false;
   if (skillCmd) return true;

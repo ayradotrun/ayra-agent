@@ -97,6 +97,15 @@ export default function SecurityPage() {
         </a>
         .
       </p>
+
+      <h2>Contact</h2>
+      <p>
+        Security questions: email <a href="mailto:suppor@ayra.run">suppor@ayra.run</a> or use{" "}
+        <a href="https://ayra.run/support" target="_blank" rel="noopener noreferrer">
+          AYRA CS Support
+        </a>
+        .
+      </p>
     </LegalPageLayout>
   );
 }

@@ -7,7 +7,7 @@ import {
   registerTelegramWebhook,
   setTelegramBotCommands,
 } from "@/lib/telegram/client";
-import { getXConnectionInfo, getXCallbackUrl, isXOAuthConfigured } from "@/lib/x-oauth";
+import { getXConnectionInfo, getXCallbackUrl, isXOAuthConfigured, verifyXCredentialsForUser } from "@/lib/x-oauth";
 import { isValidModelId, normalizeModelId, normalizeChatModel } from "@/lib/models";
 import { isValidLlmBaseUrl, resolveLlmBaseUrl, normalizeLlmBaseUrl } from "@/lib/llm-config";
 import { syncUserChatModel, syncUserImageModel } from "@/lib/user-models";
@@ -222,6 +222,13 @@ export async function PATCH(request: NextRequest) {
     }
     if (data.xAccessSecret) updateData.xAccessSecret = encryptSafe(data.xAccessSecret);
 
+    const xCredentialsTouched = !!(
+      data.xApiKey ||
+      data.xApiSecret ||
+      data.xAccessToken ||
+      data.xAccessSecret
+    );
+
     let webhookSecret = existing?.telegramWebhookSecret;
     if ((data.telegramBotToken || existing?.telegramBotToken) && !webhookSecret) {
       webhookSecret = generateWebhookSecret();
@@ -256,6 +263,25 @@ export async function PATCH(request: NextRequest) {
         xAccessSecret: true,
       },
     });
+
+    if (xCredentialsTouched) {
+      const verified = await verifyXCredentialsForUser(user.id);
+      if (!verified.ok) {
+        return NextResponse.json(
+          { error: verified.error ?? "X credentials could not be verified." },
+          { status: 400 }
+        );
+      }
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          xAuthMethod: "oauth1",
+          xUsername: verified.username,
+          xUserId: verified.xUserId,
+          xConnectedAt: new Date(),
+        },
+      });
+    }
 
     if (data.brainDatabaseUrl !== undefined && updateData.brainDatabaseUrl) {
       const privateUrl = decryptSafe(String(updateData.brainDatabaseUrl));

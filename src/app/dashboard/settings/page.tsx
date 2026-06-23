@@ -22,6 +22,7 @@ import { DEFAULT_MODEL, DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { DEFAULT_LLM_BASE_URL } from "@/lib/llm-config";
 import { TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
 import { PrivateDatabaseSetup } from "@/components/settings/private-database-setup";
+import { XManualKeysGuide } from "@/components/settings/x-manual-keys-guide";
 
 interface AgentOption {
   id: string;
@@ -31,6 +32,7 @@ interface AgentOption {
 
 interface XConnection {
   connected?: boolean;
+  verified?: boolean;
   authMethod?: string | null;
   username?: string | null;
   connectedAt?: string | null;
@@ -471,14 +473,47 @@ function SettingsContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               {settings.xConnection?.connected ? (
-                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
-                  <p className="text-sm font-medium text-emerald-400">
-                    Connected as @{settings.xConnection.username}
-                  </p>
+                <div
+                  className={`rounded-lg border p-4 ${
+                    settings.xConnection.verified
+                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      : "border-amber-500/30 bg-amber-500/5"
+                  }`}
+                >
+                  {settings.xConnection.verified && settings.xConnection.username ? (
+                    <p className="text-sm font-medium text-emerald-400">
+                      Connected as @{settings.xConnection.username}
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-amber-400">
+                        X keys saved but not verified
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Missing username usually means incomplete or invalid manual keys. Disconnect,
+                        then use <strong>Connect with X</strong> (recommended) or re-save all 4 keys
+                        with <strong>Read + Write</strong> permissions from developer.x.com.
+                      </p>
+                    </>
+                  )}
                   <p className="mt-1 text-xs text-muted-foreground">
                     Method: {settings.xConnection.authMethod === "oauth2" ? "OAuth login" : "Manual keys"}
                   </p>
-                  <Button type="button" variant="outline" size="sm" className="mt-3" disabled={disconnectingX} onClick={disconnectX}>
+                  {settings.xOAuthConfigured && settings.xConnection.authMethod !== "oauth2" && (
+                    <Link href="/api/x/connect" className="mt-3 inline-block">
+                      <Button type="button" size="sm" className="gap-2 bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white">
+                        Switch to Connect with X
+                      </Button>
+                    </Link>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 ml-0 sm:ml-2"
+                    disabled={disconnectingX}
+                    onClick={disconnectX}
+                  >
                     {disconnectingX ? "Disconnecting..." : "Disconnect X"}
                   </Button>
                 </div>
@@ -527,9 +562,16 @@ function SettingsContent() {
               >
                 {showXAdvanced ? "Hide" : "Show"} manual API keys (advanced)
               </button>
+              {!showXAdvanced && (
+                <p className="text-xs text-muted-foreground">
+                  Manual setup: X Developer Portal → Read and write → 4 keys. Guide opens when you expand
+                  above.
+                </p>
+              )}
 
               {showXAdvanced && (
                 <div className="grid gap-4 sm:grid-cols-2 border-t border-border/40 pt-4">
+                  <XManualKeysGuide />
                   <SecretField
                     id="x-api-key"
                     label="API Key"

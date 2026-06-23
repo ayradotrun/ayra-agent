@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AyraSocialLinks } from "@/components/brand/ayra-social-links";
 import { AyraLogo } from "@/components/brand/ayra-logo";
-import { TRUST_LINKS } from "@/components/landing/landing-trust-data";
+import { AYRA_SUPPORT_CS_URL, AYRA_SUPPORT_EMAIL } from "@/components/brand/ayra-support";
 
 const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
@@ -23,14 +23,14 @@ const resourceLinks = [
 export function LandingFooter() {
   return (
     <footer className="relative z-10 border-t border-border/40 bg-secondary/10">
-      <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-5xl px-3 py-12 sm:px-4 sm:py-14">
         <div className="grid gap-8 sm:grid-cols-2 sm:gap-10 lg:grid-cols-4">
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div>
             <div className="flex items-center gap-2.5">
               <AyraLogo size={32} className="ring-1 ring-primary/20" />
               <span className="font-semibold">AYRA Agent</span>
             </div>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
               Autonomous AI agents for Solana developers and token builders. Self-hostable,
               privacy-first, open source.
             </p>
@@ -80,29 +80,26 @@ export function LandingFooter() {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Trust</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground/80">Support</p>
             <ul className="mt-4 space-y-2.5">
-              {TRUST_LINKS.map((link) => (
-                <li key={link.href}>
-                  {link.external ? (
-                    <a
-                      href={link.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {link.label}
-                    </a>
-                  ) : (
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {link.label}
-                    </Link>
-                  )}
-                </li>
-              ))}
+              <li>
+                <a
+                  href={AYRA_SUPPORT_CS_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  CS Support
+                </a>
+              </li>
+              <li>
+                <a
+                  href={`mailto:${AYRA_SUPPORT_EMAIL}`}
+                  className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {AYRA_SUPPORT_EMAIL}
+                </a>
+              </li>
             </ul>
           </div>
         </div>

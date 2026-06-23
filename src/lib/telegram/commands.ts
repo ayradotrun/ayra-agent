@@ -9,6 +9,7 @@ import {
 export { getTelegramSkillMenuCommands };
 
 export const META_COMMANDS_UI = [
+  { cmd: "/post [text]", desc: "🐦 Post to X (auto-post must be on)" },
   { cmd: "/help", desc: "📋 All commands" },
   { cmd: "/agents", desc: "🤖 List agents" },
   { cmd: "/use [name]", desc: "🔄 Switch agent" },
@@ -27,6 +28,7 @@ export const TELEGRAM_BOT_COMMANDS = [
   { command: "use", description: "🔄 Switch agent" },
   { command: "status", description: "📊 Agent status" },
   { command: "tasks", description: "📅 Brain task queue" },
+  { command: "post", description: "🐦 Post tweet to X" },
   { command: "image", description: "🎨 Generate image" },
 ] as const;
 
@@ -64,6 +66,7 @@ export const TELEGRAM_HELP_TEXT = `${formatSkillCommandsHelp("telegram")}
 ${TELEGRAM_HELP_META}`;
 
 export const CHAT_COMMAND_HINTS = [
+  "/post",
   "/help",
   "/p",
   "/t",

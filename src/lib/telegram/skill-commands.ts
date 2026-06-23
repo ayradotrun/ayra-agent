@@ -67,7 +67,7 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
     command: "q",
     aliases: ["quality"],
     skillSlug: "token-quality-report",
-    description: "✅ AYRA quality (max pair 7d)",
+    description: "✅ AYRA quality + buy/skip verdict (max pair 7d)",
     usage: "/q [CA]",
     arg: "mint",
     defaults: { maxPairAgeHours: QUALITY_MAX_PAIR_AGE_HOURS },

@@ -23,7 +23,9 @@ import { CHAT_HELP_TEXT, TELEGRAM_HELP_TEXT } from "@/lib/telegram/commands";
 import { cmdIs, cmdStarts } from "@/lib/telegram/command-utils";
 import { parseSkillCommand } from "@/lib/telegram/skill-commands";
 import { runSkillFast, runTokenLookupFast } from "@/lib/telegram/skill-runner";
+import { runQualityReportWithAgent } from "@/lib/agent/quality-report-with-agent";
 import { generateImageForAgent } from "@/lib/chat/image-gen";
+import { postTweet, resolveAutoPostReadiness } from "@/lib/x-api";
 
 export interface HandleChatInputOptions {
   /** Dashboard chat: /use switches this session's agent */
@@ -61,7 +63,7 @@ function formatReply(text: string, telegram?: boolean): string {
 async function resolveAgentRecord(userId: string, agentId: string) {
   return prisma.agent.findFirst({
     where: { id: agentId, userId, status: "ACTIVE" },
-    select: { id: true, name: true, model: true, imageModel: true, status: true },
+    select: { id: true, name: true, model: true, imageModel: true, status: true, autoPostX: true },
   });
 }
 
@@ -76,6 +78,36 @@ export async function handleChatInput(
 
   if (cmdIs(trimmed, "help", "start")) {
     return { handled: true, content: helpText(telegram) };
+  }
+
+  const postCmd = cmdStarts(trimmed, "post");
+  if (postCmd) {
+    const tweetText = postCmd.args.trim();
+    if (!tweetText) {
+      return { handled: true, content: formatReply("Usage: /post [tweet text — max 280 characters]", telegram) };
+    }
+
+    const agent = await resolveAgentRecord(userId, agentId);
+    if (!agent) {
+      return { handled: true, content: "No active agent. Create one in the dashboard first." };
+    }
+
+    const postStatus = await resolveAutoPostReadiness(userId, agent.autoPostX);
+    if (!postStatus.ready) {
+      return { handled: true, content: formatReply(`❌ ${postStatus.message}`, telegram) };
+    }
+
+    try {
+      const result = await postTweet(userId, tweetText);
+      const link = `https://x.com/i/web/status/${result.tweetId}`;
+      return {
+        handled: true,
+        content: formatReply(`✅ *Posted to X*\n\n${result.text}\n\n${link}`, telegram),
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Post failed";
+      return { handled: true, content: formatReply(`❌ ${message}`, telegram) };
+    }
   }
 
   const skillCmd = parseSkillCommand(trimmed);
@@ -97,6 +129,24 @@ export async function handleChatInput(
       select: { telegramDefaultAgentId: true },
     });
     await ensureAgentModelsMatchUser(userId, agent.id, user?.telegramDefaultAgentId);
+
+    if (skillCmd.def.skillSlug === "token-quality-report") {
+      const result = await runQualityReportWithAgent(
+        userId,
+        agent.id,
+        String(skillCmd.input.mint),
+        {
+          maxPairAgeHours:
+            typeof skillCmd.input.maxPairAgeHours === "number"
+              ? skillCmd.input.maxPairAgeHours
+              : undefined,
+        }
+      );
+      if (result.message) {
+        return { handled: true, content: formatReply(result.message, telegram) };
+      }
+      return { handled: true, content: "Command completed." };
+    }
 
     let result;
     if (skillCmd.def.skillSlug === "token-quick-lookup") {

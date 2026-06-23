@@ -69,7 +69,11 @@ export default function CookiesPage() {
 
       <h2>7. Contact</h2>
       <p>
-        Questions:{" "}
+        Questions: email <a href="mailto:suppor@ayra.run">suppor@ayra.run</a>, use{" "}
+        <a href="https://ayra.run/support" target="_blank" rel="noopener noreferrer">
+          AYRA CS Support
+        </a>
+        , or{" "}
         <a href="https://x.com/Ayradotrun" target="_blank" rel="noopener noreferrer">
           @Ayradotrun
         </a>

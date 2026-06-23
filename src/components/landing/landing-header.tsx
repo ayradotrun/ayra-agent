@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { href: "/#features", label: "Features" },
   { href: "/#how-it-works", label: "How it works" },
-  { href: "/#trust", label: "Trust" },
   { href: "/#skills", label: "Skills" },
   { href: "/security", label: "Security" },
 ];
@@ -47,9 +46,9 @@ export function LandingHeader() {
         <header
           className={cn(
             "pointer-events-auto flex w-full max-w-5xl items-center gap-3 rounded-2xl border px-3 py-2.5 transition-all duration-300 sm:px-4 sm:py-3",
-            "bg-[hsl(220,18%,7%)]/80 backdrop-blur-xl",
+            "bg-[hsl(220,18%,7%)]/75 backdrop-blur-xl backdrop-saturate-150",
             scrolled
-              ? "border-white/[0.1] shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55),0_0_0_1px_rgba(52,211,153,0.06)]"
+              ? "border-white/[0.1] bg-[hsl(220,18%,7%)]/85 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.55),0_0_0_1px_rgba(52,211,153,0.06)]"
               : "border-white/[0.06] shadow-[0_4px_24px_-12px_rgba(0,0,0,0.4)]"
           )}
         >
@@ -159,5 +158,7 @@ export function LandingHeader() {
   );
 }
 
-export const LANDING_HEADER_OFFSET = "pt-[7.5rem] sm:pt-[8.5rem]";
-export const LANDING_SECTION_SCROLL = "scroll-mt-32 sm:scroll-mt-36";
+export const LANDING_CONTAINER_CLASS = "mx-auto w-full max-w-5xl px-3 sm:px-4";
+/** Clears the floating header pill — content starts below it on first paint */
+export const LANDING_HEADER_OFFSET = "pt-[5.75rem] sm:pt-[6.25rem]";
+export const LANDING_SECTION_SCROLL = "scroll-mt-[5.75rem] sm:scroll-mt-[6.25rem]";

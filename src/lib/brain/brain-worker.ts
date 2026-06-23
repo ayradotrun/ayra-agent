@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "@/lib/prisma";
 import { runAgent } from "@/lib/agent/runtime";
-import { postTweet, canUserAutoPost } from "@/lib/x-api";
+import { postTweet, resolveAutoPostReadiness } from "@/lib/x-api";
 import { notifyUserBrainEvent } from "@/lib/brain/brain-notify";
 import {
   findDueBrainTasksGlobally,
@@ -51,13 +51,13 @@ async function executeBrainTask(userId: string, taskId: string): Promise<void> {
           payloadText(task.payload, "text") ||
           payloadText(task.payload, "draft") ||
           task.title;
-        const canPost = await canUserAutoPost(task.userId, agent.autoPostX);
-        if (!canPost) {
+        const canPostStatus = await resolveAutoPostReadiness(task.userId, agent.autoPostX);
+        if (!canPostStatus.ready) {
           await notifyUserBrainEvent(
             task.userId,
-            `📅 *Scheduled tweet* (draft — auto-post off)\n\n${text.slice(0, 500)}\n\n_Enable X auto-post in Settings to publish automatically._`
+            `📅 *Scheduled tweet* (draft — auto-post blocked)\n\n${text.slice(0, 500)}\n\n_${canPostStatus.message}_`
           );
-          result = "Draft sent to Telegram — auto-post disabled";
+          result = `Draft sent — ${canPostStatus.message}`;
         } else {
           const posted = await postTweet(task.userId, text);
           result = `Tweet posted: ${posted.tweetId}`;

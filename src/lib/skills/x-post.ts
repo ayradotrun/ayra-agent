@@ -1,11 +1,14 @@
 import { z } from "zod";
 import type { SkillDefinition } from "./base";
 import { prisma } from "@/lib/prisma";
-import { postTweet, canUserAutoPost } from "@/lib/x-api";
+import { postTweet, resolveAutoPostReadiness } from "@/lib/x-api";
 
 const inputSchema = z.object({
   text: z.string().min(1).max(280).describe("Tweet text to post or save as draft"),
-  postNow: z.boolean().optional().describe("Attempt to post immediately if auto-post is enabled"),
+  postNow: z
+    .boolean()
+    .optional()
+    .describe("true = publish now when auto-post enabled; false = draft only; omit = publish if auto-post ready"),
 });
 
 export const xPost: SkillDefinition = {
@@ -13,7 +16,8 @@ export const xPost: SkillDefinition = {
   name: "X Post",
   slug: "x-post",
   category: "Social",
-  description: "Post to X when auto-post is enabled and credentials are configured. Otherwise saves as draft.",
+  description:
+    "Post tweet text to X (Twitter). Function name: x_post. When account + agent auto-post are enabled, call with text to publish; set postNow true to force publish, false for draft only.",
   icon: "send",
   permission: "write",
   isEnabled: true,
@@ -23,18 +27,22 @@ export const xPost: SkillDefinition = {
     await ctx.log("INFO", "Processing X post request", "x-post");
 
     const agent = await prisma.agent.findUnique({ where: { id: ctx.agentId } });
-    const wantsPost = input.postNow === true;
-    const canPost = agent
-      ? await canUserAutoPost(ctx.userId, agent.autoPostX && wantsPost)
-      : false;
+    const readiness = agent
+      ? await resolveAutoPostReadiness(ctx.userId, agent.autoPostX)
+      : { ready: false, message: "Agent not found.", reason: "agent_auto_post_disabled" as const };
 
-    if (!canPost) {
-      await ctx.log("INFO", "Draft only — auto-post disabled or missing credentials", "x-post");
+    const shouldPost =
+      input.postNow !== false &&
+      readiness.ready &&
+      (input.postNow === true || input.postNow === undefined);
+
+    if (!shouldPost) {
+      await ctx.log("INFO", `Draft only — ${readiness.message}`, "x-post");
       return {
         posted: false,
         draft: text,
         characterCount: text.length,
-        note: "Saved as draft. Enable auto-post in Settings + Agent settings + X API keys to post.",
+        note: readiness.message,
       };
     }
 

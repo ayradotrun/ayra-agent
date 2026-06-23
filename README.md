@@ -165,7 +165,7 @@ Detailed user-facing steps are in the Settings UI and in [docs/private-database.
 | **Isolation** | APIs filter by `userId`; private DB holds only that user's chat/brain rows |
 | **Rate limits** | Chat and API routes throttled per user/IP |
 | **Agent bounds** | Run timeout, max tool calls, no default shell access |
-| **X posting** | Draft-by-default; auto-post requires user + agent opt-in |
+| **X posting** | Draft-by-default; auto-post requires user + agent opt-in. Manual keys: [docs/x-manual-keys.md](./docs/x-manual-keys.md) |
 | **Logging** | Agent runs and tool usage recorded for audit |
 
 Report vulnerabilities privately — see [SECURITY.md](./SECURITY.md).

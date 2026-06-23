@@ -76,6 +76,11 @@ export async function getTwitterClientForUser(userId: string): Promise<TwitterAp
     if (needsRefresh && user.xRefreshToken) {
       const refreshed = await refreshUserXToken(userId);
       if (refreshed) return refreshed;
+      return null;
+    }
+
+    if (needsRefresh) {
+      return null;
     }
 
     return new TwitterApi(decryptSafe(user.xAccessToken));
@@ -101,11 +106,47 @@ export async function getTwitterClientForUser(userId: string): Promise<TwitterAp
 export async function isXConnected(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { xAuthMethod: true, xAccessToken: true, xApiKey: true, xAccessSecret: true },
+    select: {
+      xAuthMethod: true,
+      xAccessToken: true,
+      xApiKey: true,
+      xApiSecret: true,
+      xAccessSecret: true,
+    },
   });
   if (!user?.xAccessToken) return false;
   if (user.xAuthMethod === "oauth2") return true;
-  return !!(user.xApiKey && user.xAccessSecret);
+  return !!(user.xApiKey && user.xApiSecret && user.xAccessToken && user.xAccessSecret);
+}
+
+export async function verifyXCredentialsForUser(userId: string): Promise<{
+  ok: boolean;
+  username?: string;
+  xUserId?: string;
+  error?: string;
+}> {
+  const client = await getTwitterClientForUser(userId);
+  if (!client) {
+    return {
+      ok: false,
+      error:
+        "Incomplete X credentials. OAuth: use Connect with X. Manual: save all 4 keys (API Key, API Secret, Access Token, Access Secret) with Read + Write permissions.",
+    };
+  }
+
+  try {
+    const me = await client.v2.me({ "user.fields": ["username", "name"] });
+    if (!me.data?.username) {
+      return { ok: false, error: "X API connected but profile username was not returned." };
+    }
+    return { ok: true, username: me.data.username, xUserId: me.data.id };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "X API verification failed";
+    return {
+      ok: false,
+      error: `X credentials rejected by API: ${message.slice(0, 200)}`,
+    };
+  }
 }
 
 export async function getXConnectionInfo(userId: string) {
@@ -126,6 +167,7 @@ export async function getXConnectionInfo(userId: string) {
   const connected = await isXConnected(userId);
   return {
     connected,
+    verified: connected && !!user.xUsername,
     authMethod: user.xAuthMethod,
     username: user.xUsername,
     userId: user.xUserId,

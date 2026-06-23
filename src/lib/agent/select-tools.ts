@@ -18,6 +18,8 @@ const TELEGRAM_ALWAYS = [
   "brain-calendar-plan",
   "task-planner",
   "goal-tracker",
+  "x-post",
+  "x-draft-generator",
 ] as const;
 
 const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
@@ -48,7 +50,7 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
     slugs: ["image-generator"],
   },
   {
-    pattern: /\b(tweet|thread|twitter|\bx\b|posting|calendar|schedule|content plan)\b/i,
+    pattern: /\b(tweet|thread|twitter|\bx\b|post|posting|publish|tes post|coba post|content plan|calendar|schedule)\b/i,
     slugs: [
       "x-draft-generator",
       "x-thread-drafter",

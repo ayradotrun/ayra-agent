@@ -28,7 +28,8 @@ import { LandingHeader, LANDING_HEADER_OFFSET, LANDING_SECTION_SCROLL } from "@/
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { LandingHeroBg } from "@/components/landing/landing-hero-bg";
 import { LandingAgentTerminal } from "@/components/landing/landing-agent-terminal";
-import { LandingTrustStrip, LandingTrustPills } from "@/components/landing/landing-trust-strip";
+import { LandingArchitectureDiagram } from "@/components/landing/landing-architecture-diagram";
+import { ScrollReveal, ScrollStagger, ScrollStaggerItem, ScrollStaggerList, ScrollStaggerListItem } from "@/components/landing/landing-scroll-reveal";
 
 const iconMap: Record<string, React.ElementType> = {
   wallet: Wallet,
@@ -173,45 +174,32 @@ export function LandingPage() {
                 </Button>
               </Link>
             </div>
-
-            <div className="mt-8 flex justify-center lg:justify-start">
-              <LandingTrustPills />
-            </div>
           </motion.div>
 
           <LandingAgentTerminal />
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-10 sm:mt-16"
-        >
-          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
-            {stats.map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.55 + i * 0.08 }}
-                whileHover={{ y: -4, scale: 1.02 }}
-                className="glass-panel min-w-[140px] shrink-0 cursor-default rounded-xl px-4 py-4 sm:min-w-0 sm:rounded-2xl sm:p-6"
-              >
-                <p className="text-xl font-bold text-gradient sm:text-3xl">{stat.value}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{stat.label}</p>
-              </motion.div>
+        <ScrollReveal variant="fadeUp" delay={0.15} className="mt-10 sm:mt-16">
+          <ScrollStagger className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+            {stats.map((stat) => (
+              <ScrollStaggerItem key={stat.label}>
+                <motion.div
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  className="glass-panel min-w-[140px] shrink-0 cursor-default rounded-xl px-4 py-4 sm:min-w-0 sm:rounded-2xl sm:p-6"
+                >
+                  <p className="text-xl font-bold text-gradient sm:text-3xl">{stat.value}</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{stat.label}</p>
+                </motion.div>
+              </ScrollStaggerItem>
             ))}
-          </div>
-        </motion.div>
+          </ScrollStagger>
+        </ScrollReveal>
       </section>
-
-      <LandingTrustStrip />
 
       {/* Features */}
       <section id="features" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="max-w-2xl text-center md:text-left">
+          <ScrollReveal variant="fadeUp" className="max-w-2xl text-center md:text-left">
             <Badge variant="secondary" className="mb-4">Platform</Badge>
             <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
               Everything you need to run AI agents
@@ -220,109 +208,96 @@ export function LandingPage() {
               Hermes-style autonomy with Solana-native skills, enterprise-grade privacy, and
               developer-friendly self-hosting.
             </p>
-          </div>
+          </ScrollReveal>
 
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((feature, i) => {
+          <ScrollStagger className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" stagger={0.07}>
+            {features.map((feature) => {
               const Icon = iconMap[feature.icon] || Bot;
               return (
-                <motion.div
-                  key={feature.title}
-                  initial={{ opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05 }}
-                  whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
-                  className="glass-panel group rounded-xl p-6 transition-colors hover:border-primary/30 hover:shadow-[0_0_32px_-12px_rgba(52,211,153,0.25)]"
-                >
-                  <div className="mb-4 inline-flex rounded-lg border border-primary/20 bg-primary/10 p-2.5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="font-semibold">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.desc}</p>
-                </motion.div>
+                <ScrollStaggerItem key={feature.title}>
+                  <motion.div
+                    whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
+                    className="glass-panel group h-full rounded-xl p-6 transition-colors hover:border-primary/30 hover:shadow-[0_0_32px_-12px_rgba(52,211,153,0.25)]"
+                  >
+                    <div className="mb-4 inline-flex rounded-lg border border-primary/20 bg-primary/10 p-2.5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                      <Icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">{feature.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.desc}</p>
+                  </motion.div>
+                </ScrollStaggerItem>
               );
             })}
-          </div>
+          </ScrollStagger>
         </div>
       </section>
 
       {/* Privacy / trust */}
       <section className="relative z-10 py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="glass-panel glow-emerald overflow-hidden rounded-2xl">
-            <div className="grid lg:grid-cols-2">
-              <div className="p-6 sm:p-10 lg:p-12">
-                <Badge variant="secondary" className="mb-4 gap-1.5">
-                  <Shield className="h-3 w-3" />
-                  Privacy-first
-                </Badge>
-                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                  Your conversations never live on our shared database
-                </h2>
-                <p className="mt-4 text-muted-foreground leading-relaxed">
-                  Every account connects a private Postgres instance for chat and AYRA Brain tasks.
-                  Platform DB stores auth and agent config — your messages stay in infrastructure you
-                  control.
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "Required BYOD Postgres on first login",
-                    "Tables auto-created — no Prisma on your side",
-                    "Credentials encrypted with AES-256-GCM",
-                    "Open-source — audit the code yourself",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm text-muted-foreground">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-8 flex flex-wrap gap-3">
-                  <Link href="/privacy">
-                    <Button variant="outline" size="sm">
-                      Privacy Policy
-                    </Button>
-                  </Link>
-                  <Link href="/security">
-                    <Button variant="ghost" size="sm">
-                      Security details
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+          <ScrollReveal variant="scale" amount={0.15}>
+            <div className="glass-panel glow-emerald overflow-hidden rounded-2xl">
+              <div className="grid lg:grid-cols-2">
+                <ScrollReveal variant="slideLeft" delay={0.1} className="p-6 sm:p-10 lg:p-12">
+                  <Badge variant="secondary" className="mb-4 gap-1.5">
+                    <Shield className="h-3 w-3" />
+                    Privacy-first
+                  </Badge>
+                  <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                    Your conversations never live on our shared database
+                  </h2>
+                  <p className="mt-4 text-muted-foreground leading-relaxed">
+                    Every account connects a private Postgres instance for chat and AYRA Brain tasks.
+                    Platform DB stores auth and agent config — your messages stay in infrastructure you
+                    control.
+                  </p>
+                  <ScrollStaggerList className="mt-6 space-y-3" stagger={0.06}>
+                    {[
+                      "Required BYOD Postgres on first login",
+                      "Tables auto-created — no Prisma on your side",
+                      "Credentials encrypted with AES-256-GCM",
+                      "Open-source — audit the code yourself",
+                    ].map((item) => (
+                      <ScrollStaggerListItem key={item} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        {item}
+                      </ScrollStaggerListItem>
+                    ))}
+                  </ScrollStaggerList>
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <Link href="/privacy">
+                      <Button variant="outline" size="sm">
+                        Privacy Policy
+                      </Button>
+                    </Link>
+                    <Link href="/security">
+                      <Button variant="ghost" size="sm">
+                        Security details
+                      </Button>
+                    </Link>
+                  </div>
+                </ScrollReveal>
 
-              <div className="hidden border-t border-border/40 bg-[#0a0c0e] p-8 font-mono text-xs leading-relaxed text-muted-foreground sm:p-10 lg:block lg:border-l lg:border-t-0">
-                <p className="text-[10px] uppercase tracking-wider text-primary/70">Architecture</p>
-                <pre className="mt-4 whitespace-pre-wrap text-[11px] sm:text-xs">{`┌─ Platform Postgres ─────────────────┐
-│ Users · Agents · Auth · Settings   │
-└──────────────┬──────────────────────┘
-               │
-    ┌──────────┼──────────┐
-    ▼          ▼          ▼
- Dashboard   Telegram   Worker
-    │          │          │
-    └──────────┼──────────┘
-               ▼
-┌─ Your Private Postgres (required) ──┐
-│ chat_session · chat_message         │
-│ brain_task                          │
-└─────────────────────────────────────┘`}</pre>
+                <ScrollReveal variant="slideRight" delay={0.15} amount={0.12}>
+                  <LandingArchitectureDiagram />
+                </ScrollReveal>
               </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 
       {/* How it works */}
       <section id="how-it-works" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How it works</h2>
-          <p className="mt-2 max-w-xl text-muted-foreground">
-            From zero to a running agent in minutes — connect your database, pick a persona, attach skills.
-          </p>
+          <ScrollReveal variant="fadeUp">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How it works</h2>
+            <p className="mt-2 max-w-xl text-muted-foreground">
+              From zero to a running agent in minutes — connect your database, pick a persona, attach skills.
+            </p>
+          </ScrollReveal>
 
-          <div className="mt-8 grid gap-4 sm:mt-14 md:grid-cols-3">
+          <ScrollStagger className="mt-8 grid gap-4 sm:mt-14 md:grid-cols-3" stagger={0.1}>
             {[
               {
                 step: "01",
@@ -343,127 +318,138 @@ export function LandingPage() {
                 desc: "Chat in the dashboard, message via Telegram, or schedule cron runs. Review logs and drafts.",
               },
             ].map((item) => (
-              <div key={item.step} className="relative glass-panel rounded-xl p-5 sm:p-7">
-                <div className="flex items-center justify-between">
-                  <item.icon className="h-5 w-5 text-primary" />
-                  <span className="text-3xl font-bold text-primary/15">{item.step}</span>
-                </div>
-                <h3 className="mt-4 font-semibold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
-              </div>
+              <ScrollStaggerItem key={item.step}>
+                <motion.div
+                  whileHover={{ y: -4, transition: { type: "spring", stiffness: 300 } }}
+                  className="relative h-full glass-panel rounded-xl p-5 sm:p-7"
+                >
+                  <div className="flex items-center justify-between">
+                    <item.icon className="h-5 w-5 text-primary" />
+                    <span className="text-3xl font-bold text-primary/15">{item.step}</span>
+                  </div>
+                  <h3 className="mt-4 font-semibold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
+                </motion.div>
+              </ScrollStaggerItem>
             ))}
-          </div>
+          </ScrollStagger>
         </div>
       </section>
 
       {/* Personas */}
       <section className="relative z-10 py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Meet your agent team</h2>
-          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-            Pre-built personas with roles, prompts, and recommended skills — customize everything.
-          </p>
-          <div className="-mx-4 mt-8 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
-            {personas.map((persona, i) => (
-              <motion.div
-                key={persona.name}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.06 }}
-                whileHover={{ y: -4, scale: 1.02 }}
-                className="glass-panel min-w-[220px] shrink-0 rounded-xl p-5 transition-shadow hover:shadow-[0_0_24px_-10px_rgba(52,211,153,0.2)] sm:min-w-0"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
-                  {persona.name[0]}
-                </div>
-                <h3 className="mt-4 font-semibold">{persona.name}</h3>
-                <p className="text-xs text-primary">{persona.role}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{persona.focus}</p>
-              </motion.div>
+          <ScrollReveal variant="fadeUp">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Meet your agent team</h2>
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+              Pre-built personas with roles, prompts, and recommended skills — customize everything.
+            </p>
+          </ScrollReveal>
+          <ScrollStagger className="-mx-4 mt-8 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden" stagger={0.07}>
+            {personas.map((persona) => (
+              <ScrollStaggerItem key={persona.name}>
+                <motion.div
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  className="glass-panel min-w-[220px] shrink-0 rounded-xl p-5 transition-shadow hover:shadow-[0_0_24px_-10px_rgba(52,211,153,0.2)] sm:min-w-0"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                    {persona.name[0]}
+                  </div>
+                  <h3 className="mt-4 font-semibold">{persona.name}</h3>
+                  <p className="text-xs text-primary">{persona.role}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{persona.focus}</p>
+                </motion.div>
+              </ScrollStaggerItem>
             ))}
-          </div>
+          </ScrollStagger>
         </div>
       </section>
 
       {/* Skills */}
       <section id="skills" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Skills for devs & token teams</h2>
-          <p className="mt-2 max-w-xl text-muted-foreground">
-            14+ working skills today. Mix and match per agent. X auto-post is opt-in at account and agent level.
-          </p>
-          <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3">
+          <ScrollReveal variant="fadeUp">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Skills for devs & token teams</h2>
+            <p className="mt-2 max-w-xl text-muted-foreground">
+              14+ working skills today. Mix and match per agent. X auto-post is opt-in at account and agent level.
+            </p>
+          </ScrollReveal>
+          <ScrollStagger className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3" stagger={0.06}>
             {previewSkills.map((skill) => {
               const Icon = iconMap[skill.icon] || Bot;
               return (
-                <div
-                  key={skill.name}
-                  className="group glass-panel rounded-xl p-5 transition-colors hover:border-primary/30"
-                >
-                  <div className="flex items-start justify-between">
-                    <Icon className="h-5 w-5 text-primary" />
-                    <Badge variant={skill.enabled ? "success" : "secondary"}>
-                      {skill.enabled ? "Available" : "Soon"}
-                    </Badge>
-                  </div>
-                  <h3 className="mt-3 font-medium">{skill.name}</h3>
-                  <p className="mt-1 text-xs text-muted-foreground">{skill.category}</p>
-                </div>
+                <ScrollStaggerItem key={skill.name}>
+                  <motion.div
+                    whileHover={{ y: -3 }}
+                    className="group h-full glass-panel rounded-xl p-5 transition-colors hover:border-primary/30"
+                  >
+                    <div className="flex items-start justify-between">
+                      <Icon className="h-5 w-5 text-primary" />
+                      <Badge variant={skill.enabled ? "success" : "secondary"}>
+                        {skill.enabled ? "Available" : "Soon"}
+                      </Badge>
+                    </div>
+                    <h3 className="mt-3 font-medium">{skill.name}</h3>
+                    <p className="mt-1 text-xs text-muted-foreground">{skill.category}</p>
+                  </motion.div>
+                </ScrollStaggerItem>
               );
             })}
-          </div>
+          </ScrollStagger>
         </div>
       </section>
 
       {/* FAQ */}
       <section className="relative z-10 py-16 md:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">Frequently asked questions</h2>
-          <div className="mt-12 space-y-4">
+          <ScrollReveal variant="fadeUp" className="text-center">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Frequently asked questions</h2>
+          </ScrollReveal>
+          <ScrollStagger className="mt-12 space-y-4" stagger={0.08}>
             {faqs.map((faq) => (
-              <details
-                key={faq.q}
-                className="group glass-panel rounded-xl [&_summary::-webkit-details-marker]:hidden"
-              >
-                <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 font-medium">
-                  {faq.q}
-                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
-                </summary>
-                <p className="border-t border-border/40 px-5 pb-5 pt-3 text-sm leading-relaxed text-muted-foreground">
-                  {faq.a}
-                </p>
-              </details>
+              <ScrollStaggerItem key={faq.q}>
+                <details className="group glass-panel rounded-xl [&_summary::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 font-medium">
+                    {faq.q}
+                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                  </summary>
+                  <p className="border-t border-border/40 px-5 pb-5 pt-3 text-sm leading-relaxed text-muted-foreground">
+                    {faq.a}
+                  </p>
+                </details>
+              </ScrollStaggerItem>
             ))}
-          </div>
+          </ScrollStagger>
         </div>
       </section>
 
       {/* CTA */}
       <section className="relative z-10 border-t border-border/40 py-16 pb-28 md:py-24 md:pb-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="glass-panel glow-emerald rounded-2xl px-5 py-10 text-center sm:px-12 sm:py-14">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
-              Launch your first Solana agent today
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-              Free to start. Connect your database, add an API key, and deploy agents in minutes.
-              Self-host anytime with the open-source repo.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link href="/register">
-                <Button size="lg" className="glow-emerald">
-                  Get started free
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link href="/terms">
-                <Button variant="ghost" size="sm" className="text-muted-foreground">
-                  Terms of Service
-                </Button>
-              </Link>
+          <ScrollReveal variant="scale" amount={0.2}>
+            <div className="glass-panel glow-emerald rounded-2xl px-5 py-10 text-center sm:px-12 sm:py-14">
+              <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
+                Launch your first Solana agent today
+              </h2>
+              <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
+                Free to start. Connect your database, add an API key, and deploy agents in minutes.
+                Self-host anytime with the open-source repo.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+                <Link href="/register">
+                  <Button size="lg" className="glow-emerald">
+                    Get started free
+                    <ArrowRight className="ml-1 h-4 w-4" />
+                  </Button>
+                </Link>
+                <Link href="/terms">
+                  <Button variant="ghost" size="sm" className="text-muted-foreground">
+                    Terms of Service
+                  </Button>
+                </Link>
+              </div>
             </div>
-          </div>
+          </ScrollReveal>
         </div>
       </section>
 

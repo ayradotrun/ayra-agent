@@ -12,6 +12,16 @@ import { handleChatInput, resolveAgentIdForTelegram } from "@/lib/chat/handle-in
 import { ensureAgentModelsMatchUser } from "@/lib/user-models";
 import { claimTelegramUpdate } from "./dedup";
 import { shouldShowTelegramThinking, TELEGRAM_THINKING_MESSAGE } from "./thinking";
+import {
+  getOrCreateTelegramSession,
+  recordTelegramAssistantMessage,
+  recordTelegramUserMessage,
+  syncTelegramSessionAgent,
+  telegramHistoryForAgent,
+} from "./conversation";
+import { withTimeoutFallback } from "@/lib/with-timeout";
+
+const SESSION_TIMEOUT_MS = 8_000;
 
 async function sendRunImages(
   botToken: string,
@@ -42,6 +52,25 @@ async function beginTelegramProcessing(
 
   const status = await sendTelegramMessage(botToken, chatId, TELEGRAM_THINKING_MESSAGE);
   return status.messageId;
+}
+
+async function persistTelegramTurn(
+  userId: string,
+  sessionId: string,
+  userText: string,
+  assistantText?: string,
+  metadata?: Record<string, unknown>
+): Promise<void> {
+  await withTimeoutFallback(
+    (async () => {
+      await recordTelegramUserMessage(userId, sessionId, userText);
+      if (assistantText) {
+        await recordTelegramAssistantMessage(userId, sessionId, assistantText, metadata);
+      }
+    })(),
+    SESSION_TIMEOUT_MS,
+    undefined
+  );
 }
 
 export async function handleTelegramUpdate(
@@ -79,56 +108,83 @@ export async function handleTelegramUpdate(
   const agentId = (await resolveAgentIdForTelegram(userId)) ?? "";
   const statusMessageId = await beginTelegramProcessing(botToken, chatId, text);
 
-  const result = await handleChatInput(userId, agentId, text, { telegram: true });
-
-  if (result.handled) {
-    if (result.imagePaths?.length) {
-      if (result.content) {
-        await deliverTelegramTextReply(botToken, chatId, result.content, statusMessageId);
-      }
-      await sendRunImages(
-        botToken,
-        chatId,
-        result.imagePaths,
-        statusMessageId ? undefined : result.content
-      );
-    } else if (result.content) {
-      await deliverTelegramTextReply(botToken, chatId, result.content, statusMessageId);
-    } else if (statusMessageId) {
-      await deliverTelegramTextReply(botToken, chatId, "Done.", statusMessageId);
-    }
-    return;
-  }
-
-  if (!agentId) {
-    await deliverTelegramTextReply(
-      botToken,
-      chatId,
-      "No active agent. Create one in the dashboard, then try again.",
-      statusMessageId
+  let telegramSession: Awaited<ReturnType<typeof getOrCreateTelegramSession>> | null = null;
+  if (agentId) {
+    telegramSession = await withTimeoutFallback(
+      getOrCreateTelegramSession(userId, agentId),
+      SESSION_TIMEOUT_MS,
+      null
     );
-    return;
-  }
-
-  await ensureAgentModelsMatchUser(userId, agentId, user.telegramDefaultAgentId);
-
-  const agent = await prisma.agent.findUnique({
-    where: { id: agentId },
-    select: { name: true },
-  });
-
-  let activeStatusId = statusMessageId;
-  if (!activeStatusId) {
-    await sendTelegramChatAction(botToken, chatId, "typing");
-    const status = await sendTelegramMessage(botToken, chatId, TELEGRAM_THINKING_MESSAGE);
-    activeStatusId = status.messageId;
   }
 
   try {
+    const result = await handleChatInput(userId, agentId, text, { telegram: true });
+
+    if (result.handled) {
+      if (result.switchAgentId && telegramSession) {
+        await syncTelegramSessionAgent(userId, telegramSession.id, result.switchAgentId);
+      }
+
+      if (result.imagePaths?.length) {
+        if (result.content) {
+          await deliverTelegramTextReply(botToken, chatId, result.content, statusMessageId);
+        }
+        await sendRunImages(
+          botToken,
+          chatId,
+          result.imagePaths,
+          statusMessageId ? undefined : result.content
+        );
+      } else if (result.content) {
+        await deliverTelegramTextReply(botToken, chatId, result.content, statusMessageId);
+      } else if (statusMessageId) {
+        await deliverTelegramTextReply(botToken, chatId, "Done.", statusMessageId);
+      }
+
+      if (telegramSession && result.content) {
+        void persistTelegramTurn(userId, telegramSession.id, text, result.content);
+      }
+      return;
+    }
+
+    if (!agentId) {
+      await deliverTelegramTextReply(
+        botToken,
+        chatId,
+        "No active agent. Create one in the dashboard, then try again.",
+        statusMessageId
+      );
+      return;
+    }
+
+    await ensureAgentModelsMatchUser(userId, agentId, user.telegramDefaultAgentId);
+
+    const agent = await prisma.agent.findUnique({
+      where: { id: agentId },
+      select: { name: true },
+    });
+
+    let activeStatusId = statusMessageId;
+    if (!activeStatusId) {
+      await sendTelegramChatAction(botToken, chatId, "typing");
+      const status = await sendTelegramMessage(botToken, chatId, TELEGRAM_THINKING_MESSAGE);
+      activeStatusId = status.messageId;
+    }
+
+    const chatHistory =
+      telegramSession != null
+        ? await withTimeoutFallback(
+            telegramHistoryForAgent(userId, telegramSession.id),
+            SESSION_TIMEOUT_MS,
+            []
+          )
+        : [];
+
     const runResult = await runAgent(agentId, {
       trigger: "telegram",
       userMessage: text,
       replyViaTelegram: true,
+      chatHistory,
     });
 
     const reply =
@@ -148,13 +204,25 @@ export async function handleTelegramUpdate(
 
     await deliverTelegramTextReply(botToken, chatId, finalText, activeStatusId);
 
+    if (telegramSession) {
+      void persistTelegramTurn(userId, telegramSession.id, text, finalText, {
+        runId: runResult.runId,
+      });
+    }
+
     if (runResult.imagePaths && runResult.imagePaths.length > 0) {
       await sendTelegramChatAction(botToken, chatId, "upload_photo");
       await sendRunImages(botToken, chatId, runResult.imagePaths);
     }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Run failed";
-    await deliverTelegramTextReply(botToken, chatId, `❌ Error: ${msg}`, activeStatusId);
+    const msg = error instanceof Error ? error.message : "Request failed";
+    console.error("[AYRA Telegram] Handler error:", error);
+    await deliverTelegramTextReply(
+      botToken,
+      chatId,
+      `❌ ${msg.slice(0, 3500)}`,
+      statusMessageId
+    );
   }
 }
 

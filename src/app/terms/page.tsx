@@ -111,11 +111,15 @@ export default function TermsPage() {
 
       <h2>14. Contact</h2>
       <p>
-        Questions:{" "}
+        Questions: email <a href="mailto:suppor@ayra.run">suppor@ayra.run</a>, use{" "}
+        <a href="https://ayra.run/support" target="_blank" rel="noopener noreferrer">
+          AYRA CS Support
+        </a>
+        ,{" "}
         <a href="https://x.com/Ayradotrun" target="_blank" rel="noopener noreferrer">
           @Ayradotrun
-        </a>{" "}
-        or{" "}
+        </a>
+        , or{" "}
         <a href="https://github.com/ayradotrun/ayra-agent/issues" target="_blank" rel="noopener noreferrer">
           GitHub Issues
         </a>

@@ -55,12 +55,20 @@ export function buildRunPrompt(
 ): string {
   if ((trigger === "telegram" || trigger === "chat") && userMessage) {
     const channel = trigger === "chat" ? "dashboard chat" : "Telegram";
-    return `The user sent this message via ${channel}. You MUST use tools to fetch real data — never guess prices or facts.
+    return `The user sent this message via ${channel}.
+
+CONTEXT — read conversation history above first:
+- Follow-ups like "is it good?", "bagus ga?", "should I buy?", "kenapa?", "that token", "itu" refer to the topic in recent messages (e.g. a token from /q or /p). Answer about THAT topic directly.
+- Do NOT reintroduce yourself or list your capabilities unless they explicitly ask who you are or what you can do.
+- For follow-ups about data already in the conversation, answer from context; only call tools if they need fresh/live numbers.
+
+You MUST use tools to fetch NEW live data — never guess prices or facts.
 
 Rules:
 - "sol price" / SOL price → call sol_price_checker (no arguments)
 - Token price with mint address → token_price_tracker
 - Generate/draw image → image_generator
+- User asks to post/publish tweet to X → call x_post with text (use postNow true). Tool slug is x_post, NOT post_x.
 - After tool results, reply clearly in the same language the user used, with concrete numbers
 
 User message:

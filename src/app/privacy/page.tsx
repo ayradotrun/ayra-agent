@@ -110,11 +110,16 @@ export default function PrivacyPage() {
 
       <h2>11. Contact</h2>
       <p>
-        Questions about privacy: reach us on{" "}
+        Questions about privacy: email{" "}
+        <a href="mailto:suppor@ayra.run">suppor@ayra.run</a>, use{" "}
+        <a href="https://ayra.run/support" target="_blank" rel="noopener noreferrer">
+          AYRA CS Support
+        </a>
+        , reach us on{" "}
         <a href="https://x.com/Ayradotrun" target="_blank" rel="noopener noreferrer">
           @Ayradotrun
-        </a>{" "}
-        or open a discussion on{" "}
+        </a>
+        , or open a discussion on{" "}
         <a href="https://github.com/ayradotrun/ayra-agent" target="_blank" rel="noopener noreferrer">
           GitHub
         </a>

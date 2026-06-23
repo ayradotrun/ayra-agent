@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/lib/utils";
 import { scheduleLabel, getNextRunTime } from "@/lib/agent/scheduler";
@@ -93,6 +94,15 @@ export default function AgentDetailPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: agent.status === "ACTIVE" ? "PAUSED" : "ACTIVE" }),
+    });
+    loadAgent();
+  }
+
+  async function handleToggleAutoPostX(enabled: boolean) {
+    await fetch(`/api/agents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ autoPostX: enabled }),
     });
     loadAgent();
   }
@@ -306,9 +316,14 @@ export default function AgentDetailPage() {
                   <p className="text-xs text-muted-foreground">Telegram notifications</p>
                   <p className="font-medium">{agent.telegramNotify ? "Enabled" : "Disabled"}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Auto-post to X</p>
-                  <p className="font-medium">{agent.autoPostX ? "Enabled" : "Disabled"}</p>
+                <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                  <div>
+                    <p className="text-sm font-medium">Auto-post to X</p>
+                    <p className="text-xs text-muted-foreground">
+                      Also enable Settings → Allow auto-post, connect X, and attach the X Post skill.
+                    </p>
+                  </div>
+                  <Switch checked={agent.autoPostX} onCheckedChange={handleToggleAutoPostX} />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">System prompt</p>

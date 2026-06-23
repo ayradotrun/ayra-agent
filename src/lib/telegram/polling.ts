@@ -73,8 +73,14 @@ export async function startTelegramPolling(): Promise<void> {
             const claimed = await claimTelegramUpdate(botToken, update.update_id);
             if (!claimed) continue;
 
-            const { handleTelegramUpdate } = await import("./handler");
-            await handleTelegramUpdate(matched.id, update);
+            void (async () => {
+              try {
+                const { handleTelegramUpdate } = await import("./handler");
+                await handleTelegramUpdate(matched.id, update);
+              } catch (error) {
+                console.error("[AYRA Telegram] Update handler failed:", error);
+              }
+            })();
           }
         }
 
