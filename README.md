@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ayra-readme-banner.png" alt="AYRA Agent — autonomous AI agents for Solana developers" width="1500" />
+  <img src="docs/assets/ayra-readme-banner.png" alt="AYRA — Calm · Smart · Determined" width="1500" />
 </p>
 
 <p align="center">
