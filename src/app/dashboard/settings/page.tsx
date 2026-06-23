@@ -70,6 +70,7 @@ interface Settings {
   hasXAccessSecret?: boolean;
   hasSolanaRpcApiKey?: boolean;
   hasBrainDatabaseUrl?: boolean;
+  brainDatabaseUrl?: string | null;
 }
 
 async function fetchSettingsData(): Promise<Settings> {
@@ -169,7 +170,12 @@ function SettingsContent() {
 
   useEffect(() => {
     fetchSettingsData()
-      .then(setSettings)
+      .then((data) => {
+        setSettings(data);
+        if (data.brainDatabaseUrl) {
+          setBrainDatabaseUrl(data.brainDatabaseUrl);
+        }
+      })
       .catch((err) => {
         setMessage(err instanceof Error ? err.message : "Failed to load settings");
       })
@@ -217,7 +223,12 @@ function SettingsContent() {
     if (xAccessToken) body.xAccessToken = xAccessToken;
     if (xAccessSecret) body.xAccessSecret = xAccessSecret;
     if (solanaRpcApiKey) body.solanaRpcApiKey = solanaRpcApiKey;
-    if (brainDatabaseUrl.trim()) body.brainDatabaseUrl = brainDatabaseUrl.trim();
+
+    const trimmedDbUrl = brainDatabaseUrl.trim();
+    const savedDbUrl = settings.brainDatabaseUrl?.trim() ?? "";
+    if (trimmedDbUrl && (!settings.hasBrainDatabaseUrl || trimmedDbUrl !== savedDbUrl)) {
+      body.brainDatabaseUrl = trimmedDbUrl;
+    }
 
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -235,9 +246,11 @@ function SettingsContent() {
       setXAccessToken("");
       setXAccessSecret("");
       setSolanaRpcApiKey("");
-      setBrainDatabaseUrl("");
       const refreshed = await fetchSettingsData();
       setSettings(refreshed);
+      if (refreshed.brainDatabaseUrl) {
+        setBrainDatabaseUrl(refreshed.brainDatabaseUrl);
+      }
     } else {
       const err = await res.json().catch(() => ({}));
       setMessage(err.error || "Failed to save settings");

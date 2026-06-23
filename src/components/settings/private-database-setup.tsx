@@ -26,7 +26,7 @@ interface PrivateDatabaseSetupProps {
 }
 
 export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDatabaseSetupProps) {
-  const [mode, setMode] = useState<InputMode>("wizard");
+  const [mode, setMode] = useState<InputMode>(configured ? "url" : "wizard");
   const [provider, setProvider] = useState<PrivateDbProvider>("supabase");
   const [password, setPassword] = useState("");
   const [database, setDatabase] = useState("postgres");
@@ -65,6 +65,10 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
       customUser,
     ]
   );
+
+  useEffect(() => {
+    if (configured && value) setMode("url");
+  }, [configured, value]);
 
   useEffect(() => {
     if (mode !== "wizard" || !builtUrl) return;
@@ -333,13 +337,18 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
           <Label htmlFor="brain-database-url">Postgres connection URL *</Label>
           <Input
             id="brain-database-url"
-            type="password"
+            type="text"
+            autoComplete="off"
+            spellCheck={false}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="postgresql://user:pass@host:5432/postgres"
+            className="font-mono text-xs"
           />
-          {configured && !value && (
-            <p className="text-xs text-muted-foreground">Saved. Enter a new URL only to replace it.</p>
+          {configured && value && (
+            <p className="text-xs text-muted-foreground">
+              Saved URL loaded — edit here to change your database connection.
+            </p>
           )}
         </div>
       )}

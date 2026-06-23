@@ -87,7 +87,9 @@ export async function GET() {
     hasXAccessSecret: !!dbUser?.xAccessSecret,
     hasSolanaRpcApiKey: !!dbUser?.solanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
     hasBrainDatabaseUrl: !!dbUser?.brainDatabaseUrl,
-    brainDatabaseUrl: undefined,
+    brainDatabaseUrl: dbUser?.brainDatabaseUrl
+      ? decryptSafe(dbUser.brainDatabaseUrl)
+      : null,
     openRouterApiKey: undefined,
     telegramBotToken: undefined,
     xApiKey: undefined,
@@ -377,6 +379,9 @@ export async function PATCH(request: NextRequest) {
       hasXAccessSecret: !!updated.xAccessSecret,
       hasSolanaRpcApiKey: !!updated.solanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
       hasBrainDatabaseUrl: !!updated.brainDatabaseUrl,
+      brainDatabaseUrl: updated.brainDatabaseUrl
+        ? decryptSafe(updated.brainDatabaseUrl)
+        : null,
       xConnection,
     });
   } catch (error) {
