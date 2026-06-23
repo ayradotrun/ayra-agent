@@ -93,7 +93,7 @@ Or ask in chat: *"post this to X: …"* — the agent uses the `x_post` tool.
 | **Connected as @** (empty username) | Keys incomplete or invalid. Disconnect X, re-enter all 4 keys, Save again. |
 | Save error: credentials rejected | Wrong keys, expired token, or read-only access token. Regenerate with **Read and write**. |
 | Auto-post still saves draft only | Turn on both account + agent auto-post switches. |
-| 401 / 403 from X | Regenerate tokens; confirm app is not suspended; check X API tier limits. |
+| 401 / 403 from X on `/post` | **403** = keys work for read but not write, or billing blocked. Set app to **Read and write**, **regenerate** Access Token + Secret, re-save all 4 keys. If still 403, add pay-per-use credits at developer.x.com. **401** = invalid/expired keys — regenerate all four. |
 | OAuth button available | Prefer **Connect with X** — no manual copy/paste. |
 
 ---

@@ -5,6 +5,7 @@ import {
 } from "@/lib/x-oauth";
 import { prisma } from "@/lib/prisma";
 import { withTimeout } from "@/lib/with-timeout";
+import { formatXPostError } from "@/lib/x-errors";
 
 export type AutoPostBlockReason =
   | "account_auto_post_disabled"
@@ -94,6 +95,11 @@ export async function resolveAutoPostReadiness(
 }
 
 export async function postTweet(userId: string, text: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { xAuthMethod: true },
+  });
+
   const client = await getTwitterClientForUser(userId);
   if (!client) {
     const status = await resolveAutoPostReadiness(userId, true);
@@ -115,13 +121,7 @@ export async function postTweet(userId: string, text: string) {
       text: result.data.text ?? text.slice(0, 280),
     };
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Post failed";
-    if (/401|403|unauthorized|forbidden|invalid.*token/i.test(msg)) {
-      throw new Error(
-        `${BLOCK_MESSAGES.x_token_invalid} (X API: ${msg.slice(0, 120)})`
-      );
-    }
-    throw error instanceof Error ? error : new Error(msg);
+    throw new Error(formatXPostError(error, user?.xAuthMethod));
   }
 }
 
