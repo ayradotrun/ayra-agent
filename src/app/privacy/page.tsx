@@ -111,7 +111,7 @@ export default function PrivacyPage() {
       <h2>11. Contact</h2>
       <p>
         Questions about privacy: email{" "}
-        <a href="mailto:suppor@ayra.run">suppor@ayra.run</a>, use{" "}
+        <a href="mailto:support@ayra.run">support@ayra.run</a>, use{" "}
         <a href="https://ayra.run/support" target="_blank" rel="noopener noreferrer">
           AYRA CS Support
         </a>

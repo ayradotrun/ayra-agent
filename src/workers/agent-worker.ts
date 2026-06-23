@@ -3,10 +3,15 @@ import { acquireWorkerLock } from "../lib/worker/single-instance";
 import { startScheduler } from "../lib/agent/scheduler-worker";
 import { startBrainWorker } from "../lib/brain/brain-worker";
 import { startTelegramPolling } from "../lib/telegram/polling";
+import {
+  ensureAgentMemoryRunning,
+  stopAgentMemoryServer,
+} from "../lib/agentmemory/spawn-server";
 
 async function main() {
   acquireWorkerLock();
   console.log("[AYRA Worker] Starting...");
+  await ensureAgentMemoryRunning();
   await startScheduler();
   startBrainWorker();
 
@@ -14,15 +19,14 @@ async function main() {
     await startTelegramPolling();
   }
 
-  process.on("SIGINT", () => {
+  const shutdown = () => {
     console.log("[AYRA Worker] Shutting down...");
+    stopAgentMemoryServer();
     process.exit(0);
-  });
+  };
 
-  process.on("SIGTERM", () => {
-    console.log("[AYRA Worker] Shutting down...");
-    process.exit(0);
-  });
+  process.on("SIGINT", shutdown);
+  process.on("SIGTERM", shutdown);
 }
 
 main().catch((err) => {

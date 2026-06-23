@@ -3,16 +3,22 @@
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
+    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
     "worker": "tsx src/workers/agent-worker.ts",
+    "agentmemory": "tsx scripts/agentmemory-server.ts",
     "db:verify": "tsx scripts/db-verify.ts",
     "db:push": "prisma db push"
   },

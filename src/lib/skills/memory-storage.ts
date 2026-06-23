@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SkillDefinition } from "./base";
 import { prisma } from "@/lib/prisma";
+import { agentMemorySave } from "@/lib/agentmemory/client";
 
 export const memoryStorage: SkillDefinition = {
   id: "memory-storage",
@@ -25,6 +26,18 @@ export const memoryStorage: SkillDefinition = {
         tags: input.tags ?? [],
       },
     });
+
+    const user = await prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { agentMemoryEnabled: true, agentMemoryUrl: true },
+    });
+    if (user?.agentMemoryEnabled) {
+      await agentMemorySave(input.text, {
+        tags: input.tags,
+        userUrl: user.agentMemoryUrl,
+        sessionId: ctx.agentId,
+      });
+    }
 
     await ctx.log("INFO", `Memory stored: ${memory.id}`, "memory-storage");
     return { memoryId: memory.id, saved: true };

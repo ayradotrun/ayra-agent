@@ -49,6 +49,9 @@ export async function GET() {
       solanaDefaultRpc: true,
       solanaRpcApiKey: true,
       brainDatabaseUrl: true,
+      fallbackModels: true,
+      agentMemoryEnabled: true,
+      agentMemoryUrl: true,
     },
   });
 
@@ -90,6 +93,9 @@ export async function GET() {
     brainDatabaseUrl: dbUser?.brainDatabaseUrl
       ? decryptSafe(dbUser.brainDatabaseUrl)
       : null,
+    fallbackModels: dbUser?.fallbackModels ?? [],
+    agentMemoryEnabled: dbUser?.agentMemoryEnabled ?? false,
+    agentMemoryUrl: dbUser?.agentMemoryUrl ?? null,
     openRouterApiKey: undefined,
     telegramBotToken: undefined,
     xApiKey: undefined,
@@ -149,6 +155,9 @@ const updateSettingsSchema = z.object({
   solanaDefaultRpc: z.string().optional(),
   solanaRpcApiKey: z.string().optional(),
   brainDatabaseUrl: z.union([z.string(), z.null()]).optional(),
+  fallbackModels: z.array(z.string()).optional(),
+  agentMemoryEnabled: z.boolean().optional(),
+  agentMemoryUrl: z.union([z.string(), z.null()]).optional(),
 });
 
 export async function PATCH(request: NextRequest) {
@@ -177,6 +186,17 @@ export async function PATCH(request: NextRequest) {
     if (data.xAutoPostEnabled !== undefined) updateData.xAutoPostEnabled = data.xAutoPostEnabled;
     if (data.solanaDefaultRpc !== undefined) updateData.solanaDefaultRpc = data.solanaDefaultRpc || null;
     if (data.solanaRpcApiKey) updateData.solanaRpcApiKey = encryptSafe(data.solanaRpcApiKey);
+    if (data.fallbackModels !== undefined) {
+      updateData.fallbackModels = data.fallbackModels
+        .map((m) => m.trim())
+        .filter((m) => m.length > 0 && isValidModelId(m));
+    }
+    if (data.agentMemoryEnabled !== undefined) {
+      updateData.agentMemoryEnabled = data.agentMemoryEnabled;
+    }
+    if (data.agentMemoryUrl !== undefined) {
+      updateData.agentMemoryUrl = data.agentMemoryUrl?.trim() || null;
+    }
 
     if (data.brainDatabaseUrl !== undefined) {
       const trimmed =
@@ -257,6 +277,9 @@ export async function PATCH(request: NextRequest) {
         solanaDefaultRpc: true,
         solanaRpcApiKey: true,
         brainDatabaseUrl: true,
+        fallbackModels: true,
+        agentMemoryEnabled: true,
+        agentMemoryUrl: true,
         openRouterApiKey: true,
         telegramBotToken: true,
         xApiKey: true,
@@ -382,6 +405,9 @@ export async function PATCH(request: NextRequest) {
       brainDatabaseUrl: updated.brainDatabaseUrl
         ? decryptSafe(updated.brainDatabaseUrl)
         : null,
+      fallbackModels: updated.fallbackModels ?? [],
+      agentMemoryEnabled: updated.agentMemoryEnabled ?? false,
+      agentMemoryUrl: updated.agentMemoryUrl ?? null,
       xConnection,
     });
   } catch (error) {

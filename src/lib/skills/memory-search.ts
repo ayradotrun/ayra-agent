@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SkillDefinition } from "./base";
 import { prisma } from "@/lib/prisma";
+import { agentMemorySmartSearch } from "@/lib/agentmemory/client";
 
 export const memorySearch: SkillDefinition = {
   id: "memory-search",
@@ -26,7 +27,13 @@ export const memorySearch: SkillDefinition = {
       take: 50,
     });
 
-    const relevant = memories
+    const relevant: Array<{
+      id: string;
+      content: string;
+      tags: string[];
+      createdAt: string;
+      source: "postgres" | "agentmemory";
+    }> = memories
       .filter(
         (m) =>
           m.content.toLowerCase().includes(query) ||
@@ -38,9 +45,33 @@ export const memorySearch: SkillDefinition = {
         content: m.content,
         tags: m.tags,
         createdAt: m.createdAt.toISOString(),
+        source: "postgres" as const,
       }));
 
+    const user = await prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { agentMemoryEnabled: true, agentMemoryUrl: true },
+    });
+
+    if (user?.agentMemoryEnabled) {
+      const hits = await agentMemorySmartSearch(input.query, {
+        limit,
+        userUrl: user.agentMemoryUrl,
+      });
+      for (const hit of hits) {
+        if (!relevant.some((r) => r.content === hit.content)) {
+          relevant.push({
+            id: `agentmemory-${relevant.length}`,
+            content: hit.content,
+            tags: [],
+            createdAt: new Date().toISOString(),
+            source: "agentmemory",
+          });
+        }
+      }
+    }
+
     await ctx.log("INFO", `Found ${relevant.length} relevant memories`, "memory-search");
-    return { memories: relevant, count: relevant.length };
+    return { memories: relevant.slice(0, limit), count: relevant.length };
   },
 };

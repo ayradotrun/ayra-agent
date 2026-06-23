@@ -22,6 +22,7 @@ import { DEFAULT_MODEL, DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { DEFAULT_LLM_BASE_URL } from "@/lib/llm-config";
 import { TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
 import { PrivateDatabaseSetup } from "@/components/settings/private-database-setup";
+import { LlmProviderPicker } from "@/components/settings/llm-provider-picker";
 import { XManualKeysGuide } from "@/components/settings/x-manual-keys-guide";
 
 interface AgentOption {
@@ -71,6 +72,9 @@ interface Settings {
   hasSolanaRpcApiKey?: boolean;
   hasBrainDatabaseUrl?: boolean;
   brainDatabaseUrl?: string | null;
+  fallbackModels?: string[];
+  agentMemoryEnabled?: boolean;
+  agentMemoryUrl?: string | null;
 }
 
 async function fetchSettingsData(): Promise<Settings> {
@@ -155,6 +159,7 @@ function SettingsContent() {
   const [xAccessSecret, setXAccessSecret] = useState("");
   const [solanaRpcApiKey, setSolanaRpcApiKey] = useState("");
   const [brainDatabaseUrl, setBrainDatabaseUrl] = useState("");
+  const [fallbackModelsText, setFallbackModelsText] = useState("");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -174,6 +179,9 @@ function SettingsContent() {
         setSettings(data);
         if (data.brainDatabaseUrl) {
           setBrainDatabaseUrl(data.brainDatabaseUrl);
+        }
+        if (data.fallbackModels?.length) {
+          setFallbackModelsText(data.fallbackModels.join("\n"));
         }
       })
       .catch((err) => {
@@ -215,6 +223,8 @@ function SettingsContent() {
       telegramNotifications: settings.telegramNotifications,
       xAutoPostEnabled: settings.xAutoPostEnabled,
       solanaDefaultRpc: settings.solanaDefaultRpc,
+      agentMemoryEnabled: settings.agentMemoryEnabled ?? false,
+      agentMemoryUrl: settings.agentMemoryUrl ?? null,
     };
     if (llmApiKey) body.llmApiKey = llmApiKey;
     if (telegramToken) body.telegramBotToken = telegramToken;
@@ -229,6 +239,12 @@ function SettingsContent() {
     if (trimmedDbUrl && (!settings.hasBrainDatabaseUrl || trimmedDbUrl !== savedDbUrl)) {
       body.brainDatabaseUrl = trimmedDbUrl;
     }
+
+    const fallbackModels = fallbackModelsText
+      .split(/\n|,/)
+      .map((m) => m.trim())
+      .filter(Boolean);
+    body.fallbackModels = fallbackModels;
 
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -250,6 +266,9 @@ function SettingsContent() {
       setSettings(refreshed);
       if (refreshed.brainDatabaseUrl) {
         setBrainDatabaseUrl(refreshed.brainDatabaseUrl);
+      }
+      if (refreshed.fallbackModels?.length) {
+        setFallbackModelsText(refreshed.fallbackModels.join("\n"));
       }
     } else {
       const err = await res.json().catch(() => ({}));
@@ -331,6 +350,14 @@ function SettingsContent() {
                 <Label>Email</Label>
                 <Input value={settings.email || ""} disabled />
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full md:hidden"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                Sign out
+              </Button>
             </CardContent>
           </Card>
 
@@ -338,11 +365,16 @@ function SettingsContent() {
             <CardHeader>
               <CardTitle className="text-base">LLM Provider</CardTitle>
               <CardDescription>
-                Configure base URL, API key, and default models. Default provider is OpenRouter — use any
-                OpenAI-compatible endpoint (Ollama, Together, Groq, etc.).
+                Pick a provider, paste your API key, and set models. ChatGPT Plus / Claude Pro
+                subscriptions are separate from API billing — use each provider&apos;s developer
+                console for API keys.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <LlmProviderPicker
+                baseUrl={settings.llmBaseUrl ?? ""}
+                onBaseUrlChange={(llmBaseUrl) => setSettings({ ...settings, llmBaseUrl })}
+              />
               <div className="space-y-2">
                 <Label htmlFor="llm-base-url">Base URL</Label>
                 <Input
@@ -383,12 +415,71 @@ function SettingsContent() {
                 customLabel="Custom image model (optional)"
                 showHint={false}
               />
+              <div className="space-y-2">
+                <Label htmlFor="fallback-models">Fallback models (one per line)</Label>
+                <textarea
+                  id="fallback-models"
+                  className="flex min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  value={fallbackModelsText}
+                  onChange={(e) => setFallbackModelsText(e.target.value)}
+                  placeholder={`google/gemma-4-31b-it:free\nmeta-llama/llama-3.3-70b-instruct:free`}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used when the primary model hits rate limits (429) or credit errors (402). OpenRouter
+                  also tries the built-in free chain automatically.
+                </p>
+              </div>
               <p className="text-xs text-muted-foreground">
                 Models sync with your Telegram default agent. Use{" "}
                 <code className="text-[11px]">/model</code>,{" "}
                 <code className="text-[11px]">/imagemodel</code>, or{" "}
                 <code className="text-[11px]">/status</code> in Telegram to verify.
               </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">AgentMemory (optional)</CardTitle>
+              <CardDescription>
+                Hybrid semantic memory via{" "}
+                <a
+                  href="https://github.com/rohitg00/agentmemory"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  @agentmemory/agentmemory
+                </a>
+                . Run <code className="text-[11px]">npm run agentmemory</code>, set{" "}
+                <code className="text-[11px]">AGENTMEMORY_AUTO_START=true</code> in .env for worker
+                auto-start, or use PM2 app <code className="text-[11px]">ayra-agent-memory</code>.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
+                <div>
+                  <p className="text-sm font-medium">Enable AgentMemory</p>
+                  <p className="text-xs text-muted-foreground">
+                    Merges Postgres memories with semantic search from AgentMemory server
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.agentMemoryEnabled ?? false}
+                  onCheckedChange={(agentMemoryEnabled) =>
+                    setSettings({ ...settings, agentMemoryEnabled })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="agentmemory-url">AgentMemory server URL</Label>
+                <Input
+                  id="agentmemory-url"
+                  value={settings.agentMemoryUrl ?? ""}
+                  onChange={(e) => setSettings({ ...settings, agentMemoryUrl: e.target.value })}
+                  placeholder="http://127.0.0.1:3111"
+                />
+              </div>
             </CardContent>
           </Card>
 

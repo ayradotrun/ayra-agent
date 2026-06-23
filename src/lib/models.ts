@@ -73,6 +73,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
 ];
 
 export const DEFAULT_MODEL = "google/gemma-4-31b-it:free";
+/** Stronger but slower — use via Settings or `/model hermes` */
+export const REASONING_DEFAULT_MODEL = "nousresearch/hermes-3-llama-3.1-405b:free";
 export const DEFAULT_IMAGE_MODEL = "sourceful/riverflow-v2.5-pro";
 
 /** Old DB/env defaults that require OpenRouter credits */
@@ -84,10 +86,10 @@ export const LEGACY_PAID_DEFAULTS = new Set([
 /** Free models to try when primary is rate-limited (429) or misconfigured as paid (402) */
 export const FREE_MODEL_FALLBACK_CHAIN: string[] = [
   "google/gemma-4-31b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
   "openai/gpt-oss-20b:free",
   "openai/gpt-oss-120b:free",
-  "qwen/qwen3-next-80b-a3b-instruct:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
   "nousresearch/hermes-3-llama-3.1-405b:free",
 ];
 
@@ -146,10 +148,23 @@ export function normalizeChatModel(model: string | null | undefined): string {
   return id;
 }
 
-export function getFreeModelFallbackChain(primary: string): string[] {
+export function getFreeModelFallbackChain(primary: string, userFallbacks?: string[] | null): string[] {
   const normalized = normalizeChatModel(primary);
-  const chain = [normalized, ...FREE_MODEL_FALLBACK_CHAIN.filter((m) => m !== normalized), DEFAULT_MODEL];
+  const extras = (userFallbacks ?? [])
+    .map((m) => normalizeChatModel(m))
+    .filter((m) => m && isValidModelId(m));
+  const chain = [
+    normalized,
+    ...extras,
+    ...FREE_MODEL_FALLBACK_CHAIN.filter((m) => m !== normalized),
+    DEFAULT_MODEL,
+  ];
   return Array.from(new Set(chain));
+}
+
+/** @deprecated use getFreeModelFallbackChain */
+export function getModelFallbackChain(primary: string, userFallbacks?: string[] | null): string[] {
+  return getFreeModelFallbackChain(primary, userFallbacks);
 }
 
 /** If a :free variant exists for this model ID, return it */

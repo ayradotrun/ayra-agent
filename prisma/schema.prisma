@@ -57,6 +57,9 @@ model User {
   solanaDefaultRpc     String?
   solanaRpcApiKey      String?
   brainDatabaseUrl     String?
+  fallbackModels       String[] @default([])
+  agentMemoryEnabled   Boolean  @default(false)
+  agentMemoryUrl       String?
   solanaWatchWallets   String[] @default([])
   solanaWatchMints     String[] @default([])
 }

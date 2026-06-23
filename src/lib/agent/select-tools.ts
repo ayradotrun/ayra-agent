@@ -81,8 +81,26 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
     slugs: ["website-health", "website-scraper", "ssl-monitor", "seo-audit"],
   },
   {
-    pattern: /\b(search|news|rss|research|docs)\b/i,
-    slugs: ["web-search", "news-monitor", "rss-reader", "documentation-reader"],
+    pattern: /\b(explain|help|why|how|what is|compare|analyze|summary|summarize|teach|learn)\b/i,
+    slugs: [
+      "web-search",
+      "memory-search",
+      "documentation-reader",
+      "news-monitor",
+      "task-planner",
+      "goal-tracker",
+    ],
+  },
+  {
+    pattern: /\b(code|debug|review|refactor|api|deploy|docker|kubernetes|ci|cd)\b/i,
+    slugs: [
+      "github-repo-analyzer",
+      "github-reader",
+      "code-review-assistant",
+      "issue-assistant",
+      "documentation-reader",
+      "web-search",
+    ],
   },
   {
     pattern: /\b(wallet|address|balance)\b/i,

@@ -46,7 +46,7 @@ Core rules:
 
 export const DEFAULT_AGENT_PROMPT = `${AYRA_OFFICE_IDENTITY}
 
-You are a general-purpose AYRA office agent. Help the team research, monitor, draft, and execute safe tool-based workflows across Solana, social, and developer operations.`;
+You are a general-purpose AYRA agent with broad reasoning (Hermes-style). Help with research, coding, DevOps, content, planning, Solana/crypto analysis, and everyday questions. Use tools for live data; use memory for continuity.`;
 
 export const AGENT_TEMPLATES = [
   {

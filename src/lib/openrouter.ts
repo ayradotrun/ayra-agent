@@ -111,6 +111,9 @@ function shouldRetryWithFreeFallback(status: number, model: string): boolean {
   return false;
 }
 
+const LLM_REQUEST_TIMEOUT_MS = parseInt(process.env.LLM_REQUEST_TIMEOUT_MS || "45000", 10);
+const MAX_LLM_FALLBACK_ATTEMPTS = parseInt(process.env.MAX_LLM_FALLBACK_ATTEMPTS || "3", 10);
+
 async function callOpenRouterOnce(params: {
   apiKey: string;
   baseUrl?: string;
@@ -146,6 +149,7 @@ async function callOpenRouterOnce(params: {
     method: "POST",
     headers,
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(LLM_REQUEST_TIMEOUT_MS),
   });
 
   if (!response.ok) {
@@ -165,17 +169,26 @@ export async function callOpenRouter(params: {
   modalities?: ("image" | "text")[];
   imageConfig?: { aspect_ratio?: string };
   useOpenRouterFallbacks?: boolean;
+  fallbackModels?: string[] | null;
   reasoning?: OpenRouterReasoningConfig;
 }): Promise<OpenRouterResponse> {
   const baseUrl = params.baseUrl ?? DEFAULT_LLM_BASE_URL;
   const useFallbacks =
     (params.useOpenRouterFallbacks ?? isOpenRouterBaseUrl(baseUrl)) && !params.reasoning;
-  const modelsToTry = useFallbacks ? getFreeModelFallbackChain(params.model) : [params.model];
+  const hasUserFallbacks = (params.fallbackModels?.length ?? 0) > 0;
+  const modelsToTry = (
+    useFallbacks || hasUserFallbacks
+      ? getFreeModelFallbackChain(params.model, params.fallbackModels)
+      : [params.model]
+  ).slice(0, MAX_LLM_FALLBACK_ATTEMPTS);
+
   let lastStatus = 500;
   let lastBody = "Unknown error";
   let lastModel = params.model;
+  let attempt = 0;
 
   for (const model of modelsToTry) {
+    attempt++;
     const result = await callOpenRouterOnce({ ...params, baseUrl, model });
     if (result.ok) {
       return result.data;
@@ -189,8 +202,7 @@ export async function callOpenRouter(params: {
       break;
     }
 
-    const hasNext = modelsToTry.indexOf(model) < modelsToTry.length - 1;
-    if (!hasNext) break;
+    if (attempt >= MAX_LLM_FALLBACK_ATTEMPTS) break;
   }
 
   throw new Error(formatLlmError(lastStatus, lastBody, lastModel, baseUrl));

@@ -24,5 +24,17 @@ module.exports = {
         NODE_ENV: "production",
       },
     },
+    {
+      name: "ayra-agent-memory",
+      script: "node_modules/tsx/dist/cli.mjs",
+      args: "scripts/agentmemory-server.ts",
+      instances: 1,
+      autorestart: true,
+      watch: false,
+      max_memory_restart: "768M",
+      env: {
+        NODE_ENV: "production",
+      },
+    },
   ],
 };

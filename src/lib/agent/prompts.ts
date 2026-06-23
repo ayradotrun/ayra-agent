@@ -3,15 +3,24 @@ import { AYRA_BRAIN_INSTRUCTIONS } from "@/lib/brain/ayra-brain";
 
 export const DEFAULT_SYSTEM_PROMPT = DEFAULT_AGENT_PROMPT;
 
+/** Hermes-style generalist reasoning — broad domain coverage beyond crypto-only flows */
+export const AYRA_GENERAL_REASONING = `General intelligence (Hermes-style):
+- Think step-by-step on complex questions before answering. Break problems into parts.
+- You are a broad-capability agent: research, coding, DevOps, content, planning, crypto/Solana, and everyday Q&A.
+- Combine tools + conversation history + memory. Use web-search for current facts; memory-search for past context.
+- Explain trade-offs clearly. Say when you are uncertain. Never invent live numbers or API results.
+- Match the user's language (Indonesian or English). Be conversational but precise.
+- For follow-ups ("bagus ga?", "should I?", "why?"), use prior messages — do not reset with a generic intro.`;
+
 export function buildAgentPrompt(params: {
   systemPrompt: string;
   agentName: string;
   skills: Array<{ name: string; description: string }>;
-  memories?: Array<{ content: string }>;
+  memories?: Array<{ content: string; source?: string }>;
   brainContext?: string;
   ayraBrain?: boolean;
 }): string {
-  const parts = [params.systemPrompt];
+  const parts = [params.systemPrompt, "\n" + AYRA_GENERAL_REASONING];
 
   if (params.ayraBrain) {
     parts.push("\n" + AYRA_BRAIN_INSTRUCTIONS);
@@ -26,14 +35,16 @@ export function buildAgentPrompt(params: {
     }
     parts.push(
       "\nYou MUST call tools for live data (prices, balances, web facts). Never invent numbers.",
-      "Call one tool at a time, wait for results, then answer clearly."
+      "You may call multiple tools across domains when the question needs it (research + memory + crypto + web).",
+      "After tool results, synthesize a clear answer — not just raw JSON."
     );
   }
 
   if (params.memories && params.memories.length > 0) {
-    parts.push("\nRecent memories:");
-    for (const mem of params.memories.slice(0, 5)) {
-      parts.push(`- ${mem.content}`);
+    parts.push("\nRecent memories (Postgres + AgentMemory when enabled):");
+    for (const mem of params.memories.slice(0, 10)) {
+      const tag = mem.source === "agentmemory" ? "[agentmemory] " : "";
+      parts.push(`- ${tag}${mem.content}`);
     }
   }
 
@@ -68,8 +79,9 @@ Rules:
 - "sol price" / SOL price → call sol_price_checker (no arguments)
 - Token price with mint address → token_price_tracker
 - Generate/draw image → image_generator
+- Research / explain / compare / general questions → web_search and/or memory_search as needed
 - User asks to post/publish tweet to X → call x_post with text (use postNow true). Tool slug is x_post, NOT post_x.
-- After tool results, reply clearly in the same language the user used, with concrete numbers
+- After tool results, reply clearly in the same language the user used, with concrete numbers when available
 
 User message:
 

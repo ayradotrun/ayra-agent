@@ -5,6 +5,7 @@ export const DEFAULT_LLM_BASE_URL = "https://openrouter.ai/api/v1";
 export interface LlmUserFields {
   llmBaseUrl?: string | null;
   defaultModel?: string | null;
+  fallbackModels?: string[] | null;
 }
 
 export function normalizeLlmBaseUrl(url: string): string {
@@ -65,6 +66,7 @@ export function buildLlmCallParams(
         user.defaultModel || process.env.LLM_MODEL || process.env.OPENROUTER_MODEL || DEFAULT_MODEL
       ),
     useOpenRouterFallbacks: isOpenRouterBaseUrl(baseUrl),
+    fallbackModels: user.fallbackModels ?? [],
   };
 }
 

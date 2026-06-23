@@ -18,7 +18,11 @@ import { resolveChatModel } from "@/lib/user-models";
 import { buildUserMessageContent, historyContentForModel } from "@/lib/chat/message-content";
 import type { RunResult } from "@/lib/agent/types";
 
-const MAX_TOOL_CALLS = parseInt(process.env.MAX_TOOL_CALLS_PER_RUN || "5", 10);
+import { loadAgentMemoryContext } from "@/lib/agent/load-memories";
+
+const MAX_TOOL_CALLS = parseInt(process.env.MAX_TOOL_CALLS_PER_RUN || "6", 10);
+const CHAT_HISTORY_TURNS = parseInt(process.env.CHAT_HISTORY_TURNS || "8", 10);
+const DEFAULT_COMPLETION_TOKENS = parseInt(process.env.LLM_MAX_TOKENS || "1536", 10);
 
 function collectImagePathsFromToolResult(result: unknown): string[] {
   if (!result || typeof result !== "object") return [];
@@ -104,10 +108,12 @@ export async function runAgent(
       .filter((s) => s !== undefined);
 
     const memories = agent.memoryEnabled
-      ? await prisma.agentMemory.findMany({
-          where: { agentId },
-          orderBy: { createdAt: "desc" },
-          take: 5,
+      ? await loadAgentMemoryContext({
+          agentId,
+          memoryEnabled: true,
+          agentMemoryEnabled: agent.user.agentMemoryEnabled,
+          agentMemoryUrl: agent.user.agentMemoryUrl,
+          searchQuery: opts.userMessage,
         })
       : [];
 
@@ -136,7 +142,11 @@ export async function runAgent(
       ? opts.modelOverride
       : resolveChatModel(agent.model, agent.user.defaultModel);
     const llm = buildLlmCallParams(
-      agent.user,
+      {
+        llmBaseUrl: agent.user.llmBaseUrl,
+        defaultModel: agent.user.defaultModel,
+        fallbackModels: agent.user.fallbackModels,
+      },
       getDecryptedUserKey(agent.user.openRouterApiKey),
       chatModel
     );
@@ -149,7 +159,7 @@ export async function runAgent(
 
     const messages: OpenRouterMessage[] = [{ role: "system", content: systemPrompt }];
 
-    const history = opts.chatHistory?.slice(-12) ?? [];
+    const history = opts.chatHistory?.slice(-CHAT_HISTORY_TURNS) ?? [];
     if (history.length > 0 && (trigger === "chat" || trigger === "telegram")) {
       for (const turn of history) {
         messages.push({
@@ -195,7 +205,8 @@ export async function runAgent(
         messages,
         tools: tools.length > 0 ? tools : undefined,
         reasoning: reasoningConfig,
-        maxTokens: opts.deepThinking ? 4096 : undefined,
+        maxTokens: opts.deepThinking ? 4096 : DEFAULT_COMPLETION_TOKENS,
+        fallbackModels: agent.user.fallbackModels,
       });
 
       totalTokens += response.usage?.total_tokens ?? 0;
