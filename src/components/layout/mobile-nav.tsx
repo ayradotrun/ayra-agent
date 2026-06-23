@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
 import { AyraLogo } from "@/components/brand/ayra-logo";
+import { AyraSocialLinks } from "@/components/brand/ayra-social-links";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MOBILE_NAV_ITEMS, NEW_AGENT_HREF } from "@/components/layout/nav-config";
@@ -15,15 +16,18 @@ export function MobileHeader() {
         <AyraLogo size={32} className="ring-1 ring-emerald-500/25" />
         <span className="text-sm font-semibold tracking-tight">AYRA Agent</span>
       </div>
-      <Link href={NEW_AGENT_HREF}>
-        <Button
-          size="sm"
-          className="h-8 gap-1.5 rounded-lg bg-emerald-500/90 px-3 text-xs text-emerald-950 hover:bg-emerald-400"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          New
-        </Button>
-      </Link>
+      <div className="flex items-center gap-2">
+        <AyraSocialLinks iconClassName="h-3.5 w-3.5" />
+        <Link href={NEW_AGENT_HREF}>
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 rounded-lg bg-emerald-500/90 px-3 text-xs text-emerald-950 hover:bg-emerald-400"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New
+          </Button>
+        </Link>
+      </div>
     </header>
   );
 }

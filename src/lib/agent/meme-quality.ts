@@ -939,11 +939,6 @@ export function formatAyraQualityReport(
   return lines.join("\n").trim();
 }
 
-/** Push notification card for auto AYRA alerts */
-export function formatAyraPushAlert(token: MemeTokenSnapshot): string {
-  return `${AYRA_LEAF} *AYRA alert*\n\n${formatMemeAlertCard(token)}`;
-}
-
 export function formatMemeScanResults(data: {
   tokens: MemeTokenSnapshot[];
   scanned: number;

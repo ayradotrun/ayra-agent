@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  Wallet tracking · on-chain research · X workflows · Telegram · skill marketplace · optional private database per user
+  Wallet tracking · on-chain research · X workflows · Telegram · skill marketplace · private database per user
 </p>
 
 <p align="center">
@@ -22,7 +22,7 @@
 
 ---
 
-AYRA Agent is a self-hostable platform for building and running **tool-using AI agents** focused on **Solana**, **meme/token research**, and **X (Twitter)** operations. Users bring their own LLM keys; optionally they bring their own Postgres for chat history and scheduled brain tasks so platform storage stays lean.
+AYRA Agent is a self-hostable platform for building and running **tool-using AI agents** focused on **Solana**, **meme/token research**, and **X (Twitter)** operations. Users bring their own LLM keys and **private Postgres** for chat history and brain tasks.
 
 > **Brand palette:** forest green `#2D5A27` · leaf `#5A8F4E` · mint `#A8D08D` · cream `#F5F9F2`
 
@@ -31,12 +31,12 @@ AYRA Agent is a self-hostable platform for building and running **tool-using AI 
 
 | Area | What you get |
 |------|----------------|
-| **Agents** | Templates (Token Scout, X Growth, AYRA Brain / Nova), custom prompts, skill toggles |
-| **Solana** | Wallet watch, token research, RPC monitor, AYRA quality alerts |
+| **Agents** | Office templates (Aria, Sienna, Marcus, Nova, Ayra), custom prompts, skill toggles |
+| **Solana** | Wallet watch, token research, RPC monitor, AYRA scan |
 | **Social** | X drafts, threads, optional auto-post (double opt-in) |
 | **Chat** | Full dashboard chat with sessions, pins, slash commands, image uploads |
 | **Brain** | Scheduled tweets, reminders, content calendars — AYRA Brain worker |
-| **Privacy** | Per-user private Postgres (BYOD) for chat + brain; no Prisma required for users |
+| **Privacy** | Required private Postgres (BYOD) for chat + brain |
 | **Ops** | Run logs, token usage, Telegram notifications, cron worker |
 
 ## Architecture
@@ -52,14 +52,13 @@ AYRA Agent is a self-hostable platform for building and running **tool-using AI 
    Dashboard chat      Telegram bot       Agent worker
          │                  │                  │
          ▼                  ▼                  ▼
-┌─────────────────┐  ┌──────────────────────────────────────┐
-│ Default storage │  │ Optional: user's private Postgres      │
-│ Chat → platform │  │ (Settings → Private Database URL)    │
-│ Brain → SQLite  │  │ chat_session · chat_message · brain_task│
-└─────────────────┘  └──────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ User's private Postgres (required — Settings on first login) │
+│ chat_session · chat_message · brain_task                       │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-**Platform operators** sync schema with Prisma (`db push`). **End users** who enable a private database only paste a Postgres URL — tables are created automatically on save.
+**Platform operators** sync schema with Prisma (`db push`). **End users** paste a Postgres URL in Settings — tables are created automatically on save.
 
 ---
 
@@ -89,7 +88,7 @@ Edit `.env` — minimum required:
 | `NEXTAUTH_URL` | App URL (`http://localhost:3000` in dev) |
 | `ENCRYPTION_KEY` | 32+ char key for encrypting user secrets at rest |
 
-See [.env.example](./.env.example) for Telegram, X OAuth, Redis, alerts, and worker options.
+See [.env.example](./.env.example) for Telegram, X OAuth, Redis, and worker options.
 
 ### 2. Install and sync database
 
@@ -110,7 +109,7 @@ Terminal 1 — web app:
 npm run dev
 ```
 
-Terminal 2 — worker (scheduler, Telegram polling, AYRA alerts, brain tasks):
+Terminal 2 — worker (scheduler, Telegram polling, brain tasks):
 
 ```bash
 npm run worker
@@ -130,9 +129,9 @@ Run **only one worker** per deployment to avoid duplicate Telegram replies.
 
 ---
 
-## Private database (BYOD)
+## Private database (required)
 
-Users can store **dashboard chat history** and **AYRA Brain tasks** in their own Postgres instead of the platform database.
+Every user must connect **their own Postgres** for dashboard chat history and AYRA Brain tasks.
 
 ### What users do (no CLI)
 
@@ -184,7 +183,7 @@ src/
 │   ├── chat/         # Chat store, commands, private DB routing
 │   ├── skills/       # Tool definitions
 │   └── telegram/     # Bot handler, polling
-├── workers/          # agent-worker.ts (cron + alerts + brain)
+├── workers/          # agent-worker.ts (cron + brain)
 prisma/               # Platform schema only
 storage/              # Generated images, uploads, local brain SQLite fallback
 ```
@@ -208,7 +207,7 @@ See existing skills in `src/lib/skills/` for patterns (Zod input schema, `ctx.lo
 | `npm run dev` | Development server |
 | `npm run build` | Production build |
 | `npm run start` | Production server |
-| `npm run worker` | Scheduler, Telegram, alerts, brain worker |
+| `npm run worker` | Scheduler, Telegram, brain worker |
 | `npm run db:push` | Sync platform schema (`prisma db push`) |
 | `npm run prisma:generate` | Regenerate Prisma client |
 | `npm run prisma:seed` | Seed skill catalog |

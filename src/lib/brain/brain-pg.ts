@@ -1,4 +1,4 @@
-import { Pool } from "pg";
+import { Pool, type PoolConfig } from "pg";
 import type {
   BrainTaskRecord,
   BrainTaskStatus,
@@ -98,6 +98,77 @@ function rowToRecord(row: BrainTaskPgRow): BrainTaskRecord {
   };
 }
 
+/** Strip ssl* query params so pg-connection-string does not force ssl=true (strict verify). */
+function stripPgSslQueryParams(connectionString: string): string {
+  return connectionString
+    .replace(/([?&])sslmode=[^&]*(?=&|$)/gi, "$1")
+    .replace(/([?&])sslcert=[^&]*(?=&|$)/gi, "$1")
+    .replace(/([?&])sslkey=[^&]*(?=&|$)/gi, "$1")
+    .replace(/([?&])sslrootcert=[^&]*(?=&|$)/gi, "$1")
+    .replace(/([?&])sslnegotiation=[^&]*(?=&|$)/gi, "$1")
+    .replace(/([?&])uselibpqcompat=[^&]*(?=&|$)/gi, "$1")
+    .replace(/\?&/, "?")
+    .replace(/[?&]$/, "");
+}
+
+function isLocalPgHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return h === "localhost" || h === "127.0.0.1" || h === "::1" || h.endsWith(".local");
+}
+
+function readSslMode(connectionString: string): string | undefined {
+  const match = connectionString.match(/[?&]sslmode=([^&]+)/i);
+  return match?.[1]?.toLowerCase();
+}
+
+function readPgHost(connectionString: string): string | undefined {
+  try {
+    const normalized = connectionString.replace(/^postgres:\/\//, "postgresql://");
+    return new URL(normalized).hostname;
+  } catch {
+    const match = connectionString.match(/@([^:/]+)/);
+    return match?.[1];
+  }
+}
+
+/** SSL for user BYOD Postgres (Supabase, Neon, etc.) — avoids "self-signed certificate in certificate chain". */
+export function resolvePgSsl(connectionString: string): PoolConfig["ssl"] {
+  const sslmode = readSslMode(connectionString);
+  const host = readPgHost(connectionString);
+  const isLocal = host ? isLocalPgHost(host) : false;
+
+  if (sslmode === "disable" || sslmode === "off") {
+    return false;
+  }
+
+  if (sslmode === "verify-full") {
+    return true;
+  }
+
+  if (!isLocal) {
+    return { rejectUnauthorized: false };
+  }
+
+  return undefined;
+}
+
+function buildPgPoolConfig(
+  connectionString: string,
+  overrides?: Partial<PoolConfig>
+): PoolConfig {
+  const cleaned = stripPgSslQueryParams(connectionString);
+  const ssl = resolvePgSsl(connectionString);
+
+  return {
+    connectionString: cleaned,
+    ssl,
+    max: 4,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+    ...overrides,
+  };
+}
+
 export function getBrainPgPool(userId: string, connectionString: string): Pool {
   const cached = poolCache.get(userId);
   if (cached && cached.url === connectionString) return cached.pool;
@@ -106,12 +177,7 @@ export function getBrainPgPool(userId: string, connectionString: string): Pool {
     void cached.pool.end().catch(() => undefined);
   }
 
-  const pool = new Pool({
-    connectionString,
-    max: 4,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
-  });
+  const pool = new Pool(buildPgPoolConfig(connectionString));
 
   poolCache.set(userId, { url: connectionString, pool });
   return pool;
@@ -129,11 +195,7 @@ export async function ensureBrainPgSchema(pool: Pool): Promise<void> {
 }
 
 export async function testBrainPgConnection(connectionString: string): Promise<void> {
-  const pool = new Pool({
-    connectionString,
-    max: 1,
-    connectionTimeoutMillis: 10_000,
-  });
+  const pool = new Pool(buildPgPoolConfig(connectionString, { max: 1 }));
 
   try {
     await pool.query("SELECT 1");

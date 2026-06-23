@@ -11,10 +11,24 @@ import {
   Wallet,
   TrendingUp,
   PenLine,
+  Shield,
+  Database,
+  Lock,
+  Sparkles,
+  Clock,
+  MessageSquare,
+  ChevronDown,
+  CheckCircle2,
+  Zap,
+  Code2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AyraLogo } from "@/components/brand/ayra-logo";
+import { LandingHeader, LANDING_HEADER_OFFSET, LANDING_SECTION_SCROLL } from "@/components/landing/landing-header";
+import { LandingFooter } from "@/components/landing/landing-footer";
+import { LandingHeroBg } from "@/components/landing/landing-hero-bg";
+import { LandingAgentTerminal } from "@/components/landing/landing-agent-terminal";
+import { LandingTrustStrip, LandingTrustPills } from "@/components/landing/landing-trust-strip";
 
 const iconMap: Record<string, React.ElementType> = {
   wallet: Wallet,
@@ -24,7 +38,52 @@ const iconMap: Record<string, React.ElementType> = {
   "pen-line": PenLine,
   "trending-up": TrendingUp,
   brain: Bot,
+  shield: Shield,
+  database: Database,
+  lock: Lock,
+  zap: Zap,
 };
+
+
+const stats = [
+  { value: "14+", label: "Built-in skills" },
+  { value: "6", label: "Agent personas" },
+  { value: "BYOD", label: "Private database" },
+  { value: "24/7", label: "Scheduled runs" },
+];
+
+const features = [
+  {
+    icon: "brain",
+    title: "Autonomous agents",
+    desc: "Pick a persona, attach skills, and let agents run tasks on schedule or on demand via chat and Telegram.",
+  },
+  {
+    icon: "wallet",
+    title: "Solana dev toolkit",
+    desc: "Wallet tracking, token research, RPC monitoring, and meme quality scans — built for builders, not traders.",
+  },
+  {
+    icon: "send",
+    title: "X workflows",
+    desc: "Draft threads, find viral topics, and optionally auto-post with double opt-in safety gates.",
+  },
+  {
+    icon: "database",
+    title: "Your data, your database",
+    desc: "Chat history and brain tasks live in your Postgres. Required on signup — no shared tenant datastore.",
+  },
+  {
+    icon: "lock",
+    title: "Encrypted credentials",
+    desc: "API keys, bot tokens, and database URLs are encrypted at rest with AES-256-GCM.",
+  },
+  {
+    icon: "zap",
+    title: "Telegram + dashboard chat",
+    desc: "Full web chat with sessions, slash commands, and a Telegram bot that runs your default agent.",
+  },
+];
 
 const previewSkills = [
   { name: "Wallet Tracker", category: "Solana", icon: "wallet", enabled: true },
@@ -35,142 +94,313 @@ const previewSkills = [
   { name: "X Thread Drafter", category: "Social", icon: "pen-line", enabled: true },
 ];
 
-const useCases = [
-  { title: "Monitor Solana wallets", desc: "Track SOL balance and SPL tokens for dev wallets or treasuries." },
-  { title: "Research token on-chain", desc: "Mint info, supply, authorities — dev briefing, not trading signals." },
-  { title: "Auto-post to X", desc: "Draft threads or post when you opt in — Settings + Agent toggles required." },
-  { title: "Token launch assistant", desc: "Templates for dev updates, community posts, and launch checklists." },
-  { title: "Telegram alerts", desc: "Get notified when scheduled agent runs complete." },
-  { title: "Agent memory", desc: "Agents remember context across runs for ongoing projects." },
+const personas = [
+  { name: "Aria", role: "Research Analyst", focus: "On-chain research & token briefings" },
+  { name: "Sienna", role: "Social Lead", focus: "X drafts, threads & content calendars" },
+  { name: "Marcus", role: "Ops Engineer", focus: "RPC monitoring & wallet watchlists" },
+  { name: "Nova", role: "Growth Strategist", focus: "Trending topics & launch planning" },
+];
+
+const faqs = [
+  {
+    q: "Is AYRA a trading bot?",
+    a: "No. AYRA is a developer agent platform for Solana workflows, research, and social ops. It does not execute trades or provide financial advice.",
+  },
+  {
+    q: "Why do I need my own Postgres database?",
+    a: "Privacy by design. Your chat sessions and brain tasks stay in infrastructure you control — not a shared multi-tenant store.",
+  },
+  {
+    q: "Can I self-host?",
+    a: "Yes. AYRA Agent is MIT-licensed open source. Clone the repo, configure .env, and run your own instance.",
+  },
+  {
+    q: "How does X auto-post work?",
+    a: "Auto-post is off by default. You must enable it in Settings and on each agent. Drafts are always reviewable before posting.",
+  },
 ];
 
 export function LandingPage() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen overflow-x-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 grid-bg opacity-30" />
-      <div className="pointer-events-none absolute left-1/2 top-0 h-[500px] w-[800px] -translate-x-1/2 rounded-full bg-emerald-500/5 blur-3xl" />
+      <LandingHeroBg />
 
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2.5">
-          <AyraLogo size={36} priority className="ring-1 ring-primary/30" />
-          <span className="font-semibold tracking-tight">AYRA Agent</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">Sign in</Button>
-          </Link>
-          <Link href="/register">
-            <Button size="sm">Start Building</Button>
-          </Link>
-        </div>
-      </header>
+      <LandingHeader />
 
-      <section className="relative z-10 mx-auto max-w-6xl px-6 pb-24 pt-16">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="max-w-3xl"
-        >
-          <Badge variant="secondary" className="mb-6">Solana dev agent platform</Badge>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-            AI agents for{" "}
-            <span className="text-gradient">Solana devs & token builders.</span>
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg text-muted-foreground leading-relaxed">
-            Autonomous AYRA agents built for developers: wallet tracking, token research,
-            X drafts & optional auto-post, Telegram alerts, and a growing skill marketplace.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link href="/register">
-              <Button size="lg" className="glow-emerald">
-                Start Building
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="#skills">
-              <Button variant="outline" size="lg">View Skills</Button>
-            </Link>
-          </div>
-        </motion.div>
+      {/* Hero */}
+      <section className={`relative z-10 mx-auto max-w-6xl px-4 pb-12 sm:px-6 sm:pb-16 ${LANDING_HEADER_OFFSET}`}>
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center lg:text-left"
+          >
+            <div className="mb-5 flex flex-wrap items-center justify-center gap-2 lg:justify-start">
+              <Badge variant="secondary" className="gap-1.5 border-primary/20 bg-primary/10 text-primary">
+                <Sparkles className="h-3 w-3" />
+                Solana dev agents
+              </Badge>
+            </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="mt-20 glass-panel glow-emerald rounded-2xl p-6"
-        >
-          <div className="mb-4 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            Agent preview — Aria (Research Analyst)
-          </div>
-          <div className="grid gap-4 sm:grid-cols-3">
-            {previewSkills.slice(0, 3).map((skill) => {
-              const Icon = iconMap[skill.icon] || Bot;
-              return (
-                <div key={skill.name} className="rounded-lg border border-border/60 bg-secondary/30 p-4">
-                  <Icon className="mb-2 h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">{skill.name}</p>
-                  <p className="text-xs text-muted-foreground">{skill.category}</p>
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      </section>
+            <h1 className="text-[1.75rem] font-bold leading-[1.15] tracking-tight sm:text-5xl lg:text-[3.25rem] lg:leading-[1.1]">
+              Build trusted AI agents for{" "}
+              <span className="text-gradient-animate">Solana dev workflows.</span>
+            </h1>
 
-      <section className="relative z-10 border-t border-border/40 bg-secondary/20 py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Built for Solana dev workflows</h2>
-          <p className="mt-2 text-muted-foreground">On-chain monitoring, social growth, and launch ops — not trading bots.</p>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {useCases.map((uc, i) => (
-              <motion.div
-                key={uc.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className="glass-panel rounded-xl p-6"
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
+              Privacy-first autonomous agents — wallet tracking, token research, X drafts,
+              Telegram alerts, and scheduled brain tasks.
+            </p>
+
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
+              <Link href="/register" className="w-full sm:w-auto">
+                <Button size="lg" className="glow-emerald h-12 w-full sm:h-11 sm:w-auto">
+                  Start building free
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link
+                href="https://github.com/ayradotrun/ayra-agent"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto"
               >
-                <h3 className="font-medium">{uc.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{uc.desc}</p>
+                <Button variant="outline" size="lg" className="h-12 w-full sm:h-11 sm:w-auto">
+                  <Code2 className="mr-2 h-4 w-4" />
+                  GitHub
+                </Button>
+              </Link>
+            </div>
+
+            <div className="mt-8 flex justify-center lg:justify-start">
+              <LandingTrustPills />
+            </div>
+          </motion.div>
+
+          <LandingAgentTerminal />
+        </div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mt-10 sm:mt-16"
+        >
+          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+            {stats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.55 + i * 0.08 }}
+                whileHover={{ y: -4, scale: 1.02 }}
+                className="glass-panel min-w-[140px] shrink-0 cursor-default rounded-xl px-4 py-4 sm:min-w-0 sm:rounded-2xl sm:p-6"
+              >
+                <p className="text-xl font-bold text-gradient sm:text-3xl">{stat.value}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground sm:text-sm">{stat.label}</p>
               </motion.div>
             ))}
           </div>
+        </motion.div>
+      </section>
+
+      <LandingTrustStrip />
+
+      {/* Features */}
+      <section id="features" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="max-w-2xl text-center md:text-left">
+            <Badge variant="secondary" className="mb-4">Platform</Badge>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
+              Everything you need to run AI agents
+            </h2>
+            <p className="mt-4 text-muted-foreground leading-relaxed">
+              Hermes-style autonomy with Solana-native skills, enterprise-grade privacy, and
+              developer-friendly self-hosting.
+            </p>
+          </div>
+
+          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {features.map((feature, i) => {
+              const Icon = iconMap[feature.icon] || Bot;
+              return (
+                <motion.div
+                  key={feature.title}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                  whileHover={{ y: -6, transition: { type: "spring", stiffness: 300 } }}
+                  className="glass-panel group rounded-xl p-6 transition-colors hover:border-primary/30 hover:shadow-[0_0_32px_-12px_rgba(52,211,153,0.25)]"
+                >
+                  <div className="mb-4 inline-flex rounded-lg border border-primary/20 bg-primary/10 p-2.5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
+                    <Icon className="h-5 w-5 text-primary" />
+                  </div>
+                  <h3 className="font-semibold">{feature.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.desc}</p>
+                </motion.div>
+              );
+            })}
+          </div>
         </div>
       </section>
 
-      <section className="relative z-10 py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">How it works</h2>
-          <div className="mt-12 grid gap-8 md:grid-cols-3">
+      {/* Privacy / trust */}
+      <section className="relative z-10 py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="glass-panel glow-emerald overflow-hidden rounded-2xl">
+            <div className="grid lg:grid-cols-2">
+              <div className="p-6 sm:p-10 lg:p-12">
+                <Badge variant="secondary" className="mb-4 gap-1.5">
+                  <Shield className="h-3 w-3" />
+                  Privacy-first
+                </Badge>
+                <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+                  Your conversations never live on our shared database
+                </h2>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  Every account connects a private Postgres instance for chat and AYRA Brain tasks.
+                  Platform DB stores auth and agent config — your messages stay in infrastructure you
+                  control.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  {[
+                    "Required BYOD Postgres on first login",
+                    "Tables auto-created — no Prisma on your side",
+                    "Credentials encrypted with AES-256-GCM",
+                    "Open-source — audit the code yourself",
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-8 flex flex-wrap gap-3">
+                  <Link href="/privacy">
+                    <Button variant="outline" size="sm">
+                      Privacy Policy
+                    </Button>
+                  </Link>
+                  <Link href="/security">
+                    <Button variant="ghost" size="sm">
+                      Security details
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              <div className="hidden border-t border-border/40 bg-[#0a0c0e] p-8 font-mono text-xs leading-relaxed text-muted-foreground sm:p-10 lg:block lg:border-l lg:border-t-0">
+                <p className="text-[10px] uppercase tracking-wider text-primary/70">Architecture</p>
+                <pre className="mt-4 whitespace-pre-wrap text-[11px] sm:text-xs">{`┌─ Platform Postgres ─────────────────┐
+│ Users · Agents · Auth · Settings   │
+└──────────────┬──────────────────────┘
+               │
+    ┌──────────┼──────────┐
+    ▼          ▼          ▼
+ Dashboard   Telegram   Worker
+    │          │          │
+    └──────────┼──────────┘
+               ▼
+┌─ Your Private Postgres (required) ──┐
+│ chat_session · chat_message         │
+│ brain_task                          │
+└─────────────────────────────────────┘`}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How it works</h2>
+          <p className="mt-2 max-w-xl text-muted-foreground">
+            From zero to a running agent in minutes — connect your database, pick a persona, attach skills.
+          </p>
+
+          <div className="mt-8 grid gap-4 sm:mt-14 md:grid-cols-3">
             {[
-              { step: "01", title: "Pick a team member", desc: "Aria, Sienna, Marcus, Nina, Kai, Leo, or Ravi — each with a role and skills." },
-              { step: "02", title: "Attach skills", desc: "Wallet tracker, token research, X post, RPC monitor, memory." },
-              { step: "03", title: "Run on schedule", desc: "Manual or cron. Review logs, drafts, and Telegram alerts." },
+              {
+                step: "01",
+                icon: MessageSquare,
+                title: "Create your workspace",
+                desc: "Register, connect your private Postgres, and add your LLM API key in Settings.",
+              },
+              {
+                step: "02",
+                icon: Bot,
+                title: "Configure an agent",
+                desc: "Choose Aria, Sienna, Marcus, or Nova. Attach skills like wallet tracker, X draft, or RPC monitor.",
+              },
+              {
+                step: "03",
+                icon: Clock,
+                title: "Run & monitor",
+                desc: "Chat in the dashboard, message via Telegram, or schedule cron runs. Review logs and drafts.",
+              },
             ].map((item) => (
-              <div key={item.step} className="relative">
-                <span className="text-4xl font-bold text-primary/20">{item.step}</span>
-                <h3 className="mt-2 font-medium">{item.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{item.desc}</p>
+              <div key={item.step} className="relative glass-panel rounded-xl p-5 sm:p-7">
+                <div className="flex items-center justify-between">
+                  <item.icon className="h-5 w-5 text-primary" />
+                  <span className="text-3xl font-bold text-primary/15">{item.step}</span>
+                </div>
+                <h3 className="mt-4 font-semibold">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="skills" className="relative z-10 border-t border-border/40 py-24">
-        <div className="mx-auto max-w-6xl px-6">
-          <h2 className="text-2xl font-semibold tracking-tight">Skills for devs & token teams</h2>
-          <p className="mt-2 max-w-xl text-muted-foreground">
-            14+ working skills today. X auto-post is opt-in at account and agent level.
+      {/* Personas */}
+      <section className="relative z-10 py-16 md:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Meet your agent team</h2>
+          <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+            Pre-built personas with roles, prompts, and recommended skills — customize everything.
           </p>
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="-mx-4 mt-8 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+            {personas.map((persona, i) => (
+              <motion.div
+                key={persona.name}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.06 }}
+                whileHover={{ y: -4, scale: 1.02 }}
+                className="glass-panel min-w-[220px] shrink-0 rounded-xl p-5 transition-shadow hover:shadow-[0_0_24px_-10px_rgba(52,211,153,0.2)] sm:min-w-0"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                  {persona.name[0]}
+                </div>
+                <h3 className="mt-4 font-semibold">{persona.name}</h3>
+                <p className="text-xs text-primary">{persona.role}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{persona.focus}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Skills */}
+      <section id="skills" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Skills for devs & token teams</h2>
+          <p className="mt-2 max-w-xl text-muted-foreground">
+            14+ working skills today. Mix and match per agent. X auto-post is opt-in at account and agent level.
+          </p>
+          <div className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3">
             {previewSkills.map((skill) => {
               const Icon = iconMap[skill.icon] || Bot;
               return (
-                <div key={skill.name} className="group glass-panel rounded-xl p-5 transition-colors hover:border-primary/30">
+                <div
+                  key={skill.name}
+                  className="group glass-panel rounded-xl p-5 transition-colors hover:border-primary/30"
+                >
                   <div className="flex items-start justify-between">
                     <Icon className="h-5 w-5 text-primary" />
                     <Badge variant={skill.enabled ? "success" : "secondary"}>
@@ -186,28 +416,75 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="relative z-10 border-t border-border/40 py-24">
-        <div className="mx-auto max-w-6xl px-6 text-center">
-          <h2 className="text-3xl font-semibold tracking-tight">Launch your first Solana agent.</h2>
-          <p className="mx-auto mt-4 max-w-md text-muted-foreground">
-            Setup in minutes. Copy <code className="text-foreground/80">.env.example</code> to{" "}
-            <code className="text-foreground/80">.env</code> and see the README for full setup.
-          </p>
-          <Link href="/register" className="mt-8 inline-block">
-            <Button size="lg" className="glow-emerald">
-              Get started free
+      {/* FAQ */}
+      <section className="relative z-10 py-16 md:py-24">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <h2 className="text-center text-2xl font-semibold tracking-tight sm:text-3xl">Frequently asked questions</h2>
+          <div className="mt-12 space-y-4">
+            {faqs.map((faq) => (
+              <details
+                key={faq.q}
+                className="group glass-panel rounded-xl [&_summary::-webkit-details-marker]:hidden"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-4 p-5 font-medium">
+                  {faq.q}
+                  <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+                </summary>
+                <p className="border-t border-border/40 px-5 pb-5 pt-3 text-sm leading-relaxed text-muted-foreground">
+                  {faq.a}
+                </p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="relative z-10 border-t border-border/40 py-16 pb-28 md:py-24 md:pb-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="glass-panel glow-emerald rounded-2xl px-5 py-10 text-center sm:px-12 sm:py-14">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
+              Launch your first Solana agent today
+            </h2>
+            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
+              Free to start. Connect your database, add an API key, and deploy agents in minutes.
+              Self-host anytime with the open-source repo.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link href="/register">
+                <Button size="lg" className="glow-emerald">
+                  Get started free
+                  <ArrowRight className="ml-1 h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="/terms">
+                <Button variant="ghost" size="sm" className="text-muted-foreground">
+                  Terms of Service
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Mobile sticky CTA */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[hsl(220,18%,7%)]/90 p-3 backdrop-blur-xl sm:hidden">
+        <div className="mx-auto flex max-w-lg gap-2">
+          <Link href="/login" className="flex-1">
+            <Button variant="outline" className="h-11 w-full">
+              Sign in
+            </Button>
+          </Link>
+          <Link href="/register" className="flex-[1.4]">
+            <Button className="h-11 w-full glow-emerald">
+              Start free
               <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </Link>
         </div>
-      </section>
+      </div>
 
-      <footer className="relative z-10 border-t border-border/40 py-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 text-sm text-muted-foreground">
-          <span>© {new Date().getFullYear()} AYRA Agent</span>
-          <span>Solana dev agents · Not financial advice</span>
-        </div>
-      </footer>
+      <LandingFooter />
     </div>
   );
 }

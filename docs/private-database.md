@@ -1,6 +1,6 @@
-# Private database setup (BYOD)
+# Private database setup (required)
 
-Store **dashboard chat history** and **AYRA Brain tasks** in your own PostgreSQL. No Prisma, migrations, or CLI required on your side.
+Every AYRA account must connect **your own PostgreSQL** for dashboard chat and AYRA Brain tasks. No Prisma, migrations, or CLI required on your side.
 
 ## Before you start
 
@@ -61,10 +61,10 @@ postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.co
 
 | Problem | Fix |
 |---------|-----|
-| Connection failed | Check password, IP allowlist, SSL; try direct `:5432` URL |
+| Connection failed | Check password, IP allowlist, SSL; try appending `?sslmode=require` to the URL |
+| self-signed certificate / certificate chain | Cloud Postgres (Supabase, Neon) is supported — save again after updating AYRA; or add `?sslmode=no-verify` to the URL |
 | Invalid URL | Must start with `postgresql://` or `postgres://` |
 | Empty after migrate | Re-save URL once, or start a new chat after connecting |
-| Want platform storage again | Settings → enable **Use platform default storage** → Save |
 
 ## Security notes
 

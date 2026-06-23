@@ -75,6 +75,25 @@
       0 0 48px -16px rgba(52, 211, 153, 0.28);
   }
 
+  .text-gradient-animate {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      90deg,
+      #a7f3d0,
+      #34d399,
+      #6ee7b7,
+      #34d399,
+      #a7f3d0
+    );
+    background-size: 200% auto;
+    animation: gradient-shift 6s linear infinite;
+  }
+
+  @keyframes gradient-shift {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+  }
+
   .terminal-panel {
     @apply rounded-xl border border-white/[0.06] bg-[#0b0d10];
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);

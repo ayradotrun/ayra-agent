@@ -22,7 +22,7 @@ const TELEGRAM_ALWAYS = [
 
 const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
   {
-    pattern: /\b(sol|solana|harga|price|cek|token|mint|crypto|dex|coin|pump|meme|rug|aman|safe|scam)\b/i,
+    pattern: /\b(sol|solana|price|token|mint|crypto|dex|coin|pump|meme|rug|safe|scam)\b/i,
     slugs: [
       "sol-price-checker",
       "jupiter-price",
@@ -44,7 +44,7 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
     ],
   },
   {
-    pattern: /\b(gambar|image|generate|draw|logo|banner|poster)\b/i,
+    pattern: /\b(image|generate|draw|logo|banner|poster)\b/i,
     slugs: ["image-generator"],
   },
   {
@@ -79,11 +79,11 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
     slugs: ["website-health", "website-scraper", "ssl-monitor", "seo-audit"],
   },
   {
-    pattern: /\b(search|cari|news|rss|research|docs)\b/i,
+    pattern: /\b(search|news|rss|research|docs)\b/i,
     slugs: ["web-search", "news-monitor", "rss-reader", "documentation-reader"],
   },
   {
-    pattern: /\b(wallet|address|balance|dompet)\b/i,
+    pattern: /\b(wallet|address|balance)\b/i,
     slugs: ["wallet-tracker", "portfolio-tracker", "whale-tracker"],
   },
 ];

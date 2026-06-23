@@ -21,6 +21,7 @@ import { ModelPicker } from "@/components/agents/model-picker";
 import { DEFAULT_MODEL, DEFAULT_IMAGE_MODEL } from "@/lib/models";
 import { DEFAULT_LLM_BASE_URL } from "@/lib/llm-config";
 import { TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
+import { PrivateDatabaseSetup } from "@/components/settings/private-database-setup";
 
 interface AgentOption {
   id: string;
@@ -48,7 +49,6 @@ interface Settings {
   telegramDefaultAgentId?: string | null;
   emailNotifications?: boolean;
   telegramNotifications?: boolean;
-  memeAlertsEnabled?: boolean;
   xAutoPostEnabled?: boolean;
   solanaDefaultRpc?: string | null;
   agents?: AgentOption[];
@@ -152,8 +152,6 @@ function SettingsContent() {
   const [xAccessSecret, setXAccessSecret] = useState("");
   const [solanaRpcApiKey, setSolanaRpcApiKey] = useState("");
   const [brainDatabaseUrl, setBrainDatabaseUrl] = useState("");
-  const [clearBrainDatabase, setClearBrainDatabase] = useState(false);
-  const [privateDbGuide, setPrivateDbGuide] = useState<"supabase" | "neon" | "other">("supabase");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -191,6 +189,12 @@ function SettingsContent() {
     setSaving(true);
     setMessage("");
 
+    if (!settings.hasBrainDatabaseUrl && !brainDatabaseUrl.trim()) {
+      setMessage("Private Database (AYRA) is required. Paste your Postgres connection URL above.");
+      setSaving(false);
+      return;
+    }
+
     const body: Record<string, unknown> = {
       name: settings.name,
       defaultModel: settings.defaultModel,
@@ -201,7 +205,6 @@ function SettingsContent() {
       telegramDefaultAgentId: settings.telegramDefaultAgentId,
       emailNotifications: settings.emailNotifications,
       telegramNotifications: settings.telegramNotifications,
-      memeAlertsEnabled: settings.memeAlertsEnabled,
       xAutoPostEnabled: settings.xAutoPostEnabled,
       solanaDefaultRpc: settings.solanaDefaultRpc,
     };
@@ -212,11 +215,7 @@ function SettingsContent() {
     if (xAccessToken) body.xAccessToken = xAccessToken;
     if (xAccessSecret) body.xAccessSecret = xAccessSecret;
     if (solanaRpcApiKey) body.solanaRpcApiKey = solanaRpcApiKey;
-    if (clearBrainDatabase) {
-      body.brainDatabaseUrl = null;
-    } else if (brainDatabaseUrl) {
-      body.brainDatabaseUrl = brainDatabaseUrl;
-    }
+    if (brainDatabaseUrl.trim()) body.brainDatabaseUrl = brainDatabaseUrl.trim();
 
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -235,7 +234,6 @@ function SettingsContent() {
       setXAccessSecret("");
       setSolanaRpcApiKey("");
       setBrainDatabaseUrl("");
-      setClearBrainDatabase(false);
       const refreshed = await fetchSettingsData();
       setSettings(refreshed);
     } else {
@@ -256,7 +254,51 @@ function SettingsContent() {
         description="Manage profile, model defaults, and notification integrations."
       />
 
+      {!settings.hasBrainDatabaseUrl && (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
+          <p className="font-medium text-amber-50">Private Database (AYRA) is required</p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            Connect your Postgres URL below before using chat, brain tasks, or agents. Dashboard access is
+            limited to this page until it is saved.
+          </p>
+        </div>
+      )}
+
         <form onSubmit={handleSave} className="space-y-6">
+          <Card id="private-database">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Private Database (AYRA) <span className="text-destructive">*</span>
+              </CardTitle>
+              <CardDescription>
+                {settings.hasBrainDatabaseUrl
+                  ? "Private Postgres connected — chat history, brain tasks & calendar live in your database"
+                  : "Required — paste your Postgres connection URL so chat and brain data stay in your database"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PrivateDatabaseSetup
+                value={brainDatabaseUrl}
+                onChange={setBrainDatabaseUrl}
+                configured={settings.hasBrainDatabaseUrl}
+              />
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-muted-foreground space-y-2">
+                <p className="text-sm font-medium text-foreground">After you save</p>
+                <p>
+                  AYRA automatically creates{" "}
+                  <code className="text-foreground/80">chat_session</code>,{" "}
+                  <code className="text-foreground/80">chat_message</code>, and{" "}
+                  <code className="text-foreground/80">brain_task</code> tables — no Prisma or manual
+                  migrations required.
+                </p>
+                <p>
+                  See{" "}
+                  <code className="text-foreground/80">docs/private-database.md</code> in the repo.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Profile</CardTitle>
@@ -370,18 +412,6 @@ function SettingsContent() {
                 <Switch
                   checked={settings.telegramChatEnabled ?? true}
                   onCheckedChange={(v) => setSettings({ ...settings, telegramChatEnabled: v })}
-                />
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
-                <div>
-                  <p className="text-sm font-medium">Auto AYRA alerts</p>
-                  <p className="text-xs text-muted-foreground">
-                    Push AYRA alerts when new tokens pass quality filters (worker required)
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.memeAlertsEnabled ?? true}
-                  onCheckedChange={(v) => setSettings({ ...settings, memeAlertsEnabled: v })}
                 />
               </div>
               <div className="space-y-2">
@@ -561,166 +591,6 @@ function SettingsContent() {
                 configured={settings.hasSolanaRpcApiKey}
                 placeholder="Helius / QuickNode API key"
               />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Private Database (AYRA)</CardTitle>
-              <CardDescription>
-                {settings.hasBrainDatabaseUrl
-                  ? "Private Postgres connected — chat history, brain tasks & calendar live in your database"
-                  : "Optional: use your own Postgres so chat + brain data stay off AYRA servers (default: platform storage)"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <SecretField
-                id="brain-database-url"
-                label="Postgres connection URL"
-                value={brainDatabaseUrl}
-                onChange={(value) => {
-                  setBrainDatabaseUrl(value);
-                  if (value) setClearBrainDatabase(false);
-                }}
-                configured={settings.hasBrainDatabaseUrl && !clearBrainDatabase}
-                placeholder="postgresql://user:pass@host:5432/brain_db"
-              />
-              {settings.hasBrainDatabaseUrl && (
-                <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
-                  <div>
-                    <p className="text-sm font-medium">Use platform default storage</p>
-                    <p className="text-xs text-muted-foreground">
-                      Remove private DB URL — chat returns to platform storage; brain uses local SQLite
-                    </p>
-                  </div>
-                  <Switch
-                    checked={clearBrainDatabase}
-                    onCheckedChange={(checked) => {
-                      setClearBrainDatabase(checked);
-                      if (checked) setBrainDatabaseUrl("");
-                    }}
-                  />
-                </div>
-              )}
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-foreground">No Prisma or migrations needed</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Paste a Postgres URL from an empty database. AYRA creates tables automatically and
-                    migrates your existing chat and brain data on first save.
-                  </p>
-                </div>
-                <ol className="list-decimal list-inside space-y-1.5 text-xs text-muted-foreground">
-                  <li>Create a free Postgres project (Supabase, Neon, Railway, …)</li>
-                  <li>Copy the <span className="text-foreground/90">connection string</span> (URI format)</li>
-                  <li>Paste above and click <span className="text-foreground/90">Save settings</span></li>
-                </ol>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Setup guide
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["supabase", "Supabase"],
-                      ["neon", "Neon"],
-                      ["other", "Other"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => setPrivateDbGuide(id)}
-                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                        privateDbGuide === id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <div className="rounded-lg border border-border/60 bg-muted/20 p-4 text-xs text-muted-foreground space-y-2">
-                  {privateDbGuide === "supabase" && (
-                    <>
-                      <p className="font-medium text-foreground/90">Supabase (recommended)</p>
-                      <ol className="list-decimal list-inside space-y-1.5 pl-0.5">
-                        <li>
-                          <a
-                            href="https://supabase.com/dashboard"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary underline-offset-2 hover:underline"
-                          >
-                            supabase.com
-                          </a>{" "}
-                          → New project → wait until ready
-                        </li>
-                        <li>Project Settings → Database → Connection string → URI</li>
-                        <li>Use Session/Direct mode (port 5432); replace{" "}
-                          <code className="text-[11px] text-foreground/80">[YOUR-PASSWORD]</code>
-                        </li>
-                        <li>Paste here → Save — tables{" "}
-                          <code className="text-[11px]">chat_session</code>,{" "}
-                          <code className="text-[11px]">chat_message</code>,{" "}
-                          <code className="text-[11px]">brain_task</code> appear automatically
-                        </li>
-                      </ol>
-                    </>
-                  )}
-                  {privateDbGuide === "neon" && (
-                    <>
-                      <p className="font-medium text-foreground/90">Neon</p>
-                      <ol className="list-decimal list-inside space-y-1.5 pl-0.5">
-                        <li>
-                          <a
-                            href="https://console.neon.tech"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-primary underline-offset-2 hover:underline"
-                          >
-                            console.neon.tech
-                          </a>{" "}
-                          → Create project
-                        </li>
-                        <li>Dashboard → Connection details → copy PostgreSQL URL</li>
-                        <li>Paste here → Save</li>
-                      </ol>
-                    </>
-                  )}
-                  {privateDbGuide === "other" && (
-                    <>
-                      <p className="font-medium text-foreground/90">Railway, Render, self-hosted</p>
-                      <ol className="list-decimal list-inside space-y-1.5 pl-0.5">
-                        <li>Provision an empty PostgreSQL instance</li>
-                        <li>Copy the provider&apos;s Postgres connection URL</li>
-                        <li>Must start with <code className="text-[11px]">postgresql://</code> or{" "}
-                          <code className="text-[11px]">postgres://</code>
-                        </li>
-                        <li>Paste here → Save</li>
-                      </ol>
-                    </>
-                  )}
-                  <p className="pt-1 border-t border-border/40">
-                    Operator docs: <code className="text-[11px] text-foreground/80">docs/private-database.md</code>{" "}
-                    in the repository. Your URL is encrypted like other API keys.
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground space-y-2">
-                <p>
-                  <span className="font-medium text-foreground/90">Default (no URL):</span> chat stays on
-                  the platform database; brain tasks use local SQLite on the server host.
-                </p>
-                <p>
-                  <span className="font-medium text-foreground/90">With private URL:</span> chat history
-                  and brain tasks live only in your Postgres — the platform DB stays lighter.
-                </p>
-              </div>
             </CardContent>
           </Card>
 

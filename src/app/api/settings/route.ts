@@ -13,7 +13,6 @@ import { isValidLlmBaseUrl, resolveLlmBaseUrl, normalizeLlmBaseUrl } from "@/lib
 import { syncUserChatModel, syncUserImageModel } from "@/lib/user-models";
 import { isValidBrainDatabaseUrl } from "@/lib/brain/brain-db-url";
 import {
-  clearBrainPgPool,
   migrateSqliteBrainToPostgres,
   testBrainPgConnection,
 } from "@/lib/brain/brain-store";
@@ -37,7 +36,6 @@ export async function GET() {
       emailNotifications: true,
       telegramNotifications: true,
       telegramChatEnabled: true,
-      memeAlertsEnabled: true,
       telegramChatId: true,
       telegramDefaultAgentId: true,
       telegramWebhookSecret: true,
@@ -141,7 +139,6 @@ const updateSettingsSchema = z.object({
   telegramDefaultAgentId: z.string().nullable().optional(),
   emailNotifications: z.boolean().optional(),
   telegramNotifications: z.boolean().optional(),
-  memeAlertsEnabled: z.boolean().optional(),
   xApiKey: z.string().optional(),
   xApiSecret: z.string().optional(),
   xAccessToken: z.string().optional(),
@@ -175,7 +172,6 @@ export async function PATCH(request: NextRequest) {
     }
     if (data.emailNotifications !== undefined) updateData.emailNotifications = data.emailNotifications;
     if (data.telegramNotifications !== undefined) updateData.telegramNotifications = data.telegramNotifications;
-    if (data.memeAlertsEnabled !== undefined) updateData.memeAlertsEnabled = data.memeAlertsEnabled;
     if (data.xAutoPostEnabled !== undefined) updateData.xAutoPostEnabled = data.xAutoPostEnabled;
     if (data.solanaDefaultRpc !== undefined) updateData.solanaDefaultRpc = data.solanaDefaultRpc || null;
     if (data.solanaRpcApiKey) updateData.solanaRpcApiKey = encryptSafe(data.solanaRpcApiKey);
@@ -185,28 +181,30 @@ export async function PATCH(request: NextRequest) {
         data.brainDatabaseUrl === null ? "" : data.brainDatabaseUrl.trim();
 
       if (!trimmed) {
-        updateData.brainDatabaseUrl = null;
-        clearBrainPgPool(user.id);
-      } else {
-        if (!isValidBrainDatabaseUrl(trimmed)) {
-          return NextResponse.json(
-            { error: "Invalid brain database URL. Use postgresql:// or postgres:// format." },
-            { status: 400 }
-          );
-        }
-
-        try {
-          await testBrainPgConnection(trimmed);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : "Connection failed";
-          return NextResponse.json(
-            { error: `Could not connect to brain database: ${message}` },
-            { status: 400 }
-          );
-        }
-
-        updateData.brainDatabaseUrl = encryptSafe(trimmed);
+        return NextResponse.json(
+          { error: "Private database URL is required and cannot be removed." },
+          { status: 400 }
+        );
       }
+
+      if (!isValidBrainDatabaseUrl(trimmed)) {
+        return NextResponse.json(
+          { error: "Invalid brain database URL. Use postgresql:// or postgres:// format." },
+          { status: 400 }
+        );
+      }
+
+      try {
+        await testBrainPgConnection(trimmed);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Connection failed";
+        return NextResponse.json(
+          { error: `Could not connect to brain database: ${message}` },
+          { status: 400 }
+        );
+      }
+
+      updateData.brainDatabaseUrl = encryptSafe(trimmed);
     }
 
     if (data.llmBaseUrl !== undefined) {
@@ -242,7 +240,6 @@ export async function PATCH(request: NextRequest) {
         llmBaseUrl: true,
         emailNotifications: true,
         telegramNotifications: true,
-        memeAlertsEnabled: true,
         telegramChatEnabled: true,
         telegramChatId: true,
         telegramDefaultAgentId: true,
@@ -337,7 +334,6 @@ export async function PATCH(request: NextRequest) {
       effectiveLlmBaseUrl: resolveLlmBaseUrl(updated.llmBaseUrl),
       emailNotifications: updated.emailNotifications,
       telegramNotifications: updated.telegramNotifications,
-      memeAlertsEnabled: updated.memeAlertsEnabled,
       telegramChatEnabled: updated.telegramChatEnabled,
       telegramChatId: updated.telegramChatId,
       telegramDefaultAgentId: updated.telegramDefaultAgentId,

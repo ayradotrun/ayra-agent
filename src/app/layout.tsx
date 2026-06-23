@@ -13,15 +13,6 @@ export const metadata: Metadata = {
   title: "AYRA Agent — Build AI agents for your dev workflow",
   description:
     "Create agents with skills, memory, schedules, and alerts. A developer-focused platform to build and run AI agents.",
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-32.png", sizes: "32x32", type: "image/png" },
-      { url: "/icon-48.png", sizes: "48x48", type: "image/png" },
-    ],
-    apple: "/apple-icon.png",
-    shortcut: "/favicon.ico",
-  },
   openGraph: {
     title: "AYRA Agent",
     description:

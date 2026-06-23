@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { LogOut, Plus } from "lucide-react";
 import { AyraLogo } from "@/components/brand/ayra-logo";
+import { AyraSocialLinks } from "@/components/brand/ayra-social-links";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChatRecentsList } from "@/components/chat/chat-recents-list";
@@ -135,6 +136,11 @@ export function SidebarContent({ user, onNavigate }: SidebarContentProps) {
       </div>
 
       <div className="shrink-0 border-t border-white/[0.06] p-3">
+        <AyraSocialLinks
+          className="mb-3 justify-center gap-4 px-1 sm:justify-start"
+          showLabels
+          iconClassName="h-3.5 w-3.5"
+        />
         <div className="mb-2 flex items-center gap-3 rounded-lg px-2 py-2">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.04] text-[11px] font-medium text-emerald-300">
             {getInitials(user?.name, user?.email)}

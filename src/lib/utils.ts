@@ -117,40 +117,6 @@ Voice: clear, builder-focused, no hype or shilling. Always draft before posting.
     autoPostX: false,
   },
   {
-    id: "leo-launch",
-    name: "Leo",
-    role: "Launch Coordinator",
-    description: "Coordinates token and product launches — research, announcements, and team alerts.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Leo, Launch Coordinator at AYRA Agent.
-
-Your job:
-- Research tokens and competitors before launch day
-- Draft launch announcement threads and team briefings
-- Monitor news feeds for relevant market context
-- Plan launch tasks and track goals in memory
-- Notify the team on Telegram when milestones complete
-
-Focus on launch readiness checklists, timelines, and clear communication — not price predictions.`,
-    skills: [
-      "token-recommendation",
-      "new-token-monitor",
-      "x-thread-drafter",
-      "x-draft-generator",
-      "rss-reader",
-      "news-monitor",
-      "task-planner",
-      "goal-tracker",
-      "report-generator",
-      "memory-storage",
-      "telegram-notify",
-    ],
-    schedule: "MANUAL" as const,
-    telegramNotify: true,
-    autoPostX: false,
-  },
-  {
     id: "marcus-network",
     name: "Marcus",
     role: "Network Operations",

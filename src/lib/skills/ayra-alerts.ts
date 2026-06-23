@@ -6,7 +6,7 @@ import {
   type MemeQualityFilters,
 } from "@/lib/agent/meme-quality";
 
-/** AYRA scan & AYRA alert skills */
+/** AYRA scan skills */
 
 const filterSchema = z.object({
   minMarketCapUsd: z.number().min(0).optional(),

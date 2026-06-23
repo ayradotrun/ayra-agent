@@ -260,9 +260,9 @@ export function formatTokenCard(data: TokenCardData): string {
 export function extractTickerFromMessage(text: string): string | null {
   const trimmed = text.trim();
   const patterns = [
-    /^(?:harga|price|cek|check|berapa|brp|kurs|nilai)\s+([a-z0-9]{2,20})$/i,
-    /^([a-z0-9]{2,20})\s+(?:harga|price)$/i,
-    /^(?:harga|price|cek|check|berapa|brp)\s+([a-z0-9]{2,20})\b/i,
+    /^(?:price|check)\s+([a-z0-9]{2,20})$/i,
+    /^([a-z0-9]{2,20})\s+price$/i,
+    /^(?:price|check)\s+([a-z0-9]{2,20})\b/i,
   ];
 
   for (const p of patterns) {

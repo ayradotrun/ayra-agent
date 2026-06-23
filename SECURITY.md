@@ -42,7 +42,7 @@ If you deploy AYRA Agent, you are responsible for:
 | `DATABASE_URL` | Restrict network access; use TLS |
 | Worker | Run a **single** worker instance to avoid duplicate Telegram replies |
 | `.env` | Never commit; rotate keys if leaked |
-| Private user DBs | Users supply their own Postgres; you do not hold their chat/brain data when BYOD is enabled |
+| Private user DBs | Users must supply their own Postgres; chat and brain data live in their database |
 
 ## Out of scope
 

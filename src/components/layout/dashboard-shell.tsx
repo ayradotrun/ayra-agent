@@ -1,9 +1,11 @@
 "use client";
 
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { MobileHeader, MobileNav } from "@/components/layout/mobile-nav";
 import { GridBackground } from "@/components/layout/grid-background";
+import { PrivateDatabaseGate } from "@/components/layout/private-database-gate";
 import { cn } from "@/lib/utils";
 
 interface DashboardShellProps {
@@ -39,7 +41,15 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
               : "mx-auto max-w-[1280px] px-4 py-6 md:px-8 md:py-8"
           }
         >
-          {children}
+          <Suspense
+            fallback={
+              <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+                Loading…
+              </div>
+            }
+          >
+            <PrivateDatabaseGate>{children}</PrivateDatabaseGate>
+          </Suspense>
         </div>
       </main>
     </>

@@ -20,7 +20,6 @@ async function main() {
   }
 
   const ico = await pngToIco(pngPaths);
-  fs.writeFileSync("public/favicon.ico", ico);
   fs.writeFileSync("src/app/favicon.ico", ico);
 
   await sharp(src)
@@ -34,7 +33,7 @@ async function main() {
     .toFile("src/app/apple-icon.png");
 
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  console.log("Favicon generated:", fs.statSync("public/favicon.ico").size, "bytes");
+  console.log("Favicon generated:", fs.statSync("src/app/favicon.ico").size, "bytes");
 }
 
 main().catch((err) => {

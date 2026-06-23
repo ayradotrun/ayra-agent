@@ -6,13 +6,13 @@ import { runSkillFast, runTokenLookupFast } from "./skill-runner";
 import { QUALITY_MAX_PAIR_AGE_HOURS } from "@/lib/agent/meme-quality";
 
 const SOL_PRICE_PATTERN =
-  /\b(harga|price|cek|check|berapa|brp|kurs|nilai).{0,20}\b(sol|solana)\b|\b(sol|solana).{0,20}\b(harga|price)\b/i;
-const NETWORK_PATTERN = /\b(tps|network stat|status jaringan|jaringan solana|solana network)\b/i;
-const RUGCHECK_PATTERN = /\b(rug ?check|cek keamanan|safe|scam|rug)\b/i;
+  /\b(price|check).{0,20}\b(sol|solana)\b|\b(sol|solana).{0,20}\bprice\b/i;
+const NETWORK_PATTERN = /\b(tps|network stat|solana network)\b/i;
+const RUGCHECK_PATTERN = /\b(rug ?check|safe|scam|rug)\b/i;
 const MINT_PATTERN = /\b([1-9A-HJ-NP-Za-km-z]{32,50})\b/;
 const SNS_PATTERN = /\b([a-z0-9_-]{1,40})\.sol\b/i;
-const TRENDING_PATTERN = /\b(trending|tren|hot token|token hot|token viral)\b/i;
-const AYRA_SCAN_PATTERN = /\b(ayra scan|ayrascan|meme scan|scan memes?|ayra alert|ayra alerts?)\b/i;
+const TRENDING_PATTERN = /\b(trending|hot token|viral token)\b/i;
+const AYRA_SCAN_PATTERN = /\b(ayra scan|ayrascan|meme scan|scan memes?)\b/i;
 const QUALITY_PATTERN = /\b(quality|ayra quality|meme quality|quality report|pass filters?)\b/i;
 
 export async function tryTelegramFastPath(
