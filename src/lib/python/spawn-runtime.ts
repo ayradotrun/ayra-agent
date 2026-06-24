@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execSync, type ChildProcess } from "child_process";
 import {
   isPythonRuntimeHealthy,
   parsePythonRuntimePort,
@@ -11,8 +11,10 @@ import {
 } from "./paths";
 import {
   acquireTelegramGatewayLock,
+  clearStaleTelegramGatewayLock,
   isTelegramGatewayRunning,
   releaseTelegramGatewayLock,
+  writeTelegramGatewayLock,
 } from "../telegram/gateway-lock";
 
 let spawnedChild: ChildProcess | null = null;
@@ -54,13 +56,28 @@ function attachPythonLogs(child: ChildProcess, prefix: string): void {
 }
 
 function killSpawnedChild(child: ChildProcess | null): void {
-  if (!child) return;
+  if (!child?.pid) return;
   try {
     if (process.platform === "win32") {
       spawn("taskkill", ["/pid", String(child.pid), "/f", "/t"], { shell: true });
     } else {
+      try {
+        execSync(`pkill -P ${child.pid} 2>/dev/null || true`, { stdio: "ignore" });
+      } catch {
+        /* ignore */
+      }
       child.kill("SIGTERM");
     }
+  } catch {
+    /* ignore */
+  }
+}
+
+/** PM2 restarts can leave orphan Python pollers → Telegram 409 Conflict. */
+function killOrphanTelegramGateways(): void {
+  if (process.platform === "win32") return;
+  try {
+    execSync("pkill -f 'ayra.telegram_gateway' 2>/dev/null || true", { stdio: "ignore" });
   } catch {
     /* ignore */
   }
@@ -197,6 +214,10 @@ export function stopPythonRuntime(): void {
 
 /** Start Python Telegram gateway (python-telegram-bot → worker internal API). */
 export async function ensurePythonTelegramGateway(): Promise<void> {
+  clearStaleTelegramGatewayLock();
+  killOrphanTelegramGateways();
+  await new Promise((r) => setTimeout(r, 2_000));
+
   if (isTelegramGatewayRunning()) {
     console.log("[AYRA Telegram/Python] Gateway already running — skip auto-start.");
     return;
@@ -219,6 +240,10 @@ export async function ensurePythonTelegramGateway(): Promise<void> {
     env: pythonSpawnEnv(),
   });
   weSpawnedTelegram = true;
+
+  if (telegramSpawnedChild.pid) {
+    writeTelegramGatewayLock(telegramSpawnedChild.pid);
+  }
 
   attachPythonLogs(telegramSpawnedChild, "[AYRA Telegram/Python]");
 
@@ -243,6 +268,7 @@ export function stopPythonTelegramGateway(): void {
   killSpawnedChild(telegramSpawnedChild);
   telegramSpawnedChild = null;
   weSpawnedTelegram = false;
+  releaseTelegramGatewayLock();
 }
 
 export function stopAllPythonServices(): void {

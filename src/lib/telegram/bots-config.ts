@@ -87,15 +87,15 @@ export function resolveTelegramUserForUpdate(
 export function formatTelegramLinkReply(reason: "not_linked" | "ambiguous" | "no_bot"): string {
   if (reason === "ambiguous") {
     return (
-      "⚠️ *Beberapa akun AYRA memakai chat Telegram ini*\n\n" +
-      "Nonaktifkan Telegram di akun lain, atau pakai bot token berbeda per akun.\n\n" +
+      "⚠️ *Multiple AYRA accounts use this Telegram chat*\n\n" +
+      "Disable Telegram on the other account, or use a different bot token per account.\n\n" +
       "*Dashboard → Settings → Telegram*"
     );
   }
   return (
-    "⚠️ *Akun Telegram belum terhubung*\n\n" +
-    "Isi Chat ID di *Dashboard → Settings → Telegram*, " +
-    "atau pastikan hanya satu akun AYRA memakai bot ini."
+    "⚠️ *Telegram account not linked*\n\n" +
+    "Enter your Chat ID under *Dashboard → Settings → Telegram*, " +
+    "or ensure only one AYRA account uses this bot."
   );
 }
 

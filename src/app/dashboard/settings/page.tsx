@@ -258,8 +258,9 @@ function SettingsContent() {
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
           <p className="font-medium text-amber-50">Private Database (AYRA) is required</p>
           <p className="mt-1 text-xs text-amber-100/80">
-            Paste your Postgres URL below and click <strong>Connect</strong>. No need to save
-            settings separately — a successful connection is saved automatically.
+            Paste your Postgres URL below and click <strong>Connect</strong>. We recommend a database
+            in <strong>Germany (eu-central-1)</strong> for lower latency. No need to save settings
+            separately — a successful connection is saved automatically.
           </p>
         </div>
       )}
@@ -273,7 +274,7 @@ function SettingsContent() {
               <CardDescription>
                 {settings.hasBrainDatabaseUrl
                   ? "Private Postgres connected — chat history, brain tasks & calendar live in your database"
-                  : "Required — paste your Postgres connection URL so chat and brain data stay in your database"}
+                  : "Required — paste your Postgres connection URL (Germany / eu-central-1 recommended for lower latency)"}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

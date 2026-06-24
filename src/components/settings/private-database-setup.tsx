@@ -193,6 +193,17 @@ export function PrivateDatabaseSetup({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-lg border border-sky-500/25 bg-sky-500/5 px-4 py-3 text-xs text-muted-foreground">
+        <p className="font-medium text-foreground/90">Recommended: database server in Germany</p>
+        <p className="mt-1 leading-relaxed">
+          For lower latency, we recommend hosting your private Postgres in{" "}
+          <strong className="text-foreground/90">Germany</strong> (e.g. Supabase region{" "}
+          <code className="text-[11px] text-foreground/80">eu-central-1</code>, Neon{" "}
+          <code className="text-[11px] text-foreground/80">eu-central-1</code>). Other regions
+          (Singapore, US, etc.) still work but may feel slower for chat and brain tasks.
+        </p>
+      </div>
+
       {configured && editing && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
           <span>Paste a new URL and click Connect to replace your current private database.</span>
@@ -270,7 +281,8 @@ export function PrivateDatabaseSetup({
                     >
                       supabase.com/dashboard
                     </a>{" "}
-                    → <strong>New project</strong>
+                    → <strong>New project</strong> → we recommend region{" "}
+                    <strong>Europe (Frankfurt) / eu-central-1</strong>
                   </li>
                   <li>
                     <strong>Settings → General</strong> → copy <strong>Reference ID</strong>
@@ -316,11 +328,12 @@ export function PrivateDatabaseSetup({
                     id="supabase-region"
                     value={supabaseRegion}
                     onChange={(e) => setSupabaseRegion(e.target.value)}
-                    placeholder="ap-southeast-1"
+                    placeholder="eu-central-1"
                   />
                   <p className="text-[11px] text-muted-foreground">
+                    Recommended: <strong className="text-foreground/90">eu-central-1</strong> (Germany).
                     From your connection string:{" "}
-                    <code className="text-foreground/80">aws-0-REGION.pooler.supabase.com</code>
+                    <code className="text-foreground/80">aws-0-eu-central-1.pooler.supabase.com</code>
                   </p>
                 </div>
               </div>
@@ -344,6 +357,10 @@ export function PrivateDatabaseSetup({
                     </a>{" "}
                     → Create project
                   </li>
+                  <li>
+                    We recommend <strong>Europe (Frankfurt) / eu-central-1</strong> for the project
+                    region
+                  </li>
                   <li>Copy host, password, and database name from Connection details</li>
                   <li>Fill the form → click <strong>Connect</strong></li>
                 </ol>
@@ -355,8 +372,12 @@ export function PrivateDatabaseSetup({
                     id="neon-host"
                     value={neonHost}
                     onChange={(e) => setNeonHost(e.target.value)}
-                    placeholder="ep-xxxx.region.aws.neon.tech"
+                    placeholder="ep-xxxx.eu-central-1.aws.neon.tech"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    Recommended: <strong className="text-foreground/90">eu-central-1</strong>{" "}
+                    (Germany) for lower latency.
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="neon-user">User</Label>
@@ -482,7 +503,9 @@ export function PrivateDatabaseSetup({
             ) : (
               <>
                 Paste your <strong>own</strong> empty Postgres URL (Supabase, Neon, Railway, etc.).
-                Each user connects a separate private database — do not use the platform{" "}
+                We recommend <strong>Germany (eu-central-1)</strong> for lower latency. Each user
+                connects a separate
+                private database — do not use the platform{" "}
                 <code className="text-[11px]">DATABASE_URL</code> on shared deployments.
               </>
             )}

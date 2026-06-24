@@ -94,6 +94,8 @@ If the chart does not load in a preview, open the link above or paste `ayradotru
 
 **Platform operators** sync schema with Prisma (`db push`). **End users** paste a Postgres URL in Settings — tables are created automatically on save.
 
+> **Region alignment:** The platform DB (`.env`) and each user's private DB (Settings) should live in the **same region** as the AYRA server (e.g. both `eu-central-1` / Germany). Cross-region pairs (platform in Singapore, private in US, app in EU) add hundreds of ms per chat/brain query and feel sluggish. Self-host on one VPS: use local Postgres for both — see [Database region sync](#database-region-sync).
+
 ---
 
 ## Quick start
@@ -121,8 +123,8 @@ Edit `.env` — minimum required:
 
 | Variable | Purpose |
 |----------|---------|
-| `DATABASE_URL` | Platform Postgres (pooler URL for Supabase) |
-| `DIRECT_DATABASE_URL` | Direct Postgres URL for Prisma |
+| `DATABASE_URL` | Platform Postgres (pooler URL for Supabase) — **same region as your app server** |
+| `DIRECT_DATABASE_URL` | Direct Postgres URL for Prisma — **same region as private DB in Settings** |
 | `NEXTAUTH_SECRET` | Session signing secret (`openssl rand -base64 32`) |
 | `NEXTAUTH_URL` | App URL (`http://localhost:3000` in dev) |
 | `ENCRYPTION_KEY` | 32+ char key for encrypting user secrets at rest |
@@ -189,7 +191,7 @@ Open [http://localhost:3000](http://localhost:3000), **Sign up** at `/register`,
 ### 4. First login checklist
 
 1. **Settings → LLM** — paste OpenRouter (or OpenAI-compatible) API key and pick a model
-2. **Settings → Private Database** — paste your personal Postgres URL (required for chat history)
+2. **Settings → Private Database** — paste your personal Postgres URL (required for chat history). Use the **same region** as `DATABASE_URL` in server `.env` — see [Database region sync](#database-region-sync)
 3. **Settings → Telegram / X** — optional integrations
 
 ### Production
@@ -235,14 +237,14 @@ Legacy Hermes s6 scripts under `docker/s6-rc.d/` are reference-only; use the `ay
 
 Repo-root folders are first-class AYRA sources:
 
-| Folder | Fungsi | Env terkait |
-|--------|--------|-------------|
-| `skills/` | Playbook SKILL.md → agent prompt | `AYRA_SKILLS_DIR` (opsional) |
-| `agent/` | Utilitas runtime (retry, error classify, tool guard) | `MAX_TOOL_CALLS_PER_RUN`, `MAX_LLM_FALLBACK_ATTEMPTS` |
-| `cron/` | Blueprint otomatisasi | `AYRA_PYTHON_*` (worker auto-start) |
-| `docker/` | Deploy container | `AYRA_REPO_ROOT=/app` di Docker |
+| Folder | Purpose | Related env |
+|--------|---------|-------------|
+| `skills/` | Playbook SKILL.md → agent prompt | `AYRA_SKILLS_DIR` (optional) |
+| `agent/` | Runtime utilities (retry, error classify, tool guard) | `MAX_TOOL_CALLS_PER_RUN`, `MAX_LLM_FALLBACK_ATTEMPTS` |
+| `cron/` | Automation blueprints | `AYRA_PYTHON_*` (worker auto-start) |
+| `docker/` | Container deploy | `AYRA_REPO_ROOT=/app` in Docker |
 
-Detail folder `agent/`: [agent/README.md](./agent/README.md)
+See [agent/README.md](./agent/README.md) for the `agent/` folder.
 
 After editing repo-root `agent/`, `cron/`, or `skills/`:
 
@@ -255,7 +257,38 @@ npm run python:setup
 
 ## Performance
 
-If agent replies feel slow, check these first — most delays come from model choice, optional services, or too many tools enabled.
+If agent replies feel slow, check these first — most delays come from model choice, optional services, too many tools enabled, or **database regions that do not match**.
+
+### Database region sync
+
+AYRA uses **two** Postgres databases:
+
+| Database | Configured in | Holds |
+|----------|---------------|--------|
+| **Platform** | `.env` → `DATABASE_URL` / `DIRECT_DATABASE_URL` | Users, agents, auth, runs, encrypted settings |
+| **Private** | **Dashboard → Settings → Private Database** | Chat history, brain tasks |
+
+Every request that touches chat or brain may hit **both** databases. Keep them in the **same region** as each other and as the **AYRA app server** to avoid cross-region latency.
+
+| Setup | Platform (`.env`) | Private (Settings) | Notes |
+|-------|-------------------|--------------------|--------|
+| **Self-host VPS (recommended)** | `127.0.0.1:5432/ayra` | `127.0.0.1:5432/nami` (or same DB with `AYRA_ALLOW_PLATFORM_BRAIN_DB=true`) | Both on the VPS — lowest latency |
+| **Cloud (Supabase / Neon)** | Project in **eu-central-1** (Frankfurt) | Second project or DB in **eu-central-1** | Match the region in both URLs |
+| **Avoid** | Singapore / US East | Different region than platform | Slow `/help`, chat load, brain cron |
+
+**Operators:** when you provision platform Postgres, pick the region closest to where `npm run start` / PM2 runs. Tell users (or document in Settings) to paste a private URL in that **same** region.
+
+**Self-host example** (one VPS in Germany):
+
+```bash
+# .env — platform only; never point these at the private DB name by mistake
+DATABASE_URL=postgresql://nami:PASSWORD@127.0.0.1:5432/ayra
+DIRECT_DATABASE_URL=postgresql://nami:PASSWORD@127.0.0.1:5432/ayra
+```
+
+Then in **Settings → Private Database**: `postgresql://nami:PASSWORD@127.0.0.1:5432/nami` — same host, same machine, zero cross-region delay.
+
+See [docs/private-database.md](./docs/private-database.md) for connect steps and [Performance](#performance) for model tuning.
 
 ### Default model (fast)
 
@@ -336,9 +369,19 @@ Users can set fallback models in **Settings → LLM**. Each 429/402 error trigge
 
 Every user must connect **their own Postgres** for dashboard chat history and AYRA Brain tasks.
 
+### Database region sync
+
+The platform database (operator `.env`) and the private database (user **Settings**) must use the **same region** as the AYRA server:
+
+- **Self-host:** platform DB `ayra` + private DB `nami` on the same VPS (`127.0.0.1`) — recommended
+- **Cloud:** if `DATABASE_URL` uses Supabase **eu-central-1**, the private URL in Settings must also be **eu-central-1** (not Singapore, US, etc.)
+- **Solo self-host:** you may use one Postgres database for both — set `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` and paste `DIRECT_DATABASE_URL` in Settings
+
+Mismatched regions cause noticeable delay on chat, Telegram, and brain tasks because the worker round-trips between two distant hosts.
+
 ### What users do (no CLI)
 
-1. Create an empty Postgres database ([Supabase](https://supabase.com), [Neon](https://neon.tech), Railway, etc.)
+1. Create an empty Postgres database ([Supabase](https://supabase.com), [Neon](https://neon.tech), Railway, etc.) in the **same region** as the platform DB / app server
 2. Copy the **connection string** (URI format)
 3. **Dashboard → Settings → Private Database (AYRA)** → paste URL → **Save**
 
@@ -353,7 +396,7 @@ Users **never** run `prisma migrate` or `db push` on their database.
 
 ### What operators do
 
-Only the **platform** database in `.env` uses Prisma. User private databases use raw SQL `CREATE TABLE IF NOT EXISTS` via the `pg` driver.
+Only the **platform** database in `.env` uses Prisma. User private databases use raw SQL `CREATE TABLE IF NOT EXISTS` via the `pg` driver. Never run `prisma db push` against the private database name — only against the platform URL in `.env`.
 
 Detailed user-facing steps are in the Settings UI and in [docs/private-database.md](./docs/private-database.md).
 
@@ -436,6 +479,7 @@ Production checklist:
 - [ ] HTTPS and correct `NEXTAUTH_URL`
 - [ ] SMTP configured for sign-up verification and password reset (`SMTP_*`)
 - [ ] `ADMIN_EMAILS` set for platform operators (optional)
+- [ ] Platform and private Postgres in the **same region** as the app server (see [Database region sync](#database-region-sync))
 - [ ] Supabase pooler on `DATABASE_URL`, direct on `DIRECT_DATABASE_URL`
 - [ ] `TELEGRAM_POLLING=false` + webhook URL in production
 - [ ] Single worker instance

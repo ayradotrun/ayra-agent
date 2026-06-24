@@ -11,7 +11,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,23 +49,44 @@ def internal_headers() -> Dict[str, str]:
     return headers
 
 
+def _cmd_name(text: str) -> str:
+    body = text.strip().lstrip("/")
+    return body.split("@", 1)[0].split()[0].lower() if body else ""
+
+
+def _cmd_is(text: str, *names: str) -> bool:
+    return _cmd_name(text) in names
+
+
+def _cmd_starts(text: str, name: str) -> bool:
+    lower = text.strip().lower()
+    prefix = f"/{name.lower()}"
+    return lower == prefix or lower.startswith(f"{prefix} ")
+
+
 def should_show_thinking(text: str) -> bool:
+    """Match src/lib/telegram/thinking.ts — show before slow skills, image gen, LLM runs."""
     trimmed = text.strip()
     if not trimmed:
         return False
-    lower = trimmed.lower()
-    if lower in {"/help", "/start", "/agents", "/status"}:
+
+    if _cmd_is(trimmed, "help", "start", "agents", "status"):
         return False
-    if lower.startswith("/models"):
+    if trimmed.lower() == "/models" or trimmed.lower().startswith("/models "):
         return False
-    if lower.startswith("/use ") or lower.startswith("/model"):
+    if _cmd_starts(trimmed, "use"):
         return False
-    if lower.startswith("/post"):
+    if _cmd_starts(trimmed, "model") or _cmd_starts(trimmed, "custommodel"):
         return False
-    if lower.startswith("/image ") and len(trimmed.split(maxsplit=1)) > 1:
-        return True
-    if re.match(r"^/\w+", trimmed) and not lower.startswith("/image "):
+    if _cmd_starts(trimmed, "imagemodel") or _cmd_starts(trimmed, "customimagemodel"):
         return False
+    if _cmd_starts(trimmed, "post"):
+        return False
+
+    if _cmd_starts(trimmed, "image"):
+        parts = trimmed.split(maxsplit=1)
+        return len(parts) > 1 and bool(parts[1].strip())
+
     return True
 
 

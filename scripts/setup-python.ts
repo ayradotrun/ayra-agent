@@ -24,7 +24,7 @@ async function main() {
   const pkgRoot = resolvePythonPackageRoot();
 
   console.log(`[python:setup] Using ${pythonBin}`);
-  console.log(`[python:setup] Installing editable package from ${pkgRoot}`);
+  console.log(`[python:setup] Installing package from ${pkgRoot}`);
 
   const versionCode = await runCommand(pythonBin, ["--version"]);
   if (versionCode !== 0) {
@@ -35,11 +35,38 @@ async function main() {
     process.exit(1);
   }
 
-  const pipCode = await runCommand(
+  const pipExtras = process.env.AYRA_PIP_BREAK_SYSTEM_PACKAGES === "true"
+    ? ["--break-system-packages"]
+    : [];
+
+  console.log("[python:setup] Upgrading pip, setuptools, wheel…");
+  const upgradeCode = await runCommand(pythonBin, [
+    "-m",
+    "pip",
+    "install",
+    "--upgrade",
+    "pip",
+    "setuptools>=64",
+    "wheel",
+    ...pipExtras,
+  ]);
+  if (upgradeCode !== 0) {
+    process.exit(upgradeCode);
+  }
+
+  let pipCode = await runCommand(
     pythonBin,
-    ["-m", "pip", "install", "-e", pkgRoot],
+    ["-m", "pip", "install", "-e", pkgRoot, ...pipExtras],
     { PYTHONPATH: pkgRoot }
   );
+  if (pipCode !== 0) {
+    console.warn("[python:setup] Editable install failed — trying regular install…");
+    pipCode = await runCommand(
+      pythonBin,
+      ["-m", "pip", "install", pkgRoot, ...pipExtras],
+      { PYTHONPATH: pkgRoot }
+    );
+  }
   if (pipCode !== 0) {
     process.exit(pipCode);
   }

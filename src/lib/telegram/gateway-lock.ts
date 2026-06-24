@@ -51,3 +51,18 @@ export function releaseTelegramGatewayLock(): void {
     /* ignore */
   }
 }
+
+/** Track the Python gateway PID (not the Node worker PID). */
+export function writeTelegramGatewayLock(pid: number): void {
+  fs.writeFileSync(LOCK_PATH, String(pid));
+}
+
+/** Remove lock when the recorded gateway process is gone. */
+export function clearStaleTelegramGatewayLock(): void {
+  if (!fs.existsSync(LOCK_PATH)) return;
+  const raw = fs.readFileSync(LOCK_PATH, "utf8").trim();
+  const pid = Number.parseInt(raw, 10);
+  if (!Number.isFinite(pid) || !isProcessAlive(pid)) {
+    releaseTelegramGatewayLock();
+  }
+}

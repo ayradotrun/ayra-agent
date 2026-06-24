@@ -8,7 +8,7 @@ import {
 import { handleChatInput } from "@/lib/chat/handle-input";
 import { getChatAgentRequirement, formatAgentRequiredReply } from "@/lib/chat";
 import { ensureAgentModelsMatchUser } from "@/lib/user-models";
-import { shouldShowTelegramThinking, TELEGRAM_THINKING_MESSAGE } from "./thinking";
+import { shouldShowTelegramThinking, TELEGRAM_THINKING_MESSAGE, isInstantTelegramCommand } from "./thinking";
 import { findTelegramChatConflict, claimTelegramChatForUser } from "./bots-config";
 import {
   getOrCreateTelegramSession,
@@ -106,8 +106,8 @@ export async function processTelegramUpdate(
         chatId,
         deliveries: [
           textDelivery(
-            "⚠️ Chat Telegram ini sudah terhubung ke akun AYRA lain pada bot yang sama. " +
-              "Buka Dashboard → Settings → Telegram pada akun Anda dan simpan ulang Chat ID."
+            "⚠️ This Telegram chat is already linked to another AYRA account on the same bot. " +
+              "Open Dashboard → Settings → Telegram on your account and save your Chat ID again."
           ),
         ],
       };
@@ -145,12 +145,15 @@ export async function processTelegramUpdate(
     return item;
   };
 
+  // Instant commands (/help, /status, …) must not wait on private Postgres (up to 8s).
   const telegramSession: Awaited<ReturnType<typeof getOrCreateTelegramSession>> | null =
-    await withTimeoutFallback(
-      getOrCreateTelegramSession(userId, agentId),
-      SESSION_TIMEOUT_MS,
-      null
-    );
+    isInstantTelegramCommand(text)
+      ? null
+      : await withTimeoutFallback(
+          getOrCreateTelegramSession(userId, agentId),
+          SESSION_TIMEOUT_MS,
+          null
+        );
 
   try {
     const result = await handleChatInput(userId, agentId, text, { telegram: true });
@@ -178,7 +181,7 @@ export async function processTelegramUpdate(
         deliveries.push(attachStatus("Done."));
       }
 
-      if (telegramSession && result.content) {
+      if (telegramSession && result.content && !isInstantTelegramCommand(text)) {
         void persistTelegramTurn(userId, telegramSession.id, text, result.content);
       }
 

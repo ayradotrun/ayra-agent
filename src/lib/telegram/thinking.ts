@@ -27,3 +27,8 @@ export function shouldShowTelegramThinking(text: string): boolean {
 
   return true;
 }
+
+/** Skip private-DB session sync for instant replies (/help, /status, …). */
+export function isInstantTelegramCommand(text: string): boolean {
+  return !shouldShowTelegramThinking(text);
+}

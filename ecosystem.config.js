@@ -1,9 +1,14 @@
+const path = require("path");
+
+/** PM2 production config — run from repo root: pm2 start ecosystem.config.js */
 module.exports = {
   apps: [
     {
       name: "ayra-agent-web",
+      cwd: __dirname,
       script: "node_modules/next/dist/bin/next",
       args: "start",
+      exec_mode: "fork",
       instances: 1,
       autorestart: true,
       watch: false,
@@ -14,8 +19,10 @@ module.exports = {
     },
     {
       name: "ayra-agent-worker",
-      script: "node_modules/tsx/dist/cli.mjs",
-      args: "src/workers/agent-worker.ts",
+      cwd: __dirname,
+      script: "npm",
+      args: "run worker",
+      exec_mode: "fork",
       instances: 1,
       autorestart: true,
       watch: false,
@@ -26,8 +33,10 @@ module.exports = {
     },
     {
       name: "ayra-agent-memory",
-      script: "node_modules/tsx/dist/cli.mjs",
-      args: "scripts/agentmemory-server.ts",
+      cwd: __dirname,
+      script: "npm",
+      args: "run agentmemory",
+      exec_mode: "fork",
       instances: 1,
       autorestart: true,
       watch: false,

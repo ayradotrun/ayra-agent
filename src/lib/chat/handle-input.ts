@@ -10,7 +10,7 @@ import {
   normalizeModelId,
   resolveModelQuery,
 } from "@/lib/models";
-import { getChatAgentRequirement, formatAgentRequiredReply, formatInactiveAgentReply } from "@/lib/chat";
+import { formatInactiveAgentReply } from "@/lib/chat";
 import {
   resolveTelegramDefaultAgent,
   resolveChatModel,
@@ -77,16 +77,6 @@ export async function handleChatInput(
   const trimmed = text.trim();
   const { chatSessionId, telegram } = options;
   const runSource = telegram ? "telegram" : "chat";
-
-  if (telegram) {
-    const requirement = await getChatAgentRequirement(userId);
-    if (!requirement.ok) {
-      return {
-        handled: true,
-        content: formatAgentRequiredReply(requirement.reason, true),
-      };
-    }
-  }
 
   if (cmdIs(trimmed, "help", "start")) {
     return { handled: true, content: helpText(telegram) };
@@ -178,8 +168,6 @@ export async function handleChatInput(
   }
 
   if (cmdIs(trimmed, "status")) {
-    await ensureAgentModelsMatchUser(userId, agentId);
-
     const agent = await resolveAgentRecord(userId, agentId);
     if (!agent) {
       return {
