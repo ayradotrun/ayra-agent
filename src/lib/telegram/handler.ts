@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getBotTokenFromUser, sendTelegramMessage, type TelegramUpdate } from "./client";
+import { getBotTokenFromUser, type TelegramUpdate } from "./client";
 import { claimTelegramUpdate } from "./dedup";
 import { applyTelegramDeliveries } from "./apply-deliveries";
 import { beginThinkingMessageId, processTelegramUpdate } from "./process-update";
@@ -22,12 +22,9 @@ export async function handleTelegramUpdate(
   const text = message.text.trim();
 
   const readiness = await getTelegramReadiness(userId);
-  if (!readiness.ok) {
-    await sendTelegramMessage(botToken, chatId, readiness.message);
-    return;
-  }
-
-  const thinkingMessageId = await beginThinkingMessageId(botToken, chatId, text);
+  const thinkingMessageId = readiness.ok
+    ? await beginThinkingMessageId(botToken, chatId, text)
+    : undefined;
 
   const result = await processTelegramUpdate(userId, update, {
     thinkingMessageId,
@@ -76,15 +73,6 @@ export async function dispatchTelegramUpdateForPython(
     if (!claimed) {
       return { ok: true as const, skipped: true as const, deliveries: [] };
     }
-  }
-
-  const readiness = await getTelegramReadiness(userId);
-  if (!readiness.ok) {
-    return {
-      ok: true as const,
-      chatId: String(update.message?.chat.id ?? ""),
-      deliveries: [{ type: "text" as const, text: readiness.message }],
-    };
   }
 
   return processTelegramUpdate(userId, update, { thinkingMessageId });

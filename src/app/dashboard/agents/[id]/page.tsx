@@ -62,7 +62,7 @@ export default function AgentDetailPage() {
   const [savingSkills, setSavingSkills] = useState(false);
   const [logs, setLogs] = useState<Array<Parameters<typeof LogsViewer>[0]["logs"][0]>>([]);
   const [loading, setLoading] = useState(true);
-  const [displayStatus, setDisplayStatus] = useState<AgentDisplayStatus>("normal");
+  const [displayStatus, setDisplayStatus] = useState<AgentDisplayStatus>("idle");
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileDraft, setProfileDraft] = useState({
     name: "",

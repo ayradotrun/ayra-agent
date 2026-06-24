@@ -10,7 +10,7 @@ import {
   normalizeModelId,
   resolveModelQuery,
 } from "@/lib/models";
-import { getChatAgentRequirement, formatAgentRequiredReply } from "@/lib/chat";
+import { getChatAgentRequirement, formatAgentRequiredReply, formatInactiveAgentReply } from "@/lib/chat";
 import {
   resolveTelegramDefaultAgent,
   resolveChatModel,
@@ -83,7 +83,7 @@ export async function handleChatInput(
     if (!requirement.ok) {
       return {
         handled: true,
-        content: formatAgentRequiredReply(requirement.error, true),
+        content: formatAgentRequiredReply(requirement.reason, true),
       };
     }
   }
@@ -476,7 +476,7 @@ export async function handleChatInput(
   if (!agent) {
     return {
       handled: true,
-      content: "No active agent. Create one in the dashboard, then try again.",
+      content: await formatInactiveAgentReply(userId, telegram),
     };
   }
 

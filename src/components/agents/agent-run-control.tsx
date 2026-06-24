@@ -65,7 +65,7 @@ export function AgentRunControl({
   }
 
   async function handleClick() {
-    if (displayStatus === "running") {
+    if (displayStatus === "running" || displayStatus === "active") {
       await pauseAgent();
       return;
     }
@@ -84,8 +84,15 @@ export function AgentRunControl({
   }
 
   const label =
-    displayStatus === "running" ? "Running…" : displayStatus === "paused" ? "Run" : "Run";
-  const Icon = displayStatus === "running" ? Pause : Play;
+    displayStatus === "running"
+      ? "Running…"
+      : displayStatus === "active"
+        ? "Pause"
+        : displayStatus === "paused"
+          ? "Run"
+          : "Run";
+  const Icon =
+    displayStatus === "running" ? Pause : displayStatus === "active" ? Pause : Play;
 
   if (compact) {
     return (
@@ -109,7 +116,9 @@ export function AgentRunControl({
   return (
     <Button
       className={cn("h-9", className)}
-      variant={displayStatus === "paused" ? "default" : "outline"}
+      variant={
+        displayStatus === "paused" || displayStatus === "idle" ? "default" : "outline"
+      }
       onClick={() => void handleClick()}
     >
       {displayStatus === "running" ? (

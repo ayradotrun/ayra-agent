@@ -1,6 +1,6 @@
 /** UI-facing agent state — separate from DB ACTIVE/PAUSED */
 
-export type AgentDisplayStatus = "running" | "paused" | "normal";
+export type AgentDisplayStatus = "running" | "paused" | "active" | "idle";
 
 const STALE_RUN_MS = 15 * 60 * 1000;
 
@@ -27,7 +27,8 @@ export function resolveAgentDisplayStatus(
 ): AgentDisplayStatus {
   if (isRunInProgress(latestRun, localRunning)) return "running";
   if (agentStatus.toUpperCase() === "PAUSED") return "paused";
-  return "normal";
+  if (!latestRun) return "idle";
+  return "active";
 }
 
 export function agentDisplayStatusLabel(status: AgentDisplayStatus): string {
@@ -36,8 +37,10 @@ export function agentDisplayStatusLabel(status: AgentDisplayStatus): string {
       return "running";
     case "paused":
       return "paused";
+    case "active":
+      return "active";
     default:
-      return "normal";
+      return "idle";
   }
 }
 
@@ -49,6 +52,8 @@ export function agentDisplayStatusVariant(
       return "default";
     case "paused":
       return "warning";
+    case "active":
+      return "success";
     default:
       return "secondary";
   }

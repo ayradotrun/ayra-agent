@@ -128,7 +128,10 @@ export async function processTelegramUpdate(
       ok: true,
       chatId,
       deliveries: [
-        textDelivery(formatAgentRequiredReply(agentRequirement.error, true), replaceMessageId),
+        textDelivery(
+          formatAgentRequiredReply(agentRequirement.reason, true),
+          replaceMessageId
+        ),
       ],
     };
   }
