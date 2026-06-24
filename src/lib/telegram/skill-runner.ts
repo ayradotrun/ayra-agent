@@ -17,12 +17,15 @@ export async function runSkillFast(
   agentId: string,
   slug: string,
   input: Record<string, unknown>,
-  fallbackMsg: string
+  fallbackMsg: string,
+  trigger = "telegram"
 ): Promise<{ handled: boolean; message?: string }> {
   const skill = getSkill(slug);
   if (!skill) return { handled: false, message: `❌ Skill \`${slug}\` not available.` };
 
-  const run = await prisma.agentRun.create({ data: { agentId, status: "RUNNING" } });
+  const run = await prisma.agentRun.create({
+    data: { agentId, status: "RUNNING", trigger },
+  });
 
   const logFn = async (
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",
@@ -65,9 +68,12 @@ export async function runSkillFast(
 export async function runTokenLookupFast(
   userId: string,
   agentId: string,
-  query: string
+  query: string,
+  trigger = "telegram"
 ): Promise<{ handled: boolean; message?: string }> {
-  const run = await prisma.agentRun.create({ data: { agentId, status: "RUNNING" } });
+  const run = await prisma.agentRun.create({
+    data: { agentId, status: "RUNNING", trigger },
+  });
 
   const logFn = async (
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",

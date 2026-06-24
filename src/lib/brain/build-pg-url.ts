@@ -28,8 +28,8 @@ export function buildPrivateDatabaseUrl(fields: PrivateDbFormFields): string | n
 
   if (fields.provider === "supabase") {
     const ref = fields.projectRef?.trim();
-    if (!ref) return null;
-    const region = fields.supabaseRegion?.trim() || "ap-southeast-1";
+    const region = fields.supabaseRegion?.trim();
+    if (!ref || !region) return null;
     const user = `postgres.${ref}`;
     const host = `aws-0-${region}.pooler.supabase.com`;
     return `postgresql://${encodePg(user)}:${encodePg(password)}@${host}:5432/${encodePg(database)}`;
@@ -53,13 +53,22 @@ export function maskDatabaseUrl(url: string): string {
   return url.replace(/:([^:@/]+)@/, ":***@");
 }
 
+export function describeDatabaseHost(url: string): string {
+  try {
+    const parsed = new URL(url.trim());
+    const db = parsed.pathname.replace(/^\//, "") || "postgres";
+    return `${parsed.hostname}:${parsed.port || "5432"}/${db}`;
+  } catch {
+    return "your Postgres host";
+  }
+}
+
 export const PRIVATE_DB_DEFAULTS: Record<
   PrivateDbProvider,
   Partial<PrivateDbFormFields>
 > = {
   supabase: {
     database: "postgres",
-    supabaseRegion: "ap-southeast-1",
   },
   neon: {
     database: "neondb",

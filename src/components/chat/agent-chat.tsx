@@ -23,9 +23,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { CHAT_COMMAND_HINTS, TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
-import { ChatModelSelect } from "@/components/chat/chat-model-select";
 import { ChatRecentsDrawer } from "@/components/chat/chat-sidebar";
-import { DEFAULT_MODEL } from "@/lib/models";
 import { chatSessionHref, notifyChatSessionsChanged } from "@/lib/chat/recents";
 
 interface AgentOption {
@@ -111,6 +109,7 @@ export function AgentChat() {
   const sessionParam = searchParams.get("session");
 
   const [agents, setAgents] = useState<AgentOption[]>([]);
+  const [hasAnyAgent, setHasAnyAgent] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(sessionParam);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [agentName, setAgentName] = useState<string>("");
@@ -119,8 +118,6 @@ export function AgentChat() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chatModel, setChatModel] = useState<string>("");
-  const [defaultModel, setDefaultModel] = useState<string>(DEFAULT_MODEL);
   const [deepThinking, setDeepThinking] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -145,9 +142,7 @@ export function AgentChat() {
       setMessages(data.messages ?? []);
       setAgentName(data.agent?.name ?? "");
       setSelectedAgentId(data.agent?.id ?? "");
-      setChatModel(data.chatModel ?? "");
       setDeepThinking(data.deepThinking ?? false);
-      setDefaultModel(data.defaultModel ?? data.effectiveModel ?? DEFAULT_MODEL);
       setPendingImages([]);
       setTimeout(scrollToBottom, 50);
     },
@@ -157,18 +152,14 @@ export function AgentChat() {
   useEffect(() => {
     async function init() {
       setLoading(true);
-      const [agentsRes, settingsRes] = await Promise.all([
-        fetch("/api/agents"),
-        fetch("/api/settings"),
-      ]);
-      if (settingsRes.ok) {
-        const settings = await settingsRes.json();
-        if (settings.defaultModel) setDefaultModel(settings.defaultModel);
-      }
+      const [agentsRes] = await Promise.all([fetch("/api/agents")]);
       if (agentsRes.ok) {
         const list = (await agentsRes.json()) as AgentOption[];
+        setHasAnyAgent(list.length > 0);
         setAgents(list.filter((a) => a.status === "ACTIVE"));
-        if (list.length > 0) setSelectedAgentId(list.find((a) => a.status === "ACTIVE")?.id ?? "");
+        if (list.length > 0) {
+          setSelectedAgentId(list.find((a) => a.status === "ACTIVE")?.id ?? "");
+        }
       }
       setLoading(false);
     }
@@ -182,7 +173,6 @@ export function AgentChat() {
       setActiveSessionId(null);
       setMessages([]);
       setAgentName("");
-      setChatModel("");
       setDeepThinking(false);
       setPendingImages([]);
     }
@@ -192,18 +182,13 @@ export function AgentChat() {
     scrollToBottom();
   }, [messages, sending, scrollToBottom]);
 
-  async function updateSessionPrefs(patch: { chatModel?: string | null; deepThinking?: boolean }) {
+  async function updateSessionPrefs(patch: { deepThinking?: boolean }) {
     if (!activeSessionId) return;
     await fetch(`/api/chat/sessions/${activeSessionId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-  }
-
-  async function handleModelChange(model: string | null) {
-    setChatModel(model ?? "");
-    await updateSessionPrefs({ chatModel: model });
   }
 
   async function handleDeepThinkingChange(enabled: boolean) {
@@ -290,7 +275,6 @@ export function AgentChat() {
         content: text,
         imageUrls: imagesToSend.length > 0 ? imagesToSend : undefined,
         deepThinking,
-        model: chatModel || undefined,
       }),
     });
 
@@ -333,6 +317,23 @@ export function AgentChat() {
     );
   }
 
+  if (!hasAnyAgent) {
+    return (
+      <div className="surface-card flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+        <Bot className="h-10 w-10 text-muted-foreground" />
+        <div>
+          <p className="font-medium">Create an agent first</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Chat requires at least one agent. Create one in Agents, then come back here.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/dashboard/agents/new">Create agent</Link>
+        </Button>
+      </div>
+    );
+  }
+
   if (agents.length === 0) {
     return (
       <div className="surface-card flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
@@ -340,11 +341,11 @@ export function AgentChat() {
         <div>
           <p className="font-medium">No active agent</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create an agent first, then chat here like ChatGPT.
+            Resume a paused agent or create a new one before chatting.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/agents/new">Create agent</Link>
+        <Button asChild variant="outline">
+          <Link href="/dashboard/agents">Go to agents</Link>
         </Button>
       </div>
     );
@@ -500,13 +501,6 @@ export function AgentChat() {
 
               <div className="flex items-center justify-between gap-2 px-2 pb-2 pt-0.5">
                 <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                  <ChatModelSelect
-                    variant="inline"
-                    value={chatModel}
-                    defaultModel={defaultModel}
-                    onChange={handleModelChange}
-                    disabled={sending}
-                  />
                   <button
                     type="button"
                     disabled={sending}

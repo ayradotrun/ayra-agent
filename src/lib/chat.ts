@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db";
+import { prisma } from "@/lib/prisma";
 
 export async function resolveChatAgent(userId: string, agentId?: string | null) {
   if (agentId) {
@@ -35,9 +35,70 @@ export function sessionTitleFromMessage(message: string): string {
 }
 
 export function resolveEffectiveChatModel(
-  sessionModel: string | null | undefined,
+  _sessionModel: string | null | undefined,
   userDefaultModel: string | null | undefined,
   agentModel: string
 ): string {
-  return sessionModel || userDefaultModel || agentModel;
+  return userDefaultModel || agentModel;
+}
+
+export async function getChatAgentRequirement(userId: string): Promise<
+  | { ok: true; agent: NonNullable<Awaited<ReturnType<typeof resolveChatAgent>>> }
+  | { ok: false; error: string }
+> {
+  const total = await prisma.agent.count({ where: { userId } });
+  if (total === 0) {
+    return {
+      ok: false,
+      error: "Create an agent first before chatting. Go to Agents → Create agent.",
+    };
+  }
+
+  const agent = await resolveChatAgent(userId);
+  if (!agent) {
+    return {
+      ok: false,
+      error: "No active agent. Resume a paused agent or create a new one in Agents.",
+    };
+  }
+
+  return { ok: true, agent };
+}
+
+export function formatAgentRequiredReply(error: string, telegram?: boolean): string {
+  if (!telegram) return error;
+
+  if (error.includes("Create an agent first")) {
+    return (
+      "🤖 *Buat agent dulu*\n\n" +
+      "Chat butuh agent sebelum bisa membalas.\n\n" +
+      "Buka *Dashboard → Agents → Create agent*, lalu kirim pesan lagi."
+    );
+  }
+
+  if (error.includes("No active agent")) {
+    return (
+      "⏸️ *Tidak ada agent aktif*\n\n" +
+      "Aktifkan agent yang di-pause atau buat agent baru di dashboard.\n\n" +
+      "*Dashboard → Agents*"
+    );
+  }
+
+  return error;
+}
+
+/** Fast gate for Telegram — used before thinking indicator / LLM */
+export async function getTelegramReadiness(userId: string): Promise<
+  | { ok: true; agentId: string; agentName: string }
+  | { ok: false; message: string }
+> {
+  const requirement = await getChatAgentRequirement(userId);
+  if (!requirement.ok) {
+    return { ok: false, message: formatAgentRequiredReply(requirement.error, true) };
+  }
+  return {
+    ok: true,
+    agentId: requirement.agent.id,
+    agentName: requirement.agent.name,
+  };
 }

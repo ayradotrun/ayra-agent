@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts",
+    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts && npm run python:setup",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
@@ -20,7 +20,15 @@
     "worker": "tsx src/workers/agent-worker.ts",
     "agentmemory": "tsx scripts/agentmemory-server.ts",
     "db:verify": "tsx scripts/db-verify.ts",
-    "db:push": "prisma db push"
+    "db:sync": "tsx scripts/db-sync-safe.ts",
+    "db:push": "prisma db push",
+    "auth:check": "tsx scripts/auth-db-check.ts",
+    "auth:reset-password": "tsx scripts/reset-user-password.ts",
+    "auth:backfill": "tsx scripts/backfill-auth-fields.ts",
+    "sync:python": "python scripts/sync-ayra-python.py",
+    "python:setup": "tsx scripts/setup-python.ts",
+    "python:runtime": "tsx scripts/python-runtime.ts",
+    "python:telegram": "tsx scripts/python-telegram.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -53,6 +61,7 @@
     "next": "14.2.35",
     "next-auth": "^4.24.14",
     "node-cron": "^4.5.0",
+    "nodemailer": "^7.0.13",
     "pg": "^8.22.0",
     "prisma": "^5.22.0",
     "react": "^18",
@@ -67,6 +76,7 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20",
     "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.20.0",
     "@types/react": "^18",
     "@types/react-dom": "^18",

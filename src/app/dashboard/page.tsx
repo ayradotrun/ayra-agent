@@ -19,6 +19,7 @@ interface DashboardData {
   recentRuns: Array<{
     id: string;
     status: string;
+    trigger?: string | null;
     startedAt: string;
     durationMs?: number | null;
     tokenUsage: number;
@@ -109,7 +110,7 @@ export default function DashboardPage() {
             <EmptyState
               icon={Play}
               title="No runs yet"
-              description="Create an agent and trigger your first run to see activity here."
+              description="Create an agent and run from dashboard or Telegram to see activity here."
               action={
                 <Link href="/dashboard/agents/new">
                   <Button size="sm">Create agent</Button>

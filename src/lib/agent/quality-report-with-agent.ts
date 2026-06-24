@@ -115,14 +115,16 @@ export async function runQualityReportWithAgent(
   userId: string,
   agentId: string,
   mint: string,
-  options?: { maxPairAgeHours?: number }
+  options?: { maxPairAgeHours?: number; trigger?: string }
 ): Promise<{ handled: boolean; message?: string }> {
   const skill = getSkill("token-quality-report");
   if (!skill) {
     return { handled: true, message: "❌ AYRA quality report skill is not available." };
   }
 
-  const run = await prisma.agentRun.create({ data: { agentId, status: "RUNNING" } });
+  const run = await prisma.agentRun.create({
+    data: { agentId, status: "RUNNING", trigger: options?.trigger ?? "telegram" },
+  });
 
   const logFn = async (
     level: "DEBUG" | "INFO" | "WARN" | "ERROR",

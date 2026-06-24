@@ -6,6 +6,7 @@ export interface LlmUserFields {
   llmBaseUrl?: string | null;
   defaultModel?: string | null;
   fallbackModels?: string[] | null;
+  fallbackImageModels?: string[] | null;
 }
 
 export function normalizeLlmBaseUrl(url: string): string {
@@ -67,6 +68,7 @@ export function buildLlmCallParams(
       ),
     useOpenRouterFallbacks: isOpenRouterBaseUrl(baseUrl),
     fallbackModels: user.fallbackModels ?? [],
+    fallbackImageModels: user.fallbackImageModels ?? [],
   };
 }
 

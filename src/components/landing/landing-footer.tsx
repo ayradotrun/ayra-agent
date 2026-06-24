@@ -73,7 +73,7 @@ export function LandingFooter() {
                   href="/register"
                   className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Create account
+                  Sign up
                 </Link>
               </li>
             </ul>

@@ -1,0 +1,121 @@
+Metadata-Version: 2.4
+Name: ayra-python
+Version: 0.1.0
+Summary: Required AYRA Python runtime — cron blueprints and scheduling sidecar
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: croniter>=2.0.0
+Requires-Dist: PyYAML>=6.0
+Requires-Dist: python-telegram-bot>=21.6
+Requires-Dist: httpx>=0.27
+
+# AYRA Python runtime
+
+Python is a **required** part of the AYRA stack — not optional. The Node worker and dashboard call a local Python sidecar for cron blueprints, schedule validation, and Hermes-compatible automation logic.
+
+## Setup
+
+From repo root (also runs during `npm run setup`):
+
+```bash
+npm run python:setup
+```
+
+Or manually:
+
+```bash
+pip install -e python/
+```
+
+Requires **Python 3.9+** on PATH (or set `AYRA_PYTHON_BIN` in `.env`).
+
+## Runtime
+
+The worker auto-starts the sidecar on port **8765** (override with `AYRA_PYTHON_PORT` / `AYRA_PYTHON_URL`).
+
+Foreground (debug):
+
+```bash
+npm run python:runtime
+```
+
+Health check:
+
+```bash
+curl http://127.0.0.1:8765/health
+```
+
+## Skill bundles
+
+SKILL.md playbooks live in repo-root `skills/` and are synced to `python/ayra/skills/bundles/`:
+
+```bash
+npm run sync:python   # after editing agent/, cron/, or skills/ at repo root
+```
+
+See [docs/ayra-python-sync-manifest.md](../docs/ayra-python-sync-manifest.md) for the sync list.
+
+Executable TS skills: `src/lib/skills/` (e.g. `polymarket-search`, `arxiv-search`).
+
+## Telegram gateway (Python)
+
+When `AYRA_TELEGRAM_PYTHON=true` (default), the worker auto-starts `python -m ayra.telegram_gateway`:
+
+- **Ingress/egress:** `python-telegram-bot` (Hermes-style)
+- **Agent logic:** Node worker via `http://127.0.0.1:8790/internal/telegram/dispatch`
+
+Debug foreground:
+
+```bash
+npm run worker          # starts internal API + Python gateway
+npm run python:telegram # gateway only (worker must be running)
+```
+
+Legacy TypeScript polling: `AYRA_TELEGRAM_PYTHON=false` + `TELEGRAM_POLLING=true`.
+
+## HTTP API (cron runtime)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/health` | Liveness |
+| GET | `/v1/blueprints` | Full blueprint + suggestion catalog |
+| POST | `/v1/blueprints/fill` | Validate slots → job spec |
+| POST | `/v1/cron/next` | Next run time (croniter) |
+
+TypeScript client: `src/lib/python/runtime-client.ts`
+
+## Layout
+
+```
+python/ayra/
+  runtime_server.py   # HTTP sidecar (entry: python -m ayra.runtime_server)
+  ayra_constants.py
+  ayra_time.py
+  cron/               # Blueprint catalog, jobs, suggestions
+  agent/              # retry_utils, iteration_budget, skill_bundles
+```
+
+## Sync from repo root
+
+Edit `agent/`, `cron/`, or `skills/` at the repository root, then:
+
+```bash
+npm run sync:python
+npm run python:setup
+```
+
+## Environment
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `AYRA_HOME` | `~/.ayra` | Python data directory |
+| `AYRA_PYTHON_URL` | `http://127.0.0.1:8765` | Sidecar base URL |
+| `AYRA_PYTHON_REQUIRED` | `true` | Fail worker/API if runtime unavailable |
+
+## TypeScript integration
+
+- Worker: `ensurePythonRuntime()` in `src/workers/agent-worker.ts`
+- Cron API: proxies catalog/fill to Python
+- Brain worker: reschedules via Python `cron/next`
+
+Dashboard UI still uses Next.js; Python owns blueprint **logic** (single source of truth).

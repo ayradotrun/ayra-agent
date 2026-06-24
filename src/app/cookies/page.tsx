@@ -7,7 +7,7 @@ export const metadata = legalMetadata(
 
 export default function CookiesPage() {
   return (
-    <LegalPageLayout title="Cookie Policy" lastUpdated="June 22, 2025">
+    <LegalPageLayout title="Cookie Policy" lastUpdated="June 22, 2026">
       <p>
         This Cookie Policy explains how AYRA Agent uses cookies and similar browser storage when you
         visit the dashboard and marketing pages.
@@ -28,8 +28,8 @@ export default function CookiesPage() {
           the dashboard to function. Expires when you sign out or the session ends.
         </li>
         <li>
-          <strong>CSRF / security tokens</strong> — Protect authentication flows from cross-site
-          request forgery.
+          <strong>CSRF / security tokens</strong> — Protect authentication and password-reset flows
+          from cross-site request forgery.
         </li>
       </ul>
 

@@ -26,7 +26,9 @@ We aim to acknowledge reports within **72 hours** and provide a status update wi
 ## What we protect
 
 - **Credentials at rest** — API keys, Telegram tokens, X OAuth tokens, RPC keys, and private database URLs are encrypted with AES-256-GCM when `ENCRYPTION_KEY` is set.
-- **Session security** — NextAuth sessions; production requires a strong `NEXTAUTH_SECRET`.
+- **Session security** — NextAuth sessions; bcrypt password hashing; email verification required for new accounts; production requires a strong `NEXTAUTH_SECRET`.
+- **Email codes** — Sign up and password reset use hashed one-time codes (15-minute expiry) with rate limits.
+- **Admin access** — `/dashboard/admin` is gated by `ADMIN_EMAILS`.
 - **Tenant isolation** — Dashboard APIs scope data by authenticated `userId`. Chat and brain data for users with a private database URL are stored in their own Postgres instance.
 - **Rate limiting** — API routes and chat endpoints enforce per-user / per-IP limits.
 - **Agent safety** — Run timeouts, max tool calls per run, explicit skill permissions, no shell execution by default.
@@ -39,6 +41,8 @@ If you deploy AYRA Agent, you are responsible for:
 |------|------------------|
 | `ENCRYPTION_KEY` | 32+ random bytes; never commit to git |
 | `NEXTAUTH_SECRET` | Unique per deployment |
+| `SMTP_*` | Required for production email verification and password reset |
+| `ADMIN_EMAILS` | Comma-separated operator emails for admin dashboard |
 | `DATABASE_URL` | Restrict network access; use TLS |
 | Worker | Run a **single** worker instance to avoid duplicate Telegram replies |
 | `.env` | Never commit; rotate keys if leaked |

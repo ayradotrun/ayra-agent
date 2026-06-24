@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { Bot, Clock, Pause, Play, ChevronRight } from "lucide-react";
+import { Bot, Clock, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AgentRunControl, agentDisplayStatusLabel, agentDisplayStatusVariant } from "@/components/agents/agent-run-control";
+import { resolveAgentDisplayStatus } from "@/lib/agent/display-status";
 import { formatRelativeTime, truncate } from "@/lib/utils";
 import { scheduleLabel } from "@/lib/agent/scheduler";
 import type { ScheduleInterval } from "@prisma/client";
@@ -16,18 +19,20 @@ interface AgentCardProps {
     description?: string | null;
     status: string;
     model: string;
+    effectiveChatModel?: string;
     schedule: string;
     skills?: Array<{ skill: { name: string; slug: string } }>;
     runs?: Array<{ startedAt: string; status: string }>;
   };
-  onRun?: (id: string) => void;
-  onToggle?: (id: string, status: string) => void;
+  onUpdated?: () => void | Promise<void>;
 }
 
-export function AgentCard({ agent, onRun, onToggle }: AgentCardProps) {
+export function AgentCard({ agent, onUpdated }: AgentCardProps) {
   const lastRun = agent.runs?.[0];
-  const statusVariant =
-    agent.status === "ACTIVE" ? "success" : agent.status === "PAUSED" ? "warning" : "destructive";
+  const [displayStatus, setDisplayStatus] = useState(() =>
+    resolveAgentDisplayStatus(agent.status, lastRun, false)
+  );
+  const statusVariant = agentDisplayStatusVariant(displayStatus);
 
   return (
     <Card className="group surface-card transition-all duration-200 hover:border-emerald-500/15 hover:bg-white/[0.015]">
@@ -50,7 +55,7 @@ export function AgentCard({ agent, onRun, onToggle }: AgentCardProps) {
             </div>
           </div>
           <Badge variant={statusVariant} className="shrink-0 capitalize">
-            {agent.status.toLowerCase()}
+            {agentDisplayStatusLabel(displayStatus)}
           </Badge>
         </div>
 
@@ -68,7 +73,9 @@ export function AgentCard({ agent, onRun, onToggle }: AgentCardProps) {
         <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-white/[0.05] bg-white/[0.02] p-3">
           <div>
             <span className="block text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Model</span>
-            <span className="mt-1 block text-[12px] text-foreground/85">{agent.model.split("/").pop()}</span>
+            <span className="mt-1 block truncate text-[12px] text-foreground/85">
+              {(agent.effectiveChatModel ?? agent.model).split("/").pop()}
+            </span>
           </div>
           <div>
             <span className="block text-[10px] uppercase tracking-[0.12em] text-muted-foreground">Schedule</span>
@@ -84,21 +91,14 @@ export function AgentCard({ agent, onRun, onToggle }: AgentCardProps) {
             {lastRun ? formatRelativeTime(lastRun.startedAt) : "Never run"}
           </div>
           <div className="flex items-center gap-1">
-            {onToggle && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                onClick={() => onToggle(agent.id, agent.status)}
-              >
-                {agent.status === "ACTIVE" ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-              </Button>
-            )}
-            {onRun && agent.status === "ACTIVE" && (
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => onRun(agent.id)}>
-                <Play className="h-3.5 w-3.5" />
-              </Button>
-            )}
+            <AgentRunControl
+              agentId={agent.id}
+              status={agent.status}
+              latestRun={lastRun}
+              onUpdated={onUpdated}
+              onDisplayStatusChange={setDisplayStatus}
+              compact
+            />
             <Link href={`/dashboard/agents/${agent.id}`}>
               <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
                 <ChevronRight className="h-3.5 w-3.5" />

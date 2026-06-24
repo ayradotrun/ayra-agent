@@ -12,7 +12,8 @@ function imageUrlToLocalPath(url: string): string | null {
 export async function generateImageForAgent(
   userId: string,
   agentId: string,
-  prompt: string
+  prompt: string,
+  trigger = "chat"
 ): Promise<{ ok: boolean; message: string; imageUrls?: string[]; imagePaths?: string[] }> {
   const skill = getSkill("image-generator");
   if (!skill) {
@@ -20,7 +21,7 @@ export async function generateImageForAgent(
   }
 
   const run = await prisma.agentRun.create({
-    data: { agentId, status: "RUNNING" },
+    data: { agentId, status: "RUNNING", trigger },
   });
 
   const logFn = async (

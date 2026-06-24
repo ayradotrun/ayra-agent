@@ -83,4 +83,10 @@ export const ALL_SKILL_DEFINITIONS = [
   { slug: "brain-task-list", name: "Brain Task List", category: "Agent Core", description: "List upcoming brain tasks.", icon: "list-checks", isEnabled: true },
   { slug: "brain-task-cancel", name: "Brain Task Cancel", category: "Agent Core", description: "Cancel a pending brain task.", icon: "clock", isEnabled: true },
   { slug: "brain-calendar-plan", name: "Brain Calendar Plan", category: "Social", description: "Plan and schedule a multi-day content calendar.", icon: "calendar-days", isEnabled: true },
+  { slug: "arxiv-search", name: "arXiv Search", category: "Research", description: "Search arXiv research papers.", icon: "book-open", isEnabled: true },
+  { slug: "news-digest", name: "News Digest", category: "Research", description: "Topic digest from web search for scheduled automations.", icon: "newspaper", isEnabled: true },
+  { slug: "polymarket-search", name: "Polymarket Search", category: "Research", description: "Search prediction market odds on Polymarket.", icon: "bar-chart-2", isEnabled: true },
+  { slug: "polymarket-trending", name: "Polymarket Trending", category: "Research", description: "Trending Polymarket events by volume.", icon: "trending-up", isEnabled: true },
+  { slug: "github-issue-search", name: "GitHub Issue Search", category: "Developer", description: "Search issues in a GitHub repo.", icon: "github", isEnabled: true },
+  { slug: "github-repo-info", name: "GitHub Repo Info", category: "Developer", description: "Repository metadata from GitHub API.", icon: "github", isEnabled: true },
 ];

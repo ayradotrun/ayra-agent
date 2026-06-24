@@ -23,9 +23,11 @@ interface SkillPickerProps {
   onChange: (slugs: string[]) => void;
   /** Highlight skills section for blank custom agents */
   emphasize?: boolean;
+  /** Template agents — display only */
+  readOnly?: boolean;
 }
 
-export function SkillPicker({ skills, selectedSlugs, onChange, emphasize }: SkillPickerProps) {
+export function SkillPicker({ skills, selectedSlugs, onChange, emphasize, readOnly }: SkillPickerProps) {
   const [activeCategory, setActiveCategory] = useState<string>("All");
 
   const available = useMemo(() => skills.filter((s) => s.isEnabled), [skills]);
@@ -51,6 +53,7 @@ export function SkillPicker({ skills, selectedSlugs, onChange, emphasize }: Skil
   }, [available, selectedSlugs]);
 
   function toggle(slug: string) {
+    if (readOnly) return;
     onChange(
       selectedSlugs.includes(slug)
         ? selectedSlugs.filter((s) => s !== slug)
@@ -80,7 +83,9 @@ export function SkillPicker({ skills, selectedSlugs, onChange, emphasize }: Skil
         <div>
           <h2 className="font-medium">Skills</h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Select skills for this agent — focus on one category for better accuracy.
+            {readOnly
+              ? "Fixed for this template — create a custom agent to change skills."
+              : "Select skills for this agent — focus on one category for better accuracy."}
           </p>
         </div>
         <Badge variant="outline" className="shrink-0">
@@ -112,7 +117,7 @@ export function SkillPicker({ skills, selectedSlugs, onChange, emphasize }: Skil
         })}
       </div>
 
-      {activeCategory !== "All" && (
+      {activeCategory !== "All" && !readOnly && (
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -157,7 +162,7 @@ export function SkillPicker({ skills, selectedSlugs, onChange, emphasize }: Skil
             <SkillCard
               skill={skill}
               selected={selectedSlugs.includes(skill.slug)}
-              onToggle={toggle}
+              onToggle={readOnly ? () => {} : toggle}
               compact
             />
           </div>

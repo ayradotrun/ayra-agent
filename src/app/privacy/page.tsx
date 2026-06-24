@@ -7,7 +7,7 @@ export const metadata = legalMetadata(
 
 export default function PrivacyPage() {
   return (
-    <LegalPageLayout title="Privacy Policy" lastUpdated="June 22, 2025">
+    <LegalPageLayout title="Privacy Policy" lastUpdated="June 22, 2026">
       <p>
         AYRA Agent (&quot;AYRA&quot;, &quot;we&quot;, &quot;our&quot;) is a self-hostable platform for building and
         running AI agents. This Privacy Policy explains what information we process when you use
@@ -27,9 +27,9 @@ export default function PrivacyPage() {
       <h2>2. Information we collect</h2>
       <h3>Account information</h3>
       <ul>
-        <li>Name and email address when you register</li>
+        <li>Username (permanent, chosen at registration), display name, and email address</li>
         <li>Hashed password (never stored in plain text)</li>
-        <li>Session cookies for authentication</li>
+        <li>Email verification status and session cookies for authentication</li>
       </ul>
 
       <h3>Configuration and credentials</h3>
@@ -63,7 +63,15 @@ export default function PrivacyPage() {
       </ul>
       <p>We do not sell your personal data to third parties.</p>
 
-      <h2>5. Third-party services</h2>
+      <h2>5. Email verification and account recovery</h2>
+      <p>
+        When you sign up or reset your password, we send a one-time verification code to your email
+        address. Codes expire after 15 minutes and are stored hashed on the platform database. Email
+        delivery is handled by the SMTP provider configured by the platform operator (e.g. Resend).
+        We do not use your email for marketing unless you separately opt in.
+      </p>
+
+      <h2>6. Third-party services</h2>
       <p>When you enable integrations, data may be sent to:</p>
       <ul>
         <li>LLM providers (e.g. OpenRouter) for agent inference</li>
@@ -71,24 +79,25 @@ export default function PrivacyPage() {
         <li>Telegram when you configure a bot token</li>
         <li>Solana RPC providers and public APIs for on-chain research skills</li>
         <li>Your own Postgres provider (Supabase, Neon, etc.)</li>
+        <li>Email delivery provider (SMTP) for verification and password-reset codes</li>
       </ul>
       <p>Each third party has its own privacy policy. You control which integrations are active.</p>
 
-      <h2>6. Data retention</h2>
+      <h2>7. Data retention</h2>
       <ul>
         <li>Account and agent data persists until you delete your account</li>
         <li>Chat and brain data in your private database is retained according to your provider&apos;s settings</li>
         <li>Run logs may be retained for operational and debugging purposes</li>
       </ul>
 
-      <h2>7. Security</h2>
+      <h2>8. Security</h2>
       <p>
         Credentials are encrypted with AES-256-GCM when <code>ENCRYPTION_KEY</code> is configured.
         Sessions are protected by NextAuth. See our{" "}
         <a href="/security">Security</a> page for details and operator responsibilities.
       </p>
 
-      <h2>8. Your rights</h2>
+      <h2>9. Your rights</h2>
       <p>Depending on your jurisdiction, you may have the right to:</p>
       <ul>
         <li>Access, correct, or delete your account data</li>
@@ -97,18 +106,18 @@ export default function PrivacyPage() {
         <li>Delete your account from Settings</li>
       </ul>
 
-      <h2>9. Children</h2>
+      <h2>10. Children</h2>
       <p>
         AYRA Agent is not intended for users under 16. We do not knowingly collect data from children.
       </p>
 
-      <h2>10. Changes</h2>
+      <h2>11. Changes</h2>
       <p>
         We may update this policy as the platform evolves. Material changes will be reflected in the
         &quot;Last updated&quot; date above.
       </p>
 
-      <h2>11. Contact</h2>
+      <h2>12. Contact</h2>
       <p>
         Questions about privacy: email{" "}
         <a href="mailto:support@ayra.run">support@ayra.run</a>, use{" "}

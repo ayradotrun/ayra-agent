@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { CheckCircle2, Database, Loader2, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -15,28 +17,54 @@ import {
   maskDatabaseUrl,
   PRIVATE_DB_DEFAULTS,
   type PrivateDbProvider,
+  describeDatabaseHost,
 } from "@/lib/brain/build-pg-url";
 
 type InputMode = "wizard" | "url";
 
+export interface PrivateDatabaseConnectResult {
+  brainDatabaseUrl: string;
+  hasBrainDatabaseUrl: boolean;
+  host?: string;
+  message?: string;
+}
+
 interface PrivateDatabaseSetupProps {
+  /** Draft URL while editing (empty when connected and not changing). */
   value: string;
   onChange: (url: string) => void;
   configured?: boolean;
+  /** Saved URL from server — used for masked display only. */
+  savedUrl?: string | null;
+  /** Called after Connect succeeds (URL is auto-saved on the server). */
+  onConnected?: (result: PrivateDatabaseConnectResult) => void;
+  /** Solo self-host — may use same Postgres as platform DATABASE_URL */
+  allowPlatformBrainDb?: boolean;
 }
 
-export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDatabaseSetupProps) {
-  const [mode, setMode] = useState<InputMode>(configured ? "url" : "wizard");
+export function PrivateDatabaseSetup({
+  value,
+  onChange,
+  configured,
+  savedUrl,
+  onConnected,
+  allowPlatformBrainDb = false,
+}: PrivateDatabaseSetupProps) {
+  const [editing, setEditing] = useState(!configured);
+  const [mode, setMode] = useState<InputMode>("url");
   const [provider, setProvider] = useState<PrivateDbProvider>("supabase");
   const [password, setPassword] = useState("");
   const [database, setDatabase] = useState("postgres");
   const [projectRef, setProjectRef] = useState("");
-  const [supabaseRegion, setSupabaseRegion] = useState("ap-southeast-1");
+  const [supabaseRegion, setSupabaseRegion] = useState("");
   const [neonHost, setNeonHost] = useState("");
   const [neonUser, setNeonUser] = useState("neondb_owner");
   const [customHost, setCustomHost] = useState("");
   const [customPort, setCustomPort] = useState("5432");
   const [customUser, setCustomUser] = useState("postgres");
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState("");
+  const [connectSuccess, setConnectSuccess] = useState("");
 
   const builtUrl = useMemo(
     () =>
@@ -66,42 +94,121 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
     ]
   );
 
-  useEffect(() => {
-    if (configured && value) setMode("url");
-  }, [configured, value]);
-
-  useEffect(() => {
-    if (mode !== "wizard" || !builtUrl) return;
-    onChange(builtUrl);
-  }, [mode, builtUrl, onChange]);
+  const urlToConnect = mode === "wizard" ? builtUrl : value.trim();
 
   function switchProvider(next: PrivateDbProvider) {
     setProvider(next);
     const defaults = PRIVATE_DB_DEFAULTS[next];
     setDatabase(defaults.database ?? "postgres");
-    if (defaults.supabaseRegion) setSupabaseRegion(defaults.supabaseRegion);
     if (defaults.neonUser) setNeonUser(defaults.neonUser);
     if (defaults.customPort) setCustomPort(defaults.customPort);
     if (defaults.customUser) setCustomUser(defaults.customUser);
+    setConnectError("");
+    setConnectSuccess("");
+  }
+
+  function startEditing() {
+    setEditing(true);
+    onChange("");
+    setMode("url");
+    setPassword("");
+    setProjectRef("");
+    setSupabaseRegion("");
+    setNeonHost("");
+    setCustomHost("");
+    setConnectError("");
+    setConnectSuccess("");
+  }
+
+  function cancelEditing() {
+    if (configured) {
+      setEditing(false);
+      onChange("");
+      setConnectError("");
+      setConnectSuccess("");
+    }
+  }
+
+  async function handleConnect() {
+    if (!urlToConnect) {
+      setConnectError("Enter or build a Postgres URL first.");
+      return;
+    }
+
+    setConnecting(true);
+    setConnectError("");
+    setConnectSuccess("");
+
+    try {
+      const res = await fetch("/api/settings/private-database", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: urlToConnect }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Connection failed");
+
+      setEditing(false);
+      onChange("");
+      setPassword("");
+      setConnectSuccess(data.message || "Private database connected");
+      onConnected?.({
+        hasBrainDatabaseUrl: true,
+        brainDatabaseUrl: data.brainDatabaseUrl,
+        host: data.host,
+        message: data.message,
+      });
+    } catch (e) {
+      setConnectError(e instanceof Error ? e.message : "Connection failed");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  if (configured && savedUrl && !editing) {
+    return (
+      <div className="space-y-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-sm font-medium text-emerald-50">Private database connected</p>
+            <p className="text-xs text-muted-foreground">
+              Chat and brain data are stored in <strong>your</strong> Postgres — not shared with
+              other users.
+            </p>
+            <p className="break-all font-mono text-[11px] text-foreground/80">
+              {maskDatabaseUrl(savedUrl)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Host: {describeDatabaseHost(savedUrl)}
+            </p>
+          </div>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={startEditing}>
+          Change database URL
+        </Button>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
+      {configured && editing && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+          <span>Paste a new URL and click Connect to replace your current private database.</span>
+          <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={cancelEditing}>
+            Cancel
+          </Button>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => setMode("wizard")}
-          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-            mode === "wizard"
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border/60 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Setup wizard
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("url")}
+          onClick={() => {
+            setMode("url");
+            setConnectError("");
+          }}
           className={`rounded-full border px-3 py-1 text-xs transition-colors ${
             mode === "url"
               ? "border-primary bg-primary/10 text-primary"
@@ -110,10 +217,30 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
         >
           Paste full URL
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setMode("wizard");
+            setConnectError("");
+          }}
+          className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+            mode === "wizard"
+              ? "border-primary bg-primary/10 text-primary"
+              : "border-border/60 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Setup wizard
+        </button>
       </div>
 
       {mode === "wizard" ? (
         <div className="space-y-4 rounded-lg border border-border/60 bg-muted/10 p-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Database className="h-3.5 w-3.5" />
+            Create a <strong className="text-foreground/90">new empty</strong> database on your own
+            Supabase / Neon account — not the AYRA platform database.
+          </div>
+
           <div className="space-y-2">
             <Label>Provider</Label>
             <Select value={provider} onValueChange={(v) => switchProvider(v as PrivateDbProvider)}>
@@ -146,14 +273,12 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
                     → <strong>New project</strong>
                   </li>
                   <li>
-                    <strong>Settings → General</strong> → copy <strong>Reference ID</strong> (project
-                    ref)
+                    <strong>Settings → General</strong> → copy <strong>Reference ID</strong>
                   </li>
                   <li>
-                    <strong>Settings → Database</strong> → copy <strong>Database password</strong> (the
-                    one you set when creating the project)
+                    <strong>Settings → Database</strong> → copy your <strong>database password</strong>
                   </li>
-                  <li>Fill in the form below → <strong>Save settings</strong></li>
+                  <li>Fill the form → click <strong>Connect</strong></li>
                 </ol>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -163,7 +288,7 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
                     id="supabase-ref"
                     value={projectRef}
                     onChange={(e) => setProjectRef(e.target.value)}
-                    placeholder="abcdefghijklmnop"
+                    placeholder="your-project-ref"
                   />
                 </div>
                 <div className="space-y-2">
@@ -194,7 +319,7 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
                     placeholder="ap-southeast-1"
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Find this in your Supabase connection string:{" "}
+                    From your connection string:{" "}
                     <code className="text-foreground/80">aws-0-REGION.pooler.supabase.com</code>
                   </p>
                 </div>
@@ -219,14 +344,8 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
                     </a>{" "}
                     → Create project
                   </li>
-                  <li>
-                    <strong>Dashboard → Connection details</strong> → copy <strong>Host</strong> (without{" "}
-                    <code>https://</code>)
-                  </li>
-                  <li>
-                    Copy your password and database name (often <code>neondb</code>)
-                  </li>
-                  <li>Fill in the form below → <strong>Save settings</strong></li>
+                  <li>Copy host, password, and database name from Connection details</li>
+                  <li>Fill the form → click <strong>Connect</strong></li>
                 </ol>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -236,7 +355,7 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
                     id="neon-host"
                     value={neonHost}
                     onChange={(e) => setNeonHost(e.target.value)}
-                    placeholder="ep-cool-name-123456.ap-southeast-1.aws.neon.tech"
+                    placeholder="ep-xxxx.region.aws.neon.tech"
                   />
                 </div>
                 <div className="space-y-2">
@@ -318,17 +437,19 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
           )}
 
           {builtUrl ? (
-            <div className="rounded-md border border-border/60 bg-background/50 p-3">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Preview URL
-              </p>
-              <p className="mt-1 break-all font-mono text-[11px] text-foreground/90">
-                {maskDatabaseUrl(builtUrl)}
-              </p>
+            <div className="space-y-2">
+              <div className="rounded-md border border-border/60 bg-background/50 p-3">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Preview URL
+                </p>
+                <p className="mt-1 break-all font-mono text-[11px] text-foreground/90">
+                  {maskDatabaseUrl(builtUrl)}
+                </p>
+              </div>
             </div>
           ) : (
             <p className="text-xs text-amber-500/90">
-              Complete all required fields (*) — the connection URL will be generated automatically.
+              Complete all required fields (*) — then click Connect.
             </p>
           )}
         </div>
@@ -341,17 +462,63 @@ export function PrivateDatabaseSetup({ value, onChange, configured }: PrivateDat
             autoComplete="off"
             spellCheck={false}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="postgresql://user:pass@host:5432/postgres"
+            onChange={(e) => {
+              onChange(e.target.value);
+              setConnectError("");
+              setConnectSuccess("");
+            }}
+            placeholder="postgresql://user:password@your-host:5432/your_database"
             className="font-mono text-xs"
           />
-          {configured && value && (
-            <p className="text-xs text-muted-foreground">
-              Saved URL loaded — edit here to change your database connection.
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            {allowPlatformBrainDb ? (
+              <>
+                Solo / self-host: you may paste the same Postgres as the platform (
+                <code className="text-[11px]">DATABASE_URL</code> or{" "}
+                <code className="text-[11px]">DIRECT_DATABASE_URL</code> from server{" "}
+                <code className="text-[11px]">.env</code>). Pooler URLs are auto-upgraded to the
+                direct session URL for table creation.
+              </>
+            ) : (
+              <>
+                Paste your <strong>own</strong> empty Postgres URL (Supabase, Neon, Railway, etc.).
+                Each user connects a separate private database — do not use the platform{" "}
+                <code className="text-[11px]">DATABASE_URL</code> on shared deployments.
+              </>
+            )}
+          </p>
         </div>
       )}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          type="button"
+          onClick={handleConnect}
+          disabled={connecting || !urlToConnect}
+          className="gap-2"
+        >
+          {connecting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Connecting…
+            </>
+          ) : (
+            "Connect"
+          )}
+        </Button>
+        {connectSuccess && (
+          <span className="flex items-center gap-1 text-xs text-emerald-500">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            {connectSuccess}
+          </span>
+        )}
+        {connectError && (
+          <span className="flex items-center gap-1 text-xs text-red-400">
+            <XCircle className="h-3.5 w-3.5" />
+            {connectError}
+          </span>
+        )}
+      </div>
     </div>
   );
 }

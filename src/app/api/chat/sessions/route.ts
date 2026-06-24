@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser, unauthorizedResponse } from "@/lib/auth-helpers";
-import { resolveChatAgent } from "@/lib/chat";
+import { resolveChatAgent, getChatAgentRequirement } from "@/lib/chat";
 import { createChatSession, getLastChatMessage, listChatSessions } from "@/lib/chat/chat-store";
 import { z } from "zod";
 
@@ -54,10 +54,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const agent = await resolveChatAgent(user.id, parsed.data.agentId);
+  const requirement = await getChatAgentRequirement(user.id);
+  if (!requirement.ok) {
+    return NextResponse.json({ error: requirement.error }, { status: 400 });
+  }
+
+  const agent =
+    parsed.data.agentId != null
+      ? await resolveChatAgent(user.id, parsed.data.agentId)
+      : requirement.agent;
+
   if (!agent) {
     return NextResponse.json(
-      { error: "No active agent found. Create an agent in the dashboard first." },
+      { error: "Selected agent is not active. Choose an active agent or resume one in Agents." },
       { status: 400 }
     );
   }

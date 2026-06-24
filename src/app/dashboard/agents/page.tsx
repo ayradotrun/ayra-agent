@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bot, Plus } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -28,22 +28,8 @@ export default function AgentsPage() {
   }, []);
 
   useEffect(() => {
-    loadAgents();
+    void loadAgents();
   }, [loadAgents]);
-
-  async function handleRun(id: string) {
-    await apiFetch(`/api/agents/${id}/run`, { method: "POST" });
-    loadAgents();
-  }
-
-  async function handleToggle(id: string, status: string) {
-    await apiFetch(`/api/agents/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: status === "ACTIVE" ? "PAUSED" : "ACTIVE" }),
-    });
-    loadAgents();
-  }
 
   return (
     <div className="space-y-8">
@@ -65,7 +51,16 @@ export default function AgentsPage() {
         }
       />
 
-      {error && <ErrorState description={error} action={<Button size="sm" variant="outline" onClick={loadAgents}>Retry</Button>} />}
+      {error && (
+        <ErrorState
+          description={error}
+          action={
+            <Button size="sm" variant="outline" onClick={() => void loadAgents()}>
+              Retry
+            </Button>
+          }
+        />
+      )}
 
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -87,12 +82,7 @@ export default function AgentsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {agents.map((agent) => (
-            <AgentCard
-              key={agent.id}
-              agent={agent}
-              onRun={handleRun}
-              onToggle={handleToggle}
-            />
+            <AgentCard key={agent.id} agent={agent} onUpdated={loadAgents} />
           ))}
         </div>
       )}

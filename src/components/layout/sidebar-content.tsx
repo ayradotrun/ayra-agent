@@ -10,12 +10,13 @@ import { AyraSocialLinks } from "@/components/brand/ayra-social-links";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ChatRecentsList } from "@/components/chat/chat-recents-list";
-import { NAV_ITEMS, NEW_AGENT_HREF } from "@/components/layout/nav-config";
+import { NAV_ITEMS, NEW_AGENT_HREF, ADMIN_NAV_ITEM } from "@/components/layout/nav-config";
 
 interface SidebarContentProps {
   user?: {
     name?: string | null;
     email?: string | null;
+    isAdmin?: boolean;
   };
   onNavigate?: () => void;
 }
@@ -100,6 +101,36 @@ export function SidebarContent({ user, onNavigate }: SidebarContentProps) {
               const item = settingsItem;
               const active =
                 pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  href={item.href}
+                  onClick={onNavigate}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-lg px-3 py-2 text-[13px] transition-all duration-150",
+                    active
+                      ? "bg-white/[0.06] text-foreground"
+                      : "text-muted-foreground hover:bg-white/[0.03] hover:text-foreground"
+                  )}
+                >
+                  {active && (
+                    <span className="absolute left-0 top-1/2 h-5 w-[2px] -translate-y-1/2 rounded-full bg-emerald-400" />
+                  )}
+                  <item.icon
+                    className={cn("h-4 w-4", active ? "text-emerald-400" : "opacity-70")}
+                  />
+                  {item.label}
+                </Link>
+              );
+            })()}
+          </>
+        )}
+
+        {user?.isAdmin && (
+          <>
+            <div className="pt-2" />
+            {(() => {
+              const item = ADMIN_NAV_ITEM;
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               return (
                 <Link
                   href={item.href}

@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ayra
+      POSTGRES_PASSWORD: ayra
+      POSTGRES_DB: ayra
+    volumes:
+      - ayra_pg:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ayra -d ayra"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://ayra:ayra@db:5432/ayra
+      DIRECT_DATABASE_URL: postgresql://ayra:ayra@db:5432/ayra
+      NEXTAUTH_URL: http://localhost:3000
+      AYRA_REPO_ROOT: /app
+      AYRA_SKILLS_DIR: /app/skills
+      AYRA_WORKER_INTERNAL_URL: http://127.0.0.1:8790
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: .
+    command: ["bash", "docker/ayra-worker.sh"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://ayra:ayra@db:5432/ayra
+      DIRECT_DATABASE_URL: postgresql://ayra:ayra@db:5432/ayra
+      AYRA_REPO_ROOT: /app
+      AYRA_SKILLS_DIR: /app/skills
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  ayra_pg:

@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth-helpers";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { runAgent } from "@/lib/agent/runtime";
-import { resolveEffectiveChatModel, sessionTitleFromMessage } from "@/lib/chat";
+import { resolveEffectiveChatModel, sessionTitleFromMessage, getChatAgentRequirement } from "@/lib/chat";
 import { handleChatInput } from "@/lib/chat/handle-input";
 import type { ChatMessageMetadata } from "@/lib/chat/message-content";
 import {
@@ -64,6 +64,11 @@ export async function POST(
   const session = await getChatSession(user.id, params.id);
   if (!session) return notFoundResponse("Chat not found");
 
+  const requirement = await getChatAgentRequirement(user.id);
+  if (!requirement.ok) {
+    return NextResponse.json({ error: requirement.error }, { status: 400 });
+  }
+
   const [agent, dbUser, recentMessages] = await Promise.all([
     prisma.agent.findFirst({
       where: { id: session.agentId, userId: user.id },
@@ -91,7 +96,7 @@ export async function POST(
   const imageUrls = parsed.data.imageUrls ?? [];
   const deepThinking = parsed.data.deepThinking ?? session.deepThinking;
   const effectiveModel = resolveEffectiveChatModel(
-    parsed.data.model ?? session.chatModel,
+    null,
     dbUser?.defaultModel,
     agent.model
   );

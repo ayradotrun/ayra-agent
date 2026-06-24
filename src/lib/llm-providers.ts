@@ -35,12 +35,20 @@ export const LLM_PROVIDER_PRESETS: LlmProviderPreset[] = [
   },
   {
     id: "anthropic",
-    name: "Anthropic (via OpenRouter)",
-    baseUrl: DEFAULT_LLM_BASE_URL,
-    keyHint: "sk-or-…",
+    name: "Anthropic",
+    baseUrl: "https://api.anthropic.com/v1",
+    keyHint: "sk-ant-…",
     description:
-      "Claude models via OpenRouter. Claude Pro subscription ≠ API — use console.anthropic.com for direct keys on compatible proxies.",
-    exampleModels: ["anthropic/claude-fable-5", "anthropic/claude-opus-4.8"],
+      "Direct Anthropic API. Claude Pro subscription ≠ API — create a key at console.anthropic.com.",
+    exampleModels: ["claude-opus-4-20250514", "claude-sonnet-4-20250514"],
+  },
+  {
+    id: "gemini",
+    name: "Google Gemini",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    keyHint: "AI…",
+    description: "Gemini via OpenAI-compatible endpoint. Keys from Google AI Studio.",
+    exampleModels: ["gemini-2.5-pro", "gemini-2.5-flash"],
   },
   {
     id: "groq",
@@ -88,6 +96,9 @@ export function detectLlmProviderId(baseUrl: string | null | undefined): string 
   const url = (baseUrl || DEFAULT_LLM_BASE_URL).trim().toLowerCase();
   if (!url || url.includes("openrouter.ai")) return "openrouter";
   if (url.includes("api.openai.com")) return "openai";
+  if (url.includes("anthropic.com")) return "anthropic";
+  if (url.includes("generativelanguage.googleapis.com") || url.includes("googleapis.com"))
+    return "gemini";
   if (url.includes("groq.com")) return "groq";
   if (url.includes("together.xyz")) return "together";
   if (url.includes("deepseek.com")) return "deepseek";

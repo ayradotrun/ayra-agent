@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { signOut } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { LogOut } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,13 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ModelPicker } from "@/components/agents/model-picker";
-import { DEFAULT_MODEL, DEFAULT_IMAGE_MODEL } from "@/lib/models";
-import { DEFAULT_LLM_BASE_URL } from "@/lib/llm-config";
-import { TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
 import { PrivateDatabaseSetup } from "@/components/settings/private-database-setup";
-import { LlmProviderPicker } from "@/components/settings/llm-provider-picker";
+import { LlmSettingsSection } from "@/components/settings/llm-settings-section";
+import { SecretField } from "@/components/settings/secret-field";
+import { StringListEditor } from "@/components/settings/string-list-editor";
 import { XManualKeysGuide } from "@/components/settings/x-manual-keys-guide";
+import { DEFAULT_SOLANA_RPC } from "@/lib/solana";
+import { getLlmProviderPreset } from "@/lib/llm-providers";
+import { TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
+
+const DEFAULT_AGENTMEMORY_URL = "http://127.0.0.1:3111";
 
 interface AgentOption {
   id: string;
@@ -41,11 +45,13 @@ interface XConnection {
 }
 
 interface Settings {
+  username?: string | null;
   name?: string | null;
   email?: string | null;
   defaultModel?: string;
   defaultImageModel?: string;
   llmBaseUrl?: string | null;
+  llmProviderId?: string;
   effectiveLlmBaseUrl?: string;
   telegramChatId?: string | null;
   telegramChatEnabled?: boolean;
@@ -54,6 +60,8 @@ interface Settings {
   telegramNotifications?: boolean;
   xAutoPostEnabled?: boolean;
   solanaDefaultRpc?: string | null;
+  effectiveSolanaDefaultRpc?: string;
+  fallbackRpcUrls?: string[];
   agents?: AgentOption[];
   webhookUrl?: string | null;
   telegramPollingMode?: boolean;
@@ -73,8 +81,10 @@ interface Settings {
   hasBrainDatabaseUrl?: boolean;
   brainDatabaseUrl?: string | null;
   fallbackModels?: string[];
+  fallbackImageModels?: string[];
   agentMemoryEnabled?: boolean;
   agentMemoryUrl?: string | null;
+  allowPlatformBrainDb?: boolean;
 }
 
 async function fetchSettingsData(): Promise<Settings> {
@@ -90,58 +100,8 @@ async function fetchSettingsData(): Promise<Settings> {
   return data;
 }
 
-function SecretField({
-  id,
-  label,
-  value,
-  onChange,
-  configured,
-  placeholder,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  configured?: boolean;
-  placeholder?: string;
-}) {
-  const [editing, setEditing] = useState(false);
-  const masked = configured && !value && !editing;
-  const displayValue = masked ? "••••••••••••••••" : value;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
-        {configured && (
-          <span className="shrink-0 text-xs font-medium text-emerald-500">Saved ✓</span>
-        )}
-      </div>
-      <Input
-        id={id}
-        type="password"
-        value={displayValue}
-        onFocus={() => {
-          if (configured && !value) setEditing(true);
-        }}
-        onBlur={() => {
-          if (!value) setEditing(false);
-        }}
-        onChange={(e) => {
-          setEditing(true);
-          onChange(e.target.value);
-        }}
-        placeholder={configured ? undefined : placeholder}
-        readOnly={masked}
-        className={masked ? "text-muted-foreground" : undefined}
-      />
-      {configured && !editing && !value && (
-        <p className="text-xs text-muted-foreground">
-          Saved. Type a new value only if you want to replace this key.
-        </p>
-      )}
-    </div>
-  );
+async function refreshSettingsFlags() {
+  return fetchSettingsData();
 }
 
 function SettingsContent() {
@@ -159,7 +119,9 @@ function SettingsContent() {
   const [xAccessSecret, setXAccessSecret] = useState("");
   const [solanaRpcApiKey, setSolanaRpcApiKey] = useState("");
   const [brainDatabaseUrl, setBrainDatabaseUrl] = useState("");
-  const [fallbackModelsText, setFallbackModelsText] = useState("");
+  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
+  const [fallbackImageModels, setFallbackImageModels] = useState<string[]>([]);
+  const [fallbackRpcUrls, setFallbackRpcUrls] = useState<string[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -177,12 +139,9 @@ function SettingsContent() {
     fetchSettingsData()
       .then((data) => {
         setSettings(data);
-        if (data.brainDatabaseUrl) {
-          setBrainDatabaseUrl(data.brainDatabaseUrl);
-        }
-        if (data.fallbackModels?.length) {
-          setFallbackModelsText(data.fallbackModels.join("\n"));
-        }
+        setFallbackModels(data.fallbackModels ?? []);
+        setFallbackImageModels(data.fallbackImageModels ?? []);
+        setFallbackRpcUrls(data.fallbackRpcUrls ?? []);
       })
       .catch((err) => {
         setMessage(err instanceof Error ? err.message : "Failed to load settings");
@@ -205,26 +164,37 @@ function SettingsContent() {
     setSaving(true);
     setMessage("");
 
-    if (!settings.hasBrainDatabaseUrl && !brainDatabaseUrl.trim()) {
-      setMessage("Private Database (AYRA) is required. Paste your Postgres connection URL above.");
+    if (!settings.hasBrainDatabaseUrl) {
+      setMessage("Connect your private database first using the Connect button above.");
       setSaving(false);
       return;
     }
+
+    const providerId = settings.llmProviderId || "openrouter";
+    const preset = getLlmProviderPreset(providerId);
 
     const body: Record<string, unknown> = {
       name: settings.name,
       defaultModel: settings.defaultModel,
       defaultImageModel: settings.defaultImageModel,
-      llmBaseUrl: settings.llmBaseUrl ?? "",
+      llmProviderId: providerId,
+      llmBaseUrl:
+        providerId === "custom"
+          ? settings.llmBaseUrl ?? ""
+          : preset.baseUrl || settings.llmBaseUrl,
       telegramChatId: settings.telegramChatId,
       telegramChatEnabled: settings.telegramChatEnabled,
       telegramDefaultAgentId: settings.telegramDefaultAgentId,
       emailNotifications: settings.emailNotifications,
       telegramNotifications: settings.telegramNotifications,
       xAutoPostEnabled: settings.xAutoPostEnabled,
-      solanaDefaultRpc: settings.solanaDefaultRpc,
+      solanaDefaultRpc:
+        (settings.solanaDefaultRpc?.trim() || settings.effectiveSolanaDefaultRpc || DEFAULT_SOLANA_RPC) ===
+        DEFAULT_SOLANA_RPC
+          ? null
+          : settings.solanaDefaultRpc?.trim() || settings.effectiveSolanaDefaultRpc || DEFAULT_SOLANA_RPC,
       agentMemoryEnabled: settings.agentMemoryEnabled ?? false,
-      agentMemoryUrl: settings.agentMemoryUrl ?? null,
+      agentMemoryUrl: null,
     };
     if (llmApiKey) body.llmApiKey = llmApiKey;
     if (telegramToken) body.telegramBotToken = telegramToken;
@@ -240,11 +210,9 @@ function SettingsContent() {
       body.brainDatabaseUrl = trimmedDbUrl;
     }
 
-    const fallbackModels = fallbackModelsText
-      .split(/\n|,/)
-      .map((m) => m.trim())
-      .filter(Boolean);
     body.fallbackModels = fallbackModels;
+    body.fallbackImageModels = fallbackImageModels;
+    body.fallbackRpcUrls = fallbackRpcUrls;
 
     const res = await fetch("/api/settings", {
       method: "PATCH",
@@ -264,12 +232,10 @@ function SettingsContent() {
       setSolanaRpcApiKey("");
       const refreshed = await fetchSettingsData();
       setSettings(refreshed);
-      if (refreshed.brainDatabaseUrl) {
-        setBrainDatabaseUrl(refreshed.brainDatabaseUrl);
-      }
-      if (refreshed.fallbackModels?.length) {
-        setFallbackModelsText(refreshed.fallbackModels.join("\n"));
-      }
+      setBrainDatabaseUrl("");
+      setFallbackModels(refreshed.fallbackModels ?? []);
+      setFallbackImageModels(refreshed.fallbackImageModels ?? []);
+      setFallbackRpcUrls(refreshed.fallbackRpcUrls ?? []);
     } else {
       const err = await res.json().catch(() => ({}));
       setMessage(err.error || "Failed to save settings");
@@ -292,8 +258,8 @@ function SettingsContent() {
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100/90">
           <p className="font-medium text-amber-50">Private Database (AYRA) is required</p>
           <p className="mt-1 text-xs text-amber-100/80">
-            Connect your Postgres URL below before using chat, brain tasks, or agents. Dashboard access is
-            limited to this page until it is saved.
+            Paste your Postgres URL below and click <strong>Connect</strong>. No need to save
+            settings separately — a successful connection is saved automatically.
           </p>
         </div>
       )}
@@ -315,9 +281,20 @@ function SettingsContent() {
                 value={brainDatabaseUrl}
                 onChange={setBrainDatabaseUrl}
                 configured={settings.hasBrainDatabaseUrl}
+                savedUrl={settings.brainDatabaseUrl}
+                allowPlatformBrainDb={settings.allowPlatformBrainDb}
+                onConnected={(result) => {
+                  setSettings((prev) => ({
+                    ...prev,
+                    hasBrainDatabaseUrl: true,
+                    brainDatabaseUrl: result.brainDatabaseUrl,
+                  }));
+                  setBrainDatabaseUrl("");
+                  setMessage(result.message || "Private database connected");
+                }}
               />
               <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-muted-foreground space-y-2">
-                <p className="text-sm font-medium text-foreground">After you save</p>
+                <p className="text-sm font-medium text-foreground">After you connect</p>
                 <p>
                   AYRA automatically creates{" "}
                   <code className="text-foreground/80">chat_session</code>,{" "}
@@ -339,7 +316,12 @@ function SettingsContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="username">Username</Label>
+                <Input id="username" value={settings.username || "—"} disabled />
+                <p className="text-xs text-muted-foreground">Username is permanent and cannot be changed.</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="name">Display name</Label>
                 <Input
                   id="name"
                   value={settings.name || ""}
@@ -350,14 +332,6 @@ function SettingsContent() {
                 <Label>Email</Label>
                 <Input value={settings.email || ""} disabled />
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full md:hidden"
-                onClick={() => signOut({ callbackUrl: "/" })}
-              >
-                Sign out
-              </Button>
             </CardContent>
           </Card>
 
@@ -365,70 +339,35 @@ function SettingsContent() {
             <CardHeader>
               <CardTitle className="text-base">LLM Provider</CardTitle>
               <CardDescription>
-                Pick a provider, paste your API key, and set models. ChatGPT Plus / Claude Pro
-                subscriptions are separate from API billing — use each provider&apos;s developer
-                console for API keys.
+                Pick provider, API key, chat/image models (search or manual ID), and fallback models.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <LlmProviderPicker
-                baseUrl={settings.llmBaseUrl ?? ""}
-                onBaseUrlChange={(llmBaseUrl) => setSettings({ ...settings, llmBaseUrl })}
+              <LlmSettingsSection
+                llmProviderId={settings.llmProviderId || "openrouter"}
+                llmBaseUrl={settings.llmBaseUrl ?? settings.effectiveLlmBaseUrl ?? ""}
+                defaultModel={settings.defaultModel || ""}
+                defaultImageModel={settings.defaultImageModel || ""}
+                fallbackModels={fallbackModels}
+                fallbackImageModels={fallbackImageModels}
+                hasLlmApiKey={settings.hasLlmApiKey ?? settings.hasOpenRouterKey ?? false}
+                llmApiKeyDraft={llmApiKey}
+                onProviderChange={(llmProviderId, llmBaseUrl) =>
+                  setSettings((prev) => ({ ...prev, llmProviderId, llmBaseUrl }))
+                }
+                onDefaultModelChange={(defaultModel) =>
+                  setSettings((prev) => ({ ...prev, defaultModel }))
+                }
+                onDefaultImageModelChange={(defaultImageModel) =>
+                  setSettings((prev) => ({ ...prev, defaultImageModel }))
+                }
+                onFallbackModelsChange={setFallbackModels}
+                onFallbackImageModelsChange={setFallbackImageModels}
+                onLlmApiKeyChange={setLlmApiKey}
+                onSecretDeleted={() => {
+                  void refreshSettingsFlags().then(setSettings);
+                }}
               />
-              <div className="space-y-2">
-                <Label htmlFor="llm-base-url">Base URL</Label>
-                <Input
-                  id="llm-base-url"
-                  value={settings.llmBaseUrl ?? ""}
-                  onChange={(e) => setSettings({ ...settings, llmBaseUrl: e.target.value })}
-                  placeholder={DEFAULT_LLM_BASE_URL}
-                />
-                <p className="text-xs text-muted-foreground">
-                  OpenAI-compatible API root. Leave empty for OpenRouter (
-                  <code className="text-[11px]">{DEFAULT_LLM_BASE_URL}</code>
-                  ). Examples: Ollama{" "}
-                  <code className="text-[11px]">http://localhost:11434/v1</code>, Together{" "}
-                  <code className="text-[11px]">https://api.together.xyz/v1</code>
-                </p>
-              </div>
-              <SecretField
-                id="llm-api-key"
-                label="API Key"
-                value={llmApiKey}
-                onChange={setLlmApiKey}
-                configured={settings.hasLlmApiKey ?? settings.hasOpenRouterKey}
-                placeholder="sk-or-... or provider API key"
-              />
-              <ModelPicker
-                value={settings.defaultModel || DEFAULT_MODEL}
-                onChange={(defaultModel) => setSettings({ ...settings, defaultModel })}
-                label="Chat model"
-                tiers={["free", "standard", "premium"]}
-                showHint={false}
-              />
-              <ModelPicker
-                value={settings.defaultImageModel || DEFAULT_IMAGE_MODEL}
-                onChange={(defaultImageModel) => setSettings({ ...settings, defaultImageModel })}
-                label="Image model"
-                tiers={["image-free", "image"]}
-                presetFallback={DEFAULT_IMAGE_MODEL}
-                customLabel="Custom image model (optional)"
-                showHint={false}
-              />
-              <div className="space-y-2">
-                <Label htmlFor="fallback-models">Fallback models (one per line)</Label>
-                <textarea
-                  id="fallback-models"
-                  className="flex min-h-[88px] w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={fallbackModelsText}
-                  onChange={(e) => setFallbackModelsText(e.target.value)}
-                  placeholder={`google/gemma-4-31b-it:free\nmeta-llama/llama-3.3-70b-instruct:free`}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Used when the primary model hits rate limits (429) or credit errors (402). OpenRouter
-                  also tries the built-in free chain automatically.
-                </p>
-              </div>
               <p className="text-xs text-muted-foreground">
                 Models sync with your Telegram default agent. Use{" "}
                 <code className="text-[11px]">/model</code>,{" "}
@@ -442,7 +381,7 @@ function SettingsContent() {
             <CardHeader>
               <CardTitle className="text-base">AgentMemory (optional)</CardTitle>
               <CardDescription>
-                Hybrid semantic memory via{" "}
+                Semantic memory via{" "}
                 <a
                   href="https://github.com/rohitg00/agentmemory"
                   target="_blank"
@@ -451,17 +390,17 @@ function SettingsContent() {
                 >
                   @agentmemory/agentmemory
                 </a>
-                . Run <code className="text-[11px]">npm run agentmemory</code>, set{" "}
-                <code className="text-[11px]">AGENTMEMORY_AUTO_START=true</code> in .env for worker
-                auto-start, or use PM2 app <code className="text-[11px]">ayra-agent-memory</code>.
+                . Server runs at{" "}
+                <code className="text-[11px]">{DEFAULT_AGENTMEMORY_URL}</code> (worker auto-start or{" "}
+                <code className="text-[11px]">npm run agentmemory</code>).
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
                 <div>
                   <p className="text-sm font-medium">Enable AgentMemory</p>
                   <p className="text-xs text-muted-foreground">
-                    Merges Postgres memories with semantic search from AgentMemory server
+                    Merges Postgres memories with semantic search from the local AgentMemory server
                   </p>
                 </div>
                 <Switch
@@ -469,15 +408,6 @@ function SettingsContent() {
                   onCheckedChange={(agentMemoryEnabled) =>
                     setSettings({ ...settings, agentMemoryEnabled })
                   }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="agentmemory-url">AgentMemory server URL</Label>
-                <Input
-                  id="agentmemory-url"
-                  value={settings.agentMemoryUrl ?? ""}
-                  onChange={(e) => setSettings({ ...settings, agentMemoryUrl: e.target.value })}
-                  placeholder="http://127.0.0.1:3111"
                 />
               </div>
             </CardContent>
@@ -500,6 +430,11 @@ function SettingsContent() {
                 onChange={setTelegramToken}
                 configured={settings.hasTelegramToken}
                 placeholder="Bot token from @BotFather"
+                secretScope="telegram"
+                secretName="bot_token"
+                onDeleted={() => {
+                  void refreshSettingsFlags().then(setSettings);
+                }}
               />
               <div className="space-y-2">
                 <Label htmlFor="telegram-chat">Chat ID</Label>
@@ -682,6 +617,11 @@ function SettingsContent() {
                     value={xApiKey}
                     onChange={setXApiKey}
                     configured={settings.hasXApiKey}
+                    secretScope="x"
+                    secretName="api_key"
+                    onDeleted={() => {
+                      void refreshSettingsFlags().then(setSettings);
+                    }}
                   />
                   <SecretField
                     id="x-api-secret"
@@ -689,6 +629,11 @@ function SettingsContent() {
                     value={xApiSecret}
                     onChange={setXApiSecret}
                     configured={settings.hasXApiSecret}
+                    secretScope="x"
+                    secretName="api_secret"
+                    onDeleted={() => {
+                      void refreshSettingsFlags().then(setSettings);
+                    }}
                   />
                   <SecretField
                     id="x-access-token"
@@ -696,6 +641,11 @@ function SettingsContent() {
                     value={xAccessToken}
                     onChange={setXAccessToken}
                     configured={settings.hasXAccessToken}
+                    secretScope="x"
+                    secretName="access_token"
+                    onDeleted={() => {
+                      void refreshSettingsFlags().then(setSettings);
+                    }}
                   />
                   <SecretField
                     id="x-access-secret"
@@ -703,6 +653,11 @@ function SettingsContent() {
                     value={xAccessSecret}
                     onChange={setXAccessSecret}
                     configured={settings.hasXAccessSecret}
+                    secretScope="x"
+                    secretName="access_secret"
+                    onDeleted={() => {
+                      void refreshSettingsFlags().then(setSettings);
+                    }}
                   />
                 </div>
               )}
@@ -718,15 +673,24 @@ function SettingsContent() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="solana-rpc">Default RPC URL</Label>
+                <Label htmlFor="solana-rpc">Primary RPC URL</Label>
                 <Input
                   id="solana-rpc"
-                  value={settings.solanaDefaultRpc || ""}
-                  onChange={(e) => setSettings({ ...settings, solanaDefaultRpc: e.target.value })}
-                  placeholder="https://mainnet.helius-rpc.com"
+                  value={
+                    settings.solanaDefaultRpc?.trim() ||
+                    settings.effectiveSolanaDefaultRpc ||
+                    DEFAULT_SOLANA_RPC
+                  }
+                  onChange={(e) =>
+                    setSettings({ ...settings, solanaDefaultRpc: e.target.value })
+                  }
+                  placeholder={DEFAULT_SOLANA_RPC}
+                  className="font-mono text-xs"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Examples: Helius, QuickNode, Alchemy. Leave empty to use server default.
+                  Default:{" "}
+                  <code className="text-[11px]">{DEFAULT_SOLANA_RPC}</code> (Solana public mainnet).
+                  Override with Helius, QuickNode, or Alchemy for higher limits.
                 </p>
               </div>
               <SecretField
@@ -736,6 +700,44 @@ function SettingsContent() {
                 onChange={setSolanaRpcApiKey}
                 configured={settings.hasSolanaRpcApiKey}
                 placeholder="Helius / QuickNode API key"
+                secretScope="solana"
+                secretName="rpc_api_key"
+                onDeleted={() => {
+                  void refreshSettingsFlags().then(setSettings);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                When an API key is saved, it is applied to your primary RPC and fallback RPCs first
+                (premium providers). Public endpoints are used last without a key.
+              </p>
+              <StringListEditor
+                label="Fallback RPC URLs"
+                description="Add backup RPC endpoints one at a time. Save settings after updating the list."
+                items={fallbackRpcUrls}
+                onChange={setFallbackRpcUrls}
+                inputType="url"
+                mono
+                addLabel="Add RPC"
+                placeholder="https://mainnet.helius-rpc.com"
+                emptyHint="No fallback RPCs — public Solana endpoints are used automatically if primary fails."
+                validate={(value) => {
+                  try {
+                    const parsed = new URL(value);
+                    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+                      return "URL must start with http:// or https://";
+                    }
+                    const primary =
+                      settings.solanaDefaultRpc?.trim() ||
+                      settings.effectiveSolanaDefaultRpc ||
+                      DEFAULT_SOLANA_RPC;
+                    if (value.replace(/\/$/, "") === primary.replace(/\/$/, "")) {
+                      return "Cannot duplicate primary RPC URL.";
+                    }
+                    return null;
+                  } catch {
+                    return "Invalid URL.";
+                  }
+                }}
               />
             </CardContent>
           </Card>
@@ -775,6 +777,24 @@ function SettingsContent() {
             {saving ? "Saving..." : "Save settings"}
           </Button>
         </form>
+
+        <Card className="md:hidden">
+          <CardHeader>
+            <CardTitle className="text-base">Session</CardTitle>
+            <CardDescription>Sign out of AYRA on this device</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2 sm:w-auto"
+              onClick={() => signOut({ callbackUrl: "/" })}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card className="border-destructive/30">
           <CardHeader>

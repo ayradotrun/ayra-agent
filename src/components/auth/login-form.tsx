@@ -15,7 +15,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,14 +26,14 @@ export function LoginForm() {
     setError("");
 
     const result = await signIn("credentials", {
-      email,
+      login: login.trim(),
       password,
       redirect: false,
     });
 
     setLoading(false);
     if (result?.error) {
-      setError("Invalid email or password");
+      setError("Invalid username/email or password");
     } else {
       router.push(callbackUrl);
     }
@@ -48,17 +48,17 @@ export function LoginForm() {
               <AyraLogo size={48} priority className="ring-1 ring-primary/30" />
             </div>
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Sign in to your AYRA Agent workspace</CardDescription>
+            <CardDescription>Sign in with your username or email</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="login">Username or email</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="login"
+                  value={login}
+                  onChange={(e) => setLogin(e.target.value)}
+                  autoComplete="username"
                   required
                 />
               </div>
@@ -74,6 +74,7 @@ export function LoginForm() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
               </div>
@@ -85,7 +86,7 @@ export function LoginForm() {
             <p className="mt-6 text-center text-sm text-muted-foreground">
               No account?{" "}
               <Link href="/register" className="text-primary hover:underline">
-                Create one
+                Sign up
               </Link>
             </p>
           </CardContent>

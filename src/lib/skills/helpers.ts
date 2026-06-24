@@ -51,7 +51,12 @@ export async function githubApi<T>(path: string): Promise<T> {
 export async function fetchUserLlmParams(userId: string, modelOverride?: string | null) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { llmBaseUrl: true, openRouterApiKey: true, defaultModel: true },
+    select: {
+      llmBaseUrl: true,
+      openRouterApiKey: true,
+      defaultModel: true,
+      fallbackModels: true,
+    },
   });
   return buildLlmCallParams(user ?? {}, getDecryptedUserKey(user?.openRouterApiKey), modelOverride);
 }

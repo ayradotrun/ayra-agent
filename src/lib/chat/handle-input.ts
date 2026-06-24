@@ -10,6 +10,7 @@ import {
   normalizeModelId,
   resolveModelQuery,
 } from "@/lib/models";
+import { getChatAgentRequirement, formatAgentRequiredReply } from "@/lib/chat";
 import {
   resolveTelegramDefaultAgent,
   resolveChatModel,
@@ -75,6 +76,17 @@ export async function handleChatInput(
 ): Promise<HandleChatInputResult> {
   const trimmed = text.trim();
   const { chatSessionId, telegram } = options;
+  const runSource = telegram ? "telegram" : "chat";
+
+  if (telegram) {
+    const requirement = await getChatAgentRequirement(userId);
+    if (!requirement.ok) {
+      return {
+        handled: true,
+        content: formatAgentRequiredReply(requirement.error, true),
+      };
+    }
+  }
 
   if (cmdIs(trimmed, "help", "start")) {
     return { handled: true, content: helpText(telegram) };
@@ -140,6 +152,7 @@ export async function handleChatInput(
             typeof skillCmd.input.maxPairAgeHours === "number"
               ? skillCmd.input.maxPairAgeHours
               : undefined,
+          trigger: runSource,
         }
       );
       if (result.message) {
@@ -150,14 +163,15 @@ export async function handleChatInput(
 
     let result;
     if (skillCmd.def.skillSlug === "token-quick-lookup") {
-      result = await runTokenLookupFast(userId, agent.id, String(skillCmd.input.query));
+      result = await runTokenLookupFast(userId, agent.id, String(skillCmd.input.query), runSource);
     } else {
       result = await runSkillFast(
         userId,
         agent.id,
         skillCmd.def.skillSlug,
         skillCmd.input,
-        "Command failed."
+        "Command failed.",
+        runSource
       );
     }
 
@@ -168,6 +182,8 @@ export async function handleChatInput(
   }
 
   if (cmdIs(trimmed, "status")) {
+    await ensureAgentModelsMatchUser(userId, agentId);
+
     const agent = await resolveAgentRecord(userId, agentId);
     if (!agent) {
       return {
@@ -177,13 +193,27 @@ export async function handleChatInput(
     }
     const dbUser = await prisma.user.findUnique({
       where: { id: userId },
-      select: { defaultModel: true, defaultImageModel: true },
+      select: {
+        defaultModel: true,
+        defaultImageModel: true,
+        fallbackModels: true,
+        email: true,
+      },
     });
     const chatModel = resolveChatModel(agent.model, dbUser?.defaultModel);
     const imageModel = resolveImageModel(agent.imageModel, dbUser?.defaultImageModel);
+    const fallbacks =
+      dbUser?.fallbackModels?.length && dbUser.fallbackModels.length > 0
+        ? dbUser.fallbackModels.join(", ")
+        : null;
+    const account = dbUser?.email ? dbUser.email.replace(/(.{2}).*(@.*)/, "$1…$2") : null;
     const content = telegram
-      ? `*${agent.name}*\nChat: \`${chatModel}\`\nImage: \`${imageModel}\`\nID: \`${agent.id.slice(0, 8)}…\`\n\n_Synced with Dashboard → Settings_`
-      : `${agent.name}\nChat: ${chatModel}\nImage: ${imageModel}\nID: ${agent.id.slice(0, 8)}…\n\nSynced with Dashboard → Settings`;
+      ? `*${agent.name}*\nChat: \`${chatModel}\`\nImage: \`${imageModel}\`${
+          fallbacks ? `\nFallbacks: \`${fallbacks}\`` : ""
+        }\nID: \`${agent.id.slice(0, 8)}…\`${account ? `\nAccount: \`${account}\`` : ""}\n\n_From Dashboard → Settings_`
+      : `${agent.name}\nChat: ${chatModel}\nImage: ${imageModel}${
+          fallbacks ? `\nFallbacks: ${fallbacks}` : ""
+        }\nID: ${agent.id.slice(0, 8)}…${account ? `\nAccount: ${account}` : ""}\n\nFrom Dashboard → Settings`;
     return { handled: true, content };
   }
 
@@ -374,7 +404,7 @@ export async function handleChatInput(
     }
 
     await ensureAgentModelsMatchUser(userId, agent.id, user?.telegramDefaultAgentId);
-    const result = await generateImageForAgent(userId, agent.id, prompt);
+    const result = await generateImageForAgent(userId, agent.id, prompt, runSource);
     if (!result.ok || !result.imageUrls?.length) {
       return { handled: true, content: `❌ ${result.message}` };
     }

@@ -19,6 +19,9 @@ import { buildUserMessageContent, historyContentForModel } from "@/lib/chat/mess
 import type { RunResult } from "@/lib/agent/types";
 
 import { loadAgentMemoryContext } from "@/lib/agent/load-memories";
+import { IterationBudget } from "@/lib/agent/iteration-budget";
+import { ToolLoopGuard } from "@/lib/agent/tool-loop-guard";
+import { skillBundlesForSlugs } from "@/lib/skills/skill-md-loader";
 
 const MAX_TOOL_CALLS = parseInt(process.env.MAX_TOOL_CALLS_PER_RUN || "6", 10);
 const CHAT_HISTORY_TURNS = parseInt(process.env.CHAT_HISTORY_TURNS || "8", 10);
@@ -77,7 +80,7 @@ export async function runAgent(
   if (agent.status === "PAUSED") throw new Error("Agent is paused");
 
   const run = await prisma.agentRun.create({
-    data: { agentId, status: "RUNNING" },
+    data: { agentId, status: "RUNNING", trigger },
   });
 
   const logFn = async (
@@ -120,14 +123,15 @@ export async function runAgent(
     const ayraBrain = agentHasBrainSkills(activeSlugs);
     const brainCtx = ayraBrain ? await loadBrainContext(agentId, agent.userId) : null;
 
-    const systemPrompt = buildAgentPrompt({
-      systemPrompt: agent.systemPrompt,
-      agentName: agent.name,
-      skills: workingSkills.map((s) => ({ name: s!.name, description: s!.description })),
-      memories,
-      ayraBrain,
-      brainContext: brainCtx ? formatBrainContextForPrompt(brainCtx) : undefined,
-    });
+    const systemPrompt =
+      buildAgentPrompt({
+        systemPrompt: agent.systemPrompt,
+        agentName: agent.name,
+        skills: workingSkills.map((s) => ({ name: s!.name, description: s!.description })),
+        memories,
+        ayraBrain,
+        brainContext: brainCtx ? formatBrainContextForPrompt(brainCtx) : undefined,
+      }) + skillBundlesForSlugs(activeSlugs);
 
     const tools: OpenRouterTool[] = workingSkills.map((skill) => ({
       type: "function" as const,
@@ -151,6 +155,12 @@ export async function runAgent(
       chatModel
     );
     await logFn("INFO", `Using chat model: ${chatModel} via ${llm.baseUrl}`);
+    if (agent.user.fallbackModels?.length) {
+      await logFn(
+        "INFO",
+        `Fallback chain: ${[chatModel, ...agent.user.fallbackModels].join(" → ")}`
+      );
+    }
     if (opts.deepThinking) {
       await logFn("INFO", "Deep thinking enabled (reasoning effort: high)");
     }
@@ -192,21 +202,37 @@ export async function runAgent(
     }
 
     let totalTokens = 0;
-    let toolCallCount = 0;
+    const toolBudget = new IterationBudget(MAX_TOOL_CALLS);
+    const toolLoopGuard = new ToolLoopGuard();
     let finalOutput = "";
     let reasoningOutput = "";
     const generatedImagePaths: string[] = [];
     const timeoutAt = startTime + runTimeoutMs;
 
+    let activeModel = chatModel;
+
     while (Date.now() < timeoutAt) {
+      toolLoopGuard.resetForTurn();
       const response = await callOpenRouter({
         ...llm,
-        model: chatModel,
+        model: activeModel,
         messages,
         tools: tools.length > 0 ? tools : undefined,
         reasoning: reasoningConfig,
         maxTokens: opts.deepThinking ? 4096 : DEFAULT_COMPLETION_TOKENS,
         fallbackModels: agent.user.fallbackModels,
+        onFallbackAttempt: (model) => {
+          void logFn("INFO", `Rate limited — trying fallback model: ${model}`);
+        },
+        onModelUsed: (used) => {
+          if (used !== activeModel) {
+            void logFn(
+              "WARN",
+              `Primary model rate-limited/unavailable (${activeModel}) — using fallback: ${used}`
+            );
+            activeModel = used;
+          }
+        },
       });
 
       totalTokens += response.usage?.total_tokens ?? 0;
@@ -222,7 +248,7 @@ export async function runAgent(
         });
 
         for (const toolCall of assistantMessage.tool_calls) {
-          if (toolCallCount >= MAX_TOOL_CALLS) {
+          if (toolBudget.remaining <= 0) {
             await logFn("WARN", `Max tool calls (${MAX_TOOL_CALLS}) reached`);
             finalOutput = "Run stopped: maximum tool calls reached.";
             break;
@@ -272,7 +298,26 @@ export async function runAgent(
             continue;
           }
 
-          toolCallCount++;
+          const argsJson = JSON.stringify(validated.data);
+          const loopDecision = toolLoopGuard.beforeCall(toolName, argsJson);
+          if (loopDecision === "block") {
+            await logFn("WARN", `Tool loop blocked: ${toolName} (same call repeated)`, toolName);
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              name: toolCall.function.name,
+              content: JSON.stringify({
+                error: "Repeated identical tool call blocked — try a different approach.",
+                ok: false,
+              }),
+            });
+            continue;
+          }
+          if (loopDecision === "warn") {
+            await logFn("WARN", `Possible tool loop: ${toolName} called repeatedly`, toolName);
+          }
+
+          if (!toolBudget.consume()) break;
           await logFn("INFO", `Executing tool: ${skill.name}`, toolName);
 
           let result: unknown;
@@ -308,7 +353,7 @@ export async function runAgent(
           });
         }
 
-        if (toolCallCount >= MAX_TOOL_CALLS) break;
+        if (toolBudget.remaining <= 0 && toolBudget.usedCount >= MAX_TOOL_CALLS) break;
         continue;
       }
 
@@ -319,6 +364,8 @@ export async function runAgent(
       break;
     }
 
+    const toolCallCount = toolBudget.usedCount;
+
     if (!finalOutput.trim() && toolCallCount > 0) {
       finalOutput = formatToolResultsFromMessages(messages) || "";
 
@@ -326,7 +373,7 @@ export async function runAgent(
         await logFn("INFO", "Synthesizing reply from tool results");
         const synth = await callOpenRouter({
           ...llm,
-          model: chatModel,
+          model: activeModel,
           messages: [
             ...messages,
             {
@@ -337,6 +384,10 @@ export async function runAgent(
           ],
           maxTokens: 600,
           reasoning: reasoningConfig,
+          fallbackModels: agent.user.fallbackModels,
+          onModelUsed: (used) => {
+            if (used !== activeModel) activeModel = used;
+          },
         });
         finalOutput = synth.choices[0]?.message?.content?.trim() || "";
       }

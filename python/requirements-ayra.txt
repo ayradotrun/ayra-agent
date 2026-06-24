@@ -1,0 +1,3 @@
+# Optional Python deps for python/ayra/ cron modules
+croniter>=2.0.0
+PyYAML>=6.0

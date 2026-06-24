@@ -8,7 +8,7 @@ export const metadata = legalMetadata(
 
 export default function SecurityPage() {
   return (
-    <LegalPageLayout title="Security" lastUpdated="June 22, 2025">
+    <LegalPageLayout title="Security" lastUpdated="June 22, 2026">
       <p>
         Security is core to AYRA Agent. This page summarizes how we protect your data and what you
         should configure when self-hosting. For vulnerability reporting, see our{" "}
@@ -32,8 +32,16 @@ export default function SecurityPage() {
 
       <h3>Session security</h3>
       <p>
-        Authentication uses NextAuth with secure session cookies. Production deployments must use a
-        strong, unique <code>NEXTAUTH_SECRET</code>.
+        Authentication uses NextAuth with secure session cookies. Passwords are hashed with bcrypt.
+        Sign up requires email verification; password reset uses one-time codes sent to your email.
+        Production deployments must use a strong, unique <code>NEXTAUTH_SECRET</code>.
+      </p>
+
+      <h3>Email verification</h3>
+      <p>
+        Verification and reset codes are 6 digits, expire in 15 minutes, and are stored hashed in the
+        platform database. Rate limits apply to sign up, login, and reset endpoints. In development,
+        codes may be logged to the server console when SMTP is not configured.
       </p>
 
       <h3>Tenant isolation</h3>
@@ -44,7 +52,14 @@ export default function SecurityPage() {
       </p>
 
       <h3>Rate limiting</h3>
-      <p>API routes and chat endpoints enforce per-user and per-IP rate limits to reduce abuse.</p>
+      <p>API routes, auth endpoints, and chat endpoints enforce per-user and per-IP rate limits to reduce abuse.</p>
+
+      <h3>Admin access</h3>
+      <p>
+        Platform admin pages (<code>/dashboard/admin</code>) are restricted to email addresses listed
+        in the <code>ADMIN_EMAILS</code> environment variable. Operators should keep this list minimal
+        and re-login after changes.
+      </p>
 
       <h3>Agent safety</h3>
       <ul>
@@ -74,6 +89,8 @@ export default function SecurityPage() {
       <ul>
         <li>Set <code>ENCRYPTION_KEY</code> — 32+ random bytes, never commit to git</li>
         <li>Set a unique <code>NEXTAUTH_SECRET</code> per deployment</li>
+        <li>Configure SMTP (<code>SMTP_*</code>) for production sign up and password reset</li>
+        <li>Set <code>ADMIN_EMAILS</code> only for trusted operator accounts</li>
         <li>Restrict <code>DATABASE_URL</code> network access; use TLS</li>
         <li>Run a single worker instance to avoid duplicate Telegram replies</li>
         <li>Never commit <code>.env</code>; rotate keys immediately if leaked</li>

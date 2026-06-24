@@ -11,12 +11,12 @@ import { getXConnectionInfo, getXCallbackUrl, isXOAuthConfigured, verifyXCredent
 import { isValidModelId, normalizeModelId, normalizeChatModel } from "@/lib/models";
 import { isValidLlmBaseUrl, resolveLlmBaseUrl, normalizeLlmBaseUrl } from "@/lib/llm-config";
 import { syncUserChatModel, syncUserImageModel } from "@/lib/user-models";
-import { isValidBrainDatabaseUrl } from "@/lib/brain/brain-db-url";
-import {
-  migrateSqliteBrainToPostgres,
-  testBrainPgConnection,
-} from "@/lib/brain/brain-store";
-import { migratePrismaChatToPrivatePostgres } from "@/lib/chat/chat-store";
+import { claimTelegramChatForUser, dedupeTelegramChatIds } from "@/lib/telegram/bots-config";
+import { connectUserPrivateDatabase } from "@/lib/brain/connect-private-database";
+import { allowPlatformBrainDatabase } from "@/lib/brain/brain-db-url";
+import { DEFAULT_SOLANA_RPC } from "@/lib/solana";
+import { listSecretFlags, upsertEncryptedSecret } from "@/lib/secrets/secret-store";
+import { detectLlmProviderId } from "@/lib/llm-providers";
 import { z } from "zod";
 
 export async function GET() {
@@ -24,15 +24,18 @@ export async function GET() {
   if (!user) return unauthorizedResponse();
 
   try {
+    await dedupeTelegramChatIds();
     const dbUser = await prisma.user.findUnique({
     where: { id: user.id },
     select: {
       id: true,
+      username: true,
       name: true,
       email: true,
       defaultModel: true,
       defaultImageModel: true,
       llmBaseUrl: true,
+      llmProviderId: true,
       emailNotifications: true,
       telegramNotifications: true,
       telegramChatEnabled: true,
@@ -48,12 +51,18 @@ export async function GET() {
       xAutoPostEnabled: true,
       solanaDefaultRpc: true,
       solanaRpcApiKey: true,
+      fallbackRpcUrls: true,
       brainDatabaseUrl: true,
       fallbackModels: true,
+      fallbackImageModels: true,
       agentMemoryEnabled: true,
       agentMemoryUrl: true,
     },
   });
+
+  if (dbUser?.telegramChatId) {
+    await claimTelegramChatForUser(user.id, dbUser.telegramChatId);
+  }
 
   const agents = await prisma.agent.findMany({
     where: { userId: user.id },
@@ -70,32 +79,56 @@ export async function GET() {
   const xConnection = await getXConnectionInfo(user.id);
   const xOAuthConfigured = isXOAuthConfigured();
 
+  const customModels = await prisma.customModel.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      provider: true,
+      modelName: true,
+      modelId: true,
+      modelType: true,
+    },
+  });
+
+  const secretFlags = await listSecretFlags(user.id);
+  const providerId =
+    (dbUser?.llmProviderId && dbUser.llmProviderId.trim()) ||
+    detectLlmProviderId(dbUser?.llmBaseUrl) ||
+    "openrouter";
+
   return NextResponse.json({
     ...dbUser,
+    llmProviderId: providerId,
+    customModels,
     agents,
     webhookUrl,
     telegramPollingMode: baseUrl.includes("localhost") || process.env.TELEGRAM_POLLING === "true",
     xConnection,
     xOAuthConfigured,
     xOAuthCallbackUrl: getXCallbackUrl(),
-    hasOpenRouterKey: !!dbUser?.openRouterApiKey,
-    hasLlmApiKey: !!dbUser?.openRouterApiKey,
+    hasOpenRouterKey: secretFlags.hasLlmApiKey,
+    hasLlmApiKey: secretFlags.hasLlmApiKey,
     llmBaseUrl: dbUser?.llmBaseUrl,
     effectiveLlmBaseUrl: resolveLlmBaseUrl(dbUser?.llmBaseUrl),
-    hasTelegramToken: !!(dbUser?.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN),
+    hasTelegramToken: secretFlags.hasTelegramToken || !!process.env.TELEGRAM_BOT_TOKEN,
     hasXCredentials: xConnection.connected,
-    hasXApiKey: !!dbUser?.xApiKey,
-    hasXApiSecret: !!dbUser?.xApiSecret,
-    hasXAccessToken: !!dbUser?.xAccessToken,
-    hasXAccessSecret: !!dbUser?.xAccessSecret,
-    hasSolanaRpcApiKey: !!dbUser?.solanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
+    hasXApiKey: secretFlags.hasXApiKey,
+    hasXApiSecret: secretFlags.hasXApiSecret,
+    hasXAccessToken: secretFlags.hasXAccessToken,
+    hasXAccessSecret: secretFlags.hasXAccessSecret,
+    hasSolanaRpcApiKey: secretFlags.hasSolanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
     hasBrainDatabaseUrl: !!dbUser?.brainDatabaseUrl,
+    effectiveSolanaDefaultRpc: dbUser?.solanaDefaultRpc?.trim() || DEFAULT_SOLANA_RPC,
+    fallbackRpcUrls: dbUser?.fallbackRpcUrls ?? [],
     brainDatabaseUrl: dbUser?.brainDatabaseUrl
       ? decryptSafe(dbUser.brainDatabaseUrl)
       : null,
     fallbackModels: dbUser?.fallbackModels ?? [],
+    fallbackImageModels: dbUser?.fallbackImageModels ?? [],
     agentMemoryEnabled: dbUser?.agentMemoryEnabled ?? false,
     agentMemoryUrl: dbUser?.agentMemoryUrl ?? null,
+    allowPlatformBrainDb: allowPlatformBrainDatabase(),
     openRouterApiKey: undefined,
     telegramBotToken: undefined,
     xApiKey: undefined,
@@ -139,6 +172,7 @@ const updateSettingsSchema = z.object({
     .refine((v) => v === undefined || v === null || isValidLlmBaseUrl(v), {
       message: "Invalid LLM base URL (use https://host/api/v1 format)",
     }),
+  llmProviderId: z.string().optional(),
   llmApiKey: z.string().optional(),
   openRouterApiKey: z.string().optional(),
   telegramBotToken: z.string().optional(),
@@ -154,8 +188,10 @@ const updateSettingsSchema = z.object({
   xAutoPostEnabled: z.boolean().optional(),
   solanaDefaultRpc: z.string().optional(),
   solanaRpcApiKey: z.string().optional(),
+  fallbackRpcUrls: z.array(z.string()).optional(),
   brainDatabaseUrl: z.union([z.string(), z.null()]).optional(),
   fallbackModels: z.array(z.string()).optional(),
+  fallbackImageModels: z.array(z.string()).optional(),
   agentMemoryEnabled: z.boolean().optional(),
   agentMemoryUrl: z.union([z.string(), z.null()]).optional(),
 });
@@ -184,10 +220,36 @@ export async function PATCH(request: NextRequest) {
     if (data.emailNotifications !== undefined) updateData.emailNotifications = data.emailNotifications;
     if (data.telegramNotifications !== undefined) updateData.telegramNotifications = data.telegramNotifications;
     if (data.xAutoPostEnabled !== undefined) updateData.xAutoPostEnabled = data.xAutoPostEnabled;
-    if (data.solanaDefaultRpc !== undefined) updateData.solanaDefaultRpc = data.solanaDefaultRpc || null;
-    if (data.solanaRpcApiKey) updateData.solanaRpcApiKey = encryptSafe(data.solanaRpcApiKey);
+    if (data.solanaDefaultRpc !== undefined) {
+      const trimmed = data.solanaDefaultRpc.trim();
+      updateData.solanaDefaultRpc =
+        trimmed && trimmed !== DEFAULT_SOLANA_RPC ? trimmed : null;
+    }
+    if (data.solanaRpcApiKey?.trim()) {
+      await upsertEncryptedSecret(user.id, "solana", "rpc_api_key", data.solanaRpcApiKey.trim());
+    }
+    if (data.fallbackRpcUrls !== undefined) {
+      const urls: string[] = [];
+      for (const raw of data.fallbackRpcUrls) {
+        const url = raw.trim();
+        if (!url) continue;
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") continue;
+          if (!urls.includes(url)) urls.push(url);
+        } catch {
+          /* skip invalid */
+        }
+      }
+      updateData.fallbackRpcUrls = urls;
+    }
     if (data.fallbackModels !== undefined) {
       updateData.fallbackModels = data.fallbackModels
+        .map((m) => m.trim())
+        .filter((m) => m.length > 0 && isValidModelId(m));
+    }
+    if (data.fallbackImageModels !== undefined) {
+      updateData.fallbackImageModels = data.fallbackImageModels
         .map((m) => m.trim())
         .filter((m) => m.length > 0 && isValidModelId(m));
     }
@@ -209,40 +271,41 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      if (!isValidBrainDatabaseUrl(trimmed)) {
-        return NextResponse.json(
-          { error: "Invalid brain database URL. Use postgresql:// or postgres:// format." },
-          { status: 400 }
-        );
-      }
-
       try {
-        await testBrainPgConnection(trimmed);
+        await connectUserPrivateDatabase(user.id, trimmed);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Connection failed";
-        return NextResponse.json(
-          { error: `Could not connect to brain database: ${message}` },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: message }, { status: 400 });
       }
-
-      updateData.brainDatabaseUrl = encryptSafe(trimmed);
     }
 
     if (data.llmBaseUrl !== undefined) {
       updateData.llmBaseUrl = data.llmBaseUrl ? normalizeLlmBaseUrl(data.llmBaseUrl) : null;
     }
+    if (data.llmProviderId !== undefined) {
+      updateData.llmProviderId = data.llmProviderId.trim() || "openrouter";
+    }
 
     const llmApiKey = data.llmApiKey || data.openRouterApiKey;
-    if (llmApiKey) updateData.openRouterApiKey = encryptSafe(llmApiKey);
-    if (data.telegramBotToken) updateData.telegramBotToken = encryptSafe(data.telegramBotToken);
-    if (data.xApiKey) updateData.xApiKey = encryptSafe(data.xApiKey);
-    if (data.xApiSecret) updateData.xApiSecret = encryptSafe(data.xApiSecret);
-    if (data.xAccessToken) {
-      updateData.xAccessToken = encryptSafe(data.xAccessToken);
+    if (llmApiKey?.trim()) {
+      await upsertEncryptedSecret(user.id, "llm", "api_key", llmApiKey.trim());
+    }
+    if (data.telegramBotToken?.trim()) {
+      await upsertEncryptedSecret(user.id, "telegram", "bot_token", data.telegramBotToken.trim());
+    }
+    if (data.xApiKey?.trim()) {
+      await upsertEncryptedSecret(user.id, "x", "api_key", data.xApiKey.trim());
+    }
+    if (data.xApiSecret?.trim()) {
+      await upsertEncryptedSecret(user.id, "x", "api_secret", data.xApiSecret.trim());
+    }
+    if (data.xAccessToken?.trim()) {
+      await upsertEncryptedSecret(user.id, "x", "access_token", data.xAccessToken.trim());
       updateData.xAuthMethod = "oauth1";
     }
-    if (data.xAccessSecret) updateData.xAccessSecret = encryptSafe(data.xAccessSecret);
+    if (data.xAccessSecret?.trim()) {
+      await upsertEncryptedSecret(user.id, "x", "access_secret", data.xAccessSecret.trim());
+    }
 
     const xCredentialsTouched = !!(
       data.xApiKey ||
@@ -267,6 +330,7 @@ export async function PATCH(request: NextRequest) {
         defaultModel: true,
         defaultImageModel: true,
         llmBaseUrl: true,
+        llmProviderId: true,
         emailNotifications: true,
         telegramNotifications: true,
         telegramChatEnabled: true,
@@ -276,8 +340,10 @@ export async function PATCH(request: NextRequest) {
         xAutoPostEnabled: true,
         solanaDefaultRpc: true,
         solanaRpcApiKey: true,
+        fallbackRpcUrls: true,
         brainDatabaseUrl: true,
         fallbackModels: true,
+        fallbackImageModels: true,
         agentMemoryEnabled: true,
         agentMemoryUrl: true,
         openRouterApiKey: true,
@@ -288,6 +354,10 @@ export async function PATCH(request: NextRequest) {
         xAccessSecret: true,
       },
     });
+
+    if (updated.telegramChatId) {
+      await claimTelegramChatForUser(user.id, updated.telegramChatId);
+    }
 
     if (xCredentialsTouched) {
       const verified = await verifyXCredentialsForUser(user.id);
@@ -306,29 +376,6 @@ export async function PATCH(request: NextRequest) {
           xConnectedAt: new Date(),
         },
       });
-    }
-
-    if (data.brainDatabaseUrl !== undefined && updateData.brainDatabaseUrl) {
-      const privateUrl = decryptSafe(String(updateData.brainDatabaseUrl));
-      try {
-        const imported = await migrateSqliteBrainToPostgres(user.id, privateUrl);
-        if (imported > 0) {
-          console.log(`[Brain] Imported ${imported} task(s) into private DB for ${user.id.slice(0, 8)}…`);
-        }
-      } catch (error) {
-        console.warn("[Brain] SQLite → private Postgres import skipped:", error);
-      }
-
-      try {
-        const chatImported = await migratePrismaChatToPrivatePostgres(user.id, privateUrl);
-        if (chatImported.sessions > 0 || chatImported.messages > 0) {
-          console.log(
-            `[Chat] Imported ${chatImported.sessions} session(s) and ${chatImported.messages} message(s) into private DB for ${user.id.slice(0, 8)}…`
-          );
-        }
-      } catch (error) {
-        console.warn("[Chat] Main DB → private Postgres import skipped:", error);
-      }
     }
 
     if (data.defaultModel) {
@@ -374,6 +421,22 @@ export async function PATCH(request: NextRequest) {
 
     const baseUrl = process.env.TELEGRAM_WEBHOOK_URL || process.env.NEXTAUTH_URL || "";
     const xConnection = await getXConnectionInfo(user.id);
+    const secretFlags = await listSecretFlags(user.id);
+    const customModels = await prisma.customModel.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        provider: true,
+        modelName: true,
+        modelId: true,
+        modelType: true,
+      },
+    });
+    const providerId =
+      (updated.llmProviderId && updated.llmProviderId.trim()) ||
+      detectLlmProviderId(updated.llmBaseUrl) ||
+      "openrouter";
 
     return NextResponse.json({
       id: updated.id,
@@ -382,6 +445,8 @@ export async function PATCH(request: NextRequest) {
       defaultModel: refreshedUser?.defaultModel ?? updated.defaultModel,
       defaultImageModel: refreshedUser?.defaultImageModel ?? updated.defaultImageModel,
       llmBaseUrl: updated.llmBaseUrl,
+      llmProviderId: providerId,
+      customModels,
       effectiveLlmBaseUrl: resolveLlmBaseUrl(updated.llmBaseUrl),
       emailNotifications: updated.emailNotifications,
       telegramNotifications: updated.telegramNotifications,
@@ -390,22 +455,25 @@ export async function PATCH(request: NextRequest) {
       telegramDefaultAgentId: updated.telegramDefaultAgentId,
       xAutoPostEnabled: updated.xAutoPostEnabled,
       solanaDefaultRpc: updated.solanaDefaultRpc,
+      effectiveSolanaDefaultRpc: updated.solanaDefaultRpc?.trim() || DEFAULT_SOLANA_RPC,
+      fallbackRpcUrls: updated.fallbackRpcUrls ?? [],
       webhookStatus,
       telegramPollingMode: baseUrl.includes("localhost") || process.env.TELEGRAM_POLLING === "true",
-      hasOpenRouterKey: !!updated.openRouterApiKey,
-      hasLlmApiKey: !!updated.openRouterApiKey,
-      hasTelegramToken: !!(updated.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN),
+      hasOpenRouterKey: secretFlags.hasLlmApiKey,
+      hasLlmApiKey: secretFlags.hasLlmApiKey,
+      hasTelegramToken: secretFlags.hasTelegramToken || !!process.env.TELEGRAM_BOT_TOKEN,
       hasXCredentials: xConnection.connected,
-      hasXApiKey: !!updated.xApiKey,
-      hasXApiSecret: !!updated.xApiSecret,
-      hasXAccessToken: !!updated.xAccessToken,
-      hasXAccessSecret: !!updated.xAccessSecret,
-      hasSolanaRpcApiKey: !!updated.solanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
+      hasXApiKey: secretFlags.hasXApiKey,
+      hasXApiSecret: secretFlags.hasXApiSecret,
+      hasXAccessToken: secretFlags.hasXAccessToken,
+      hasXAccessSecret: secretFlags.hasXAccessSecret,
+      hasSolanaRpcApiKey: secretFlags.hasSolanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
       hasBrainDatabaseUrl: !!updated.brainDatabaseUrl,
       brainDatabaseUrl: updated.brainDatabaseUrl
         ? decryptSafe(updated.brainDatabaseUrl)
         : null,
       fallbackModels: updated.fallbackModels ?? [],
+      fallbackImageModels: updated.fallbackImageModels ?? [],
       agentMemoryEnabled: updated.agentMemoryEnabled ?? false,
       agentMemoryUrl: updated.agentMemoryUrl ?? null,
       xConnection,

@@ -61,9 +61,11 @@ export const imageGenerator: SkillDefinition = {
         apiKey: llm.apiKey,
         baseUrl: llm.baseUrl,
         useOpenRouterFallbacks: llm.useOpenRouterFallbacks,
-        model,        prompt: input.prompt,
+        model,
+        prompt: input.prompt,
         modalities: getImageModalities(model),
         aspectRatio: input.aspectRatio,
+        fallbackModels: llm.fallbackImageModels,
       });
 
       const savedUrls: string[] = [];

@@ -85,6 +85,7 @@ export const LEGACY_PAID_DEFAULTS = new Set([
 
 /** Free models to try when primary is rate-limited (429) or misconfigured as paid (402) */
 export const FREE_MODEL_FALLBACK_CHAIN: string[] = [
+  "qwen/qwen3-coder:free",
   "google/gemma-4-31b-it:free",
   "meta-llama/llama-3.3-70b-instruct:free",
   "qwen/qwen3-next-80b-a3b-instruct:free",
@@ -146,6 +147,31 @@ export function normalizeChatModel(model: string | null | undefined): string {
     return DEFAULT_MODEL;
   }
   return id;
+}
+
+export function getImageModelFallbackChain(primary: string, userFallbacks?: string[] | null): string[] {
+  const normalized = normalizeModelId(primary) || primary.trim();
+  const extras = (userFallbacks ?? [])
+    .map((m) => normalizeModelId(m))
+    .filter((m) => m && isValidModelId(m));
+  return Array.from(new Set([normalized, ...extras].filter(Boolean)));
+}
+
+export function getChatModelFallbackChain(
+  primary: string,
+  userFallbacks?: string[] | null
+): string[] {
+  const normalized = normalizeChatModel(primary);
+  const extras = (userFallbacks ?? [])
+    .map((m) => normalizeChatModel(m))
+    .filter((m) => m && isValidModelId(m));
+
+  if (extras.length > 0) {
+    return Array.from(new Set([normalized, ...extras]));
+  }
+
+  // Only the primary model unless user configured fallbacks in Settings → LLM
+  return [normalized];
 }
 
 export function getFreeModelFallbackChain(primary: string, userFallbacks?: string[] | null): string[] {

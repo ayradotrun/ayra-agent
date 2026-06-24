@@ -7,7 +7,7 @@ export const metadata = legalMetadata(
 
 export default function TermsPage() {
   return (
-    <LegalPageLayout title="Terms of Service" lastUpdated="June 22, 2025">
+    <LegalPageLayout title="Terms of Service" lastUpdated="June 22, 2026">
       <p>
         By accessing or using AYRA Agent, you agree to these Terms of Service. If you do not agree,
         do not use the platform.
@@ -31,7 +31,11 @@ export default function TermsPage() {
       <ul>
         <li>You are responsible for keeping your login credentials secure</li>
         <li>You are responsible for API keys, bot tokens, and database URLs you configure</li>
-        <li>You must provide accurate registration information</li>
+        <li>You must provide accurate registration information and verify your email address</li>
+        <li>
+          Your <strong>username</strong> is chosen at sign up and cannot be changed; display name
+          may be updated in Settings
+        </li>
         <li>One person or organization may not abuse the service or attempt unauthorized access</li>
       </ul>
 

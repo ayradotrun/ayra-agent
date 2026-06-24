@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchTelegramUpdates, getBotTokenFromUser, deleteTelegramWebhook, setTelegramBotCommands } from "./client";
 import { getTelegramOffset, setTelegramOffset } from "./poll-offset";
 import { claimTelegramUpdate } from "./dedup";
+import { resolveTelegramUserForChat } from "./bots-config";
 
 let pollingActive = false;
 let webhookCleared = false;
@@ -36,6 +37,8 @@ export async function startTelegramPolling(): Promise<void> {
           telegramBotToken: true,
           telegramChatId: true,
           telegramLastUpdateId: true,
+          updatedAt: true,
+          _count: { select: { agents: { where: { status: "ACTIVE" } } } },
         },
       });
 
@@ -62,12 +65,17 @@ export async function startTelegramPolling(): Promise<void> {
             ? String(update.message.chat.id)
             : null;
 
+          const tokenConfigs = tokenUsers.map((u) => ({
+            userId: u.id,
+            botToken,
+            chatId: u.telegramChatId,
+            updatedAt: u.updatedAt.toISOString(),
+            activeAgentCount: u._count.agents,
+            hasOwnBotToken: Boolean(u.telegramBotToken),
+          }));
+          const resolved = resolveTelegramUserForChat(tokenConfigs, chatId);
           const matched =
-            (chatId &&
-              tokenUsers.find(
-                (u) => !u.telegramChatId || u.telegramChatId === chatId
-              )) ||
-            tokenUsers[0];
+            resolved.ok ? tokenUsers.find((u) => u.id === resolved.userId) : undefined;
 
           if (matched) {
             const claimed = await claimTelegramUpdate(botToken, update.update_id);

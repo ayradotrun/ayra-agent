@@ -10,6 +10,7 @@ datasource db {
 
 model User {
   id            String    @id @default(cuid())
+  username      String?   @unique
   name          String?
   email         String    @unique
   emailVerified DateTime?
@@ -27,6 +28,7 @@ model User {
   chatSessions    ChatSession[]
 
   llmBaseUrl           String?
+  llmProviderId        String?  @default("openrouter")
   openRouterApiKey     String?
   telegramBotToken     String?
   telegramChatId       String?
@@ -56,12 +58,48 @@ model User {
   xAutoPostEnabled     Boolean @default(false)
   solanaDefaultRpc     String?
   solanaRpcApiKey      String?
+  fallbackRpcUrls      String[] @default([])
   brainDatabaseUrl     String?
   fallbackModels       String[] @default([])
+  fallbackImageModels  String[] @default([])
   agentMemoryEnabled   Boolean  @default(false)
   agentMemoryUrl       String?
   solanaWatchWallets   String[] @default([])
   solanaWatchMints     String[] @default([])
+
+  customModels       CustomModel[]
+  encryptedSecrets   EncryptedSecret[]
+}
+
+model CustomModel {
+  id        String   @id @default(cuid())
+  userId    String
+  provider  String
+  modelName String
+  modelId   String
+  modelType String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, provider])
+}
+
+model EncryptedSecret {
+  id             String   @id @default(cuid())
+  userId         String
+  provider       String
+  secretName     String
+  encryptedValue String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, secretName])
+  @@index([userId])
 }
 
 model Account {
@@ -97,6 +135,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model EmailVerificationCode {
+  id        String   @id @default(cuid())
+  email     String
+  purpose   String
+  codeHash  String
+  payload   Json?
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
 }
 
 model Agent {
@@ -174,6 +225,7 @@ model AgentSkill {
 model AgentRun {
   id           String    @id @default(cuid())
   agentId      String
+  trigger      String    @default("manual")
   status       RunStatus @default(PENDING)
   startedAt    DateTime  @default(now())
   completedAt  DateTime?
@@ -188,6 +240,7 @@ model AgentRun {
   logs  AgentLog[]
 
   @@index([agentId])
+  @@index([startedAt])
 }
 
 enum RunStatus {

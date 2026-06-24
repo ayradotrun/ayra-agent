@@ -1,4 +1,12 @@
-import { suggestFreeModelVariant, getFreeModelFallbackChain, isFreeModel } from "@/lib/models";
+import {
+  suggestFreeModelVariant,
+  getFreeModelFallbackChain,
+  getChatModelFallbackChain,
+  getImageModelFallbackChain,
+  isFreeModel,
+} from "@/lib/models";
+import { FailoverReason, classifyApiError } from "@/lib/agent/error-classifier";
+import { sleepMs } from "@/lib/agent/retry";
 import {
   buildChatCompletionsUrl,
   DEFAULT_LLM_BASE_URL,
@@ -112,7 +120,28 @@ function shouldRetryWithFreeFallback(status: number, model: string): boolean {
 }
 
 const LLM_REQUEST_TIMEOUT_MS = parseInt(process.env.LLM_REQUEST_TIMEOUT_MS || "45000", 10);
-const MAX_LLM_FALLBACK_ATTEMPTS = parseInt(process.env.MAX_LLM_FALLBACK_ATTEMPTS || "3", 10);
+const MAX_LLM_FALLBACK_ATTEMPTS = parseInt(process.env.MAX_LLM_FALLBACK_ATTEMPTS || "10", 10);
+
+function isRotatableFailover(reason: FailoverReason): boolean {
+  return (
+    reason === FailoverReason.rateLimit ||
+    reason === FailoverReason.overloaded ||
+    reason === FailoverReason.billing ||
+    reason === FailoverReason.modelNotFound ||
+    reason === FailoverReason.serverError
+  );
+}
+
+function buildModelsToTry(
+  primary: string,
+  fallbackModels: string[] | null | undefined,
+  mode: "chat" | "image"
+): string[] {
+  if (mode === "image") {
+    return getImageModelFallbackChain(primary, fallbackModels);
+  }
+  return getChatModelFallbackChain(primary, fallbackModels);
+}
 
 async function callOpenRouterOnce(params: {
   apiKey: string;
@@ -170,17 +199,25 @@ export async function callOpenRouter(params: {
   imageConfig?: { aspect_ratio?: string };
   useOpenRouterFallbacks?: boolean;
   fallbackModels?: string[] | null;
+  fallbackMode?: "chat" | "image";
   reasoning?: OpenRouterReasoningConfig;
+  /** Called with the model that produced a successful response */
+  onModelUsed?: (model: string) => void;
+  /** Called before trying the next fallback model (rate limit / overload) */
+  onFallbackAttempt?: (model: string) => void;
 }): Promise<OpenRouterResponse> {
   const baseUrl = params.baseUrl ?? DEFAULT_LLM_BASE_URL;
-  const useFallbacks =
-    (params.useOpenRouterFallbacks ?? isOpenRouterBaseUrl(baseUrl)) && !params.reasoning;
+  const onOpenRouter = params.useOpenRouterFallbacks ?? isOpenRouterBaseUrl(baseUrl);
   const hasUserFallbacks = (params.fallbackModels?.length ?? 0) > 0;
-  const modelsToTry = (
-    useFallbacks || hasUserFallbacks
-      ? getFreeModelFallbackChain(params.model, params.fallbackModels)
-      : [params.model]
-  ).slice(0, MAX_LLM_FALLBACK_ATTEMPTS);
+  const canRotateModels = hasUserFallbacks && !params.reasoning;
+  const mode = params.fallbackMode ?? "chat";
+  const fullChain = canRotateModels
+    ? buildModelsToTry(params.model, params.fallbackModels, mode)
+    : [params.model];
+  const maxAttempts = canRotateModels
+    ? Math.min(fullChain.length, Math.max(MAX_LLM_FALLBACK_ATTEMPTS, fullChain.length))
+    : 1;
+  const modelsToTry = fullChain.slice(0, maxAttempts);
 
   let lastStatus = 500;
   let lastBody = "Unknown error";
@@ -191,6 +228,14 @@ export async function callOpenRouter(params: {
     attempt++;
     const result = await callOpenRouterOnce({ ...params, baseUrl, model });
     if (result.ok) {
+      if (model !== params.model) {
+        if (process.env.NODE_ENV !== "test") {
+          console.info(
+            `[llm] Primary model ${params.model} unavailable — used fallback ${model}`
+          );
+        }
+      }
+      params.onModelUsed?.(model);
       return result.data;
     }
 
@@ -198,14 +243,38 @@ export async function callOpenRouter(params: {
     lastBody = result.body;
     lastModel = model;
 
-    if (!useFallbacks || !shouldRetryWithFreeFallback(result.status, model)) {
+    const classified = classifyApiError(result.status, result.body, { model });
+    const hasMoreModels = attempt < modelsToTry.length;
+    const mayTryNextModel =
+      hasMoreModels &&
+      classified.reason !== FailoverReason.authPermanent &&
+      (isRotatableFailover(classified.reason) ||
+        classified.shouldFallbackModel ||
+        (hasUserFallbacks && classified.reason !== FailoverReason.contentPolicyBlocked) ||
+        (onOpenRouter &&
+          !params.reasoning &&
+          classified.shouldRetry &&
+          shouldRetryWithFreeFallback(result.status, model)));
+
+    if (!canRotateModels || !mayTryNextModel) {
+      if (classified.backoffMs && classified.shouldRetry && !mayTryNextModel) {
+        await sleepMs(classified.backoffMs);
+      }
       break;
     }
 
-    if (attempt >= MAX_LLM_FALLBACK_ATTEMPTS) break;
+    const nextModel = modelsToTry[attempt];
+    if (nextModel) {
+      params.onFallbackAttempt?.(nextModel);
+    }
   }
 
-  throw new Error(formatLlmError(lastStatus, lastBody, lastModel, baseUrl));
+  const fallbackHint = hasUserFallbacks
+    ? " Add or reorder fallback models in Settings → LLM."
+    : onOpenRouter
+      ? " Add fallback chat models in Settings → LLM, or retry later."
+      : "";
+  throw new Error(formatLlmError(lastStatus, lastBody, lastModel, baseUrl) + fallbackHint);
 }
 
 export async function callOpenRouterImageGeneration(params: {
@@ -216,6 +285,7 @@ export async function callOpenRouterImageGeneration(params: {
   modalities: ("image" | "text")[];
   aspectRatio?: string;
   useOpenRouterFallbacks?: boolean;
+  fallbackModels?: string[] | null;
 }): Promise<OpenRouterImageResult> {
   const response = await callOpenRouter({
     apiKey: params.apiKey,
@@ -226,6 +296,8 @@ export async function callOpenRouterImageGeneration(params: {
     maxTokens: 4096,
     imageConfig: params.aspectRatio ? { aspect_ratio: params.aspectRatio } : undefined,
     useOpenRouterFallbacks: params.useOpenRouterFallbacks,
+    fallbackModels: params.fallbackModels,
+    fallbackMode: "image",
   });
 
   const message = response.choices[0]?.message;

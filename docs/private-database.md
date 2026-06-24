@@ -8,6 +8,24 @@ Every AYRA account must connect **your own PostgreSQL** for dashboard chat and A
 - Create a **new empty** Postgres database (do not share with unrelated apps unless you trust table names `chat_*` and `brain_task`)
 - Use a connection string with **read/write** access
 
+## Solo self-host (same Postgres as platform)
+
+If you are the **only user** on your instance, you may store chat/brain tables on the **same Supabase/Postgres** as the platform:
+
+1. Set in server `.env`:
+   ```bash
+   AYRA_ALLOW_PLATFORM_BRAIN_DB=true
+   ```
+   (Enabled by default in `NODE_ENV=development`.)
+
+2. **Dashboard → Settings → Private Database** → paste either:
+   - `DATABASE_URL` (pooler, port 6543), or
+   - `DIRECT_DATABASE_URL` (session, port 5432 — recommended)
+
+3. Click **Connect**. If you paste the pooler URL, AYRA auto-switches to `DIRECT_DATABASE_URL` for creating tables.
+
+Tables `chat_session`, `chat_message`, and `brain_task` live alongside platform Prisma tables in the same database.
+
 ## Supabase
 
 1. Sign in at [supabase.com](https://supabase.com) → **New project**
@@ -17,7 +35,7 @@ Every AYRA account must connect **your own PostgreSQL** for dashboard chat and A
 5. Under **Connection string**, select **URI**
 6. Copy the string (mode **Session** or **Direct** on port `5432` is recommended for DDL on first connect)
 7. Replace `[YOUR-PASSWORD]` with your database password
-8. In AYRA: **Dashboard → Settings → Private Database (AYRA)** → paste → **Save**
+8. In AYRA: **Dashboard → Settings → Private Database (AYRA)** → paste → **Connect**
 
 Example shape:
 
@@ -30,15 +48,15 @@ postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.co
 1. Sign in at [neon.tech](https://neon.tech) → **Create project**
 2. Open the project → **Dashboard → Connection details**
 3. Copy the **PostgreSQL connection string**
-4. Paste into AYRA Settings → **Save**
+4. Paste into AYRA Settings → **Connect**
 
 ## Railway / Render / other
 
 1. Add a **PostgreSQL** service to your project
 2. Copy the **`DATABASE_URL`** or **Postgres connection URL** from the provider dashboard
-3. Paste into AYRA Settings → **Save**
+3. Paste into AYRA Settings → **Connect**
 
-## What happens when you save
+## What happens when you connect
 
 | Step | Action |
 |------|--------|
@@ -62,14 +80,15 @@ postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.co
 | Problem | Fix |
 |---------|-----|
 | Connection failed | Check password, IP allowlist, SSL; try appending `?sslmode=require` to the URL |
-| self-signed certificate / certificate chain | Cloud Postgres (Supabase, Neon) is supported — save again after updating AYRA; or add `?sslmode=no-verify` to the URL |
+| self-signed certificate / certificate chain | Cloud Postgres (Supabase, Neon) is supported — click Connect again after updating AYRA; or add `?sslmode=no-verify` to the URL |
 | Invalid URL | Must start with `postgresql://` or `postgres://` |
-| Empty after migrate | Re-save URL once, or start a new chat after connecting |
+| Platform database rejected | Set `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` for solo self-host, or use a separate Postgres project |
+| Empty after migrate | Connect again once, or start a new chat after connecting |
 
 ## Security notes
 
 - Treat the connection string like a password — anyone with it can read your chat/brain data
 - Prefer a dedicated database or project per user
-- AYRA encrypts the URL at rest; rotation = paste a new URL and save
+- AYRA encrypts the URL at rest; rotation = paste a new URL and click Connect
 
 For platform security and vulnerability reporting, see [SECURITY.md](../SECURITY.md).

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { SkillPicker } from "@/components/skills/skill-picker";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -18,8 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { AGENT_TEMPLATES, DEFAULT_AGENT_PROMPT, SCHEDULE_OPTIONS } from "@/lib/utils";
-import { DEFAULT_MODEL, DEFAULT_IMAGE_MODEL } from "@/lib/models";
-import { ModelPicker } from "@/components/agents/model-picker";
 import { cn } from "@/lib/utils";
 
 interface Skill {
@@ -41,8 +41,6 @@ export default function CreateAgentPage() {
     name: "",
     description: "",
     systemPrompt: DEFAULT_AGENT_PROMPT,
-    model: DEFAULT_MODEL,
-    imageModel: DEFAULT_IMAGE_MODEL,
     memoryEnabled: true,
     schedule: "MANUAL" as string,
     telegramNotify: false,
@@ -97,25 +95,36 @@ export default function CreateAgentPage() {
 
   const enabledSkills = skills.filter((s) => s.isEnabled);
   const isCustom = selectedTemplate === "custom";
+  const templateMeta = AGENT_TEMPLATES.find((t) => t.id === selectedTemplate);
+  const scheduleLabel =
+    SCHEDULE_OPTIONS.find((s) => s.value === form.schedule)?.label ?? form.schedule;
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
       <PageHeader
         eyebrow="Create"
         title="New agent"
-        description="Pick an office agent template, then customize skills and schedule."
+        description={
+          isCustom
+            ? "Build a custom agent under AYRA — name, prompt, skills, and schedule are yours to configure."
+            : "Office templates are fixed. Pick a role, then create — chat & image models come from Settings → LLM."
+        }
       />
 
       <form onSubmit={handleSubmit} className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Template</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {[...AGENT_TEMPLATES]
-                  .sort((a, b) => (a.id === "ayra-full" ? -1 : b.id === "ayra-full" ? 1 : 0))
-                  .map((t) => (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Template</CardTitle>
+            <CardDescription>
+              Template agents cannot be renamed or reconfigured. Use <strong>New Hire</strong> for full
+              control.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[...AGENT_TEMPLATES]
+                .sort((a, b) => (a.id === "ayra-full" ? -1 : b.id === "ayra-full" ? 1 : 0))
+                .map((t) => (
                   <button
                     key={t.id}
                     type="button"
@@ -142,13 +151,62 @@ export default function CreateAgentPage() {
                     <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{t.description}</p>
                   </button>
                 ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {!isCustom && templateMeta && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{templateMeta.name}</CardTitle>
+              <CardDescription>
+                {"role" in templateMeta && templateMeta.role ? templateMeta.role : "Office template"} ·{" "}
+                {scheduleLabel}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">{templateMeta.description}</p>
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">System prompt (fixed)</p>
+                <pre className="max-h-40 overflow-y-auto rounded-lg bg-secondary/50 p-3 text-[11px] whitespace-pre-wrap">
+                  {form.systemPrompt}
+                </pre>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">
+                  Skills ({form.skillSlugs.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {form.skillSlugs.map((slug) => {
+                    const skill = enabledSkills.find((s) => s.slug === slug);
+                    return (
+                      <Badge key={slug} variant="outline" className="text-[11px]">
+                        {skill?.name ?? slug}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+                Chat & image models use your{" "}
+                <Link href="/dashboard/settings" className="text-primary underline-offset-2 hover:underline">
+                  Settings → LLM Provider
+                </Link>
+                . Agent starts <strong className="text-foreground">active</strong> and is ready for chat
+                immediately.
               </div>
             </CardContent>
           </Card>
+        )}
 
+        {isCustom && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Configuration</CardTitle>
+              <CardTitle className="text-base">Custom agent</CardTitle>
+              <CardDescription>
+                Fully configurable. The agent still operates under AYRA rules and identity in every
+                conversation.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -157,7 +215,7 @@ export default function CreateAgentPage() {
                   id="name"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Aria"
+                  placeholder="e.g. My Research Bot"
                   required
                 />
               </div>
@@ -176,39 +234,41 @@ export default function CreateAgentPage() {
                   id="prompt"
                   value={form.systemPrompt}
                   onChange={(e) => setForm({ ...form, systemPrompt: e.target.value })}
-                  rows={5}
+                  rows={6}
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  AYRA office identity is added automatically if not already in your prompt.
+                </p>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <ModelPicker
-                  value={form.model}
-                  onChange={(model) => setForm({ ...form, model })}
-                  label="Chat model"
-                  tiers={["free", "standard", "premium"]}
-                />
-                <div className="space-y-2">
-                  <Label>Schedule</Label>
-                  <Select value={form.schedule} onValueChange={(v) => setForm({ ...form, schedule: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SCHEDULE_OPTIONS.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label>Schedule</Label>
+                <Select value={form.schedule} onValueChange={(v) => setForm({ ...form, schedule: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SCHEDULE_OPTIONS.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <ModelPicker
-                value={form.imageModel}
-                onChange={(imageModel) => setForm({ ...form, imageModel })}
-                label="Image model"
-                tiers={["image-free", "image"]}
-                presetFallback={DEFAULT_IMAGE_MODEL}
-                customLabel="Custom image model (optional)"
-                showHint={false}
-              />
+              <div className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+                Models come from{" "}
+                <Link href="/dashboard/settings" className="text-primary underline-offset-2 hover:underline">
+                  Settings → LLM Provider
+                </Link>
+                .
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isCustom && (
+          <>
+            <div className="space-y-4">
               <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
                 <div>
                   <p className="text-sm font-medium">Memory</p>
@@ -222,7 +282,9 @@ export default function CreateAgentPage() {
               <div className="flex items-center justify-between rounded-lg border border-border/60 p-4">
                 <div>
                   <p className="text-sm font-medium">Auto-post to X</p>
-                  <p className="text-xs text-muted-foreground">Requires X API keys in Settings + explicit postNow in skill</p>
+                  <p className="text-xs text-muted-foreground">
+                    Requires X API keys in Settings + explicit postNow in skill
+                  </p>
                 </div>
                 <Switch
                   checked={form.autoPostX}
@@ -239,25 +301,26 @@ export default function CreateAgentPage() {
                   onCheckedChange={(v) => setForm({ ...form, telegramNotify: v })}
                 />
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <SkillPicker
-            skills={enabledSkills}
-            selectedSlugs={form.skillSlugs}
-            onChange={setSkillSlugs}
-            emphasize={isCustom}
-          />
+            <SkillPicker
+              skills={enabledSkills}
+              selectedSlugs={form.skillSlugs}
+              onChange={setSkillSlugs}
+              emphasize
+            />
+          </>
+        )}
 
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading || !form.name}>
-              {loading ? "Creating..." : "Create agent"}
-            </Button>
-          </div>
-        </form>
+        <div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={() => router.back()}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading || (isCustom && !form.name.trim())}>
+            {loading ? "Creating..." : "Create agent"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

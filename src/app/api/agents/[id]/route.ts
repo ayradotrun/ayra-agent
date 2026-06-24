@@ -8,7 +8,13 @@ import {
 } from "@/lib/auth-helpers";
 import { z } from "zod";
 import { scheduleToCron, getNextRunTime } from "@/lib/agent/scheduler";
-import { isValidModelId, normalizeModelId } from "@/lib/models";
+import {
+  isCustomAgentTemplate,
+  wrapCustomSystemPrompt,
+} from "@/lib/agent/template-config";
+import { enrichAgentWithUserModels } from "@/lib/agent/enrich-agent-models";
+import { healAllAgentModelsFromUser } from "@/lib/user-models";
+import { healStaleAgentRuns } from "@/lib/agent/heal-stale-runs";
 import type { ScheduleInterval } from "@prisma/client";
 
 async function getAgentForUser(id: string, userId: string) {
@@ -39,27 +45,25 @@ export async function GET(
   if (!agent) return notFoundResponse("Agent not found");
   if (agent === "forbidden") return forbiddenResponse();
 
-  return NextResponse.json(agent);
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { defaultModel: true, defaultImageModel: true },
+  });
+
+  await healStaleAgentRuns(params.id);
+  await healAllAgentModelsFromUser(user.id);
+  const refreshed = await getAgentForUser(params.id, user.id);
+  if (!refreshed || refreshed === "forbidden") {
+    return notFoundResponse("Agent not found");
+  }
+
+  return NextResponse.json(enrichAgentWithUserModels(refreshed, dbUser ?? {}));
 }
 
 const updateAgentSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
   systemPrompt: z.string().optional(),
-  model: z
-    .string()
-    .optional()
-    .transform((v) => (v ? normalizeModelId(v) : v))
-    .refine((v) => !v || isValidModelId(v), {
-      message: "Invalid model ID. Use OpenRouter format: provider/model-id",
-    }),
-  imageModel: z
-    .string()
-    .optional()
-    .transform((v) => (v ? normalizeModelId(v) : v))
-    .refine((v) => !v || isValidModelId(v), {
-      message: "Invalid image model ID. Use OpenRouter format: provider/model-id",
-    }),
   status: z.enum(["ACTIVE", "PAUSED", "ERROR"]).optional(),
   memoryEnabled: z.boolean().optional(),
   schedule: z.enum(["MANUAL", "EVERY_5_MIN", "EVERY_15_MIN", "HOURLY", "DAILY"]).optional(),
@@ -86,17 +90,44 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { skillSlugs, schedule, ...rest } = parsed.data;
+    const { skillSlugs, schedule, name, description, systemPrompt, ...rest } = parsed.data;
+    const isCustom = isCustomAgentTemplate(existing.template);
+
+    if (!isCustom) {
+      const blocked =
+        name !== undefined ||
+        description !== undefined ||
+        systemPrompt !== undefined ||
+        schedule !== undefined ||
+        skillSlugs !== undefined ||
+        rest.memoryEnabled !== undefined ||
+        rest.telegramNotify !== undefined;
+      if (blocked) {
+        return NextResponse.json(
+          { error: "Template agents cannot be reconfigured. Create a custom agent (New Hire) to edit." },
+          { status: 400 }
+        );
+      }
+    }
 
     const agent = await prisma.agent.update({
       where: { id: params.id },
       data: {
         ...rest,
-        ...(schedule ? { schedule: schedule as ScheduleInterval } : {}),
+        ...(isCustom && name !== undefined ? { name } : {}),
+        ...(isCustom && description !== undefined ? { description } : {}),
+        ...(isCustom && systemPrompt !== undefined
+          ? { systemPrompt: wrapCustomSystemPrompt(systemPrompt) }
+          : {}),
+        ...(isCustom && schedule ? { schedule: schedule as ScheduleInterval } : {}),
+        ...(isCustom && rest.memoryEnabled !== undefined ? { memoryEnabled: rest.memoryEnabled } : {}),
+        ...(isCustom && rest.telegramNotify !== undefined
+          ? { telegramNotify: rest.telegramNotify }
+          : {}),
       },
     });
 
-    if (skillSlugs) {
+    if (skillSlugs && isCustom) {
       await prisma.agentSkill.deleteMany({ where: { agentId: params.id } });
       const skills = await prisma.skill.findMany({
         where: { slug: { in: skillSlugs } },
@@ -112,7 +143,7 @@ export async function PATCH(
       }
     }
 
-    if (schedule) {
+    if (schedule && isCustom) {
       await prisma.scheduledJob.deleteMany({ where: { agentId: params.id } });
       const cronExpr = scheduleToCron(schedule);
       if (cronExpr) {

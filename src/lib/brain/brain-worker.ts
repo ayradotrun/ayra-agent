@@ -7,12 +7,56 @@ import {
   findDueBrainTasksGlobally,
   getBrainTaskById,
   updateBrainTask,
+  createBrainTask,
 } from "@/lib/brain/brain-store";
+import { getNextCronRunFromPython } from "@/lib/cron/python-bridge";
+import { buildBlueprintJob } from "@/lib/cron/schedule-blueprint";
 
-function payloadText(payload: unknown, key: string): string | null {
+function payloadString(payload: unknown, key: string): string | null {
   if (!payload || typeof payload !== "object") return null;
   const v = (payload as Record<string, unknown>)[key];
   return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+async function rescheduleBlueprintTask(
+  userId: string,
+  agentId: string,
+  payload: Record<string, unknown>
+): Promise<void> {
+  const recurrenceCron = payloadString(payload, "recurrenceCron");
+  if (!recurrenceCron) return;
+
+  const blueprintKey = payloadString(payload, "blueprintKey");
+  const slotValues =
+    payload.slotValues && typeof payload.slotValues === "object"
+      ? (payload.slotValues as Record<string, unknown>)
+      : {};
+
+  let job;
+  if (blueprintKey) {
+    try {
+      job = await buildBlueprintJob(blueprintKey, slotValues);
+    } catch {
+      job = null;
+    }
+  }
+
+  const instruction = payloadString(payload, "instruction") || job?.prompt || "Scheduled AYRA task";
+  const schedule = job?.schedule || recurrenceCron;
+  const nextRun = await getNextCronRunFromPython(schedule, new Date());
+
+  await createBrainTask({
+    userId,
+    agentId,
+    type: "CUSTOM",
+    title: job?.name || payloadString(payload, "title") || "Scheduled automation",
+    payload: {
+      ...payload,
+      instruction,
+      recurrenceCron: schedule,
+    },
+    scheduledAt: nextRun,
+  });
 }
 
 async function executeBrainTask(userId: string, taskId: string): Promise<void> {
@@ -48,8 +92,8 @@ async function executeBrainTask(userId: string, taskId: string): Promise<void> {
     switch (task.type) {
       case "TWEET": {
         const text =
-          payloadText(task.payload, "text") ||
-          payloadText(task.payload, "draft") ||
+          payloadString(task.payload, "text") ||
+          payloadString(task.payload, "draft") ||
           task.title;
         const canPostStatus = await resolveAutoPostReadiness(task.userId, agent.autoPostX);
         if (!canPostStatus.ready) {
@@ -70,8 +114,8 @@ async function executeBrainTask(userId: string, taskId: string): Promise<void> {
       }
       case "REMINDER": {
         const message =
-          payloadText(task.payload, "text") ||
-          payloadText(task.payload, "message") ||
+          payloadString(task.payload, "text") ||
+          payloadString(task.payload, "message") ||
           task.title;
         await notifyUserBrainEvent(task.userId, `⏰ *Reminder*\n\n${message}`);
         result = "Reminder sent via Telegram";
@@ -80,10 +124,10 @@ async function executeBrainTask(userId: string, taskId: string): Promise<void> {
       case "CALENDAR":
       case "CUSTOM": {
         const instruction =
-          payloadText(task.payload, "instruction") ||
-          payloadText(task.payload, "draft") ||
+          payloadString(task.payload, "instruction") ||
+          payloadString(task.payload, "draft") ||
           task.title;
-        const platform = payloadText(task.payload, "platform");
+        const platform = payloadString(task.payload, "platform");
         const userMessage = [
           `Execute scheduled brain task: ${task.title}`,
           `Type: ${task.type}`,
@@ -114,6 +158,14 @@ async function executeBrainTask(userId: string, taskId: string): Promise<void> {
       completedAt: new Date(),
       result,
     });
+
+    const payloadObj =
+      task.payload && typeof task.payload === "object"
+        ? (task.payload as Record<string, unknown>)
+        : null;
+    if (payloadObj?.recurrenceCron && (task.type === "CUSTOM" || task.type === "CALENDAR")) {
+      await rescheduleBlueprintTask(task.userId, task.agentId, payloadObj);
+    }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : "Task execution failed";
     await updateBrainTask(userId, taskId, {

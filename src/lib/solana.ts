@@ -5,6 +5,8 @@ const PUBLIC_RPC_FALLBACKS = [
   "https://solana-rpc.publicnode.com",
 ] as const;
 
+export const DEFAULT_SOLANA_RPC = PUBLIC_RPC_FALLBACKS[0];
+
 export interface SolanaRpcRequest {
   url: string;
   headers: Record<string, string>;
@@ -14,23 +16,32 @@ export interface SolanaRpcRequest {
 export interface SolanaRpcUserSettings {
   solanaDefaultRpc?: string | null;
   solanaRpcApiKey?: string | null;
+  fallbackRpcUrls?: string[] | null;
+}
+
+export function resolveSolanaPrimaryRpc(user?: SolanaRpcUserSettings | null): string {
+  return (
+    user?.solanaDefaultRpc?.trim() ||
+    process.env.SOLANA_RPC_URL?.trim() ||
+    DEFAULT_SOLANA_RPC
+  );
 }
 
 export function getSolanaRpcOptions(user?: SolanaRpcUserSettings | null): {
   rpcUrl?: string;
   apiKey?: string;
+  fallbackRpcUrls?: string[];
 } {
-  const rpcUrl =
-    user?.solanaDefaultRpc?.trim() ||
-    process.env.SOLANA_RPC_URL?.trim() ||
-    undefined;
+  const rpcUrl = resolveSolanaPrimaryRpc(user);
 
   const apiKey =
     (user?.solanaRpcApiKey ? decryptSafe(user.solanaRpcApiKey) : undefined) ||
     process.env.SOLANA_RPC_API_KEY?.trim() ||
     undefined;
 
-  return { rpcUrl, apiKey };
+  const fallbackRpcUrls = (user?.fallbackRpcUrls ?? []).map((u) => u.trim()).filter(Boolean);
+
+  return { rpcUrl, apiKey, fallbackRpcUrls };
 }
 
 function urlHasEmbeddedKey(url: string): boolean {
@@ -85,13 +96,15 @@ function maskRpcUrl(url: string): string {
 export function getSolanaRpcRequests(options?: {
   rpcUrl?: string;
   apiKey?: string;
+  fallbackRpcUrls?: string[];
 }): SolanaRpcRequest[] {
   const primaryUrl =
     options?.rpcUrl?.trim() ||
     process.env.SOLANA_RPC_URL?.trim() ||
-    PUBLIC_RPC_FALLBACKS[0];
+    DEFAULT_SOLANA_RPC;
 
   const apiKey = options?.apiKey?.trim() || process.env.SOLANA_RPC_API_KEY?.trim();
+  const userFallbacks = (options?.fallbackRpcUrls ?? []).map((u) => u.trim()).filter(Boolean);
   const seen = new Set<string>();
   const requests: SolanaRpcRequest[] = [];
 
@@ -102,10 +115,21 @@ export function getSolanaRpcRequests(options?: {
     requests.push(built);
   };
 
-  add(primaryUrl, apiKey, "primary");
+  // 1) Primary RPC — API key applied when set (Helius, QuickNode, etc.)
+  add(primaryUrl, apiKey, apiKey ? "primary (with API key)" : "primary");
+
+  // 2) User-configured fallback RPCs (same API key when applicable)
+  userFallbacks.forEach((url, i) => {
+    if (url === primaryUrl) return;
+    add(url, apiKey, `fallback-${i + 1}`);
+  });
+
+  // 3) Server env RPC if different
   if (process.env.SOLANA_RPC_URL && process.env.SOLANA_RPC_URL !== primaryUrl) {
     add(process.env.SOLANA_RPC_URL, process.env.SOLANA_RPC_API_KEY, "env");
   }
+
+  // 4) Built-in public endpoints (no API key)
   for (const fallback of PUBLIC_RPC_FALLBACKS) {
     add(fallback, undefined, "public");
   }
@@ -156,7 +180,7 @@ async function solanaRpcOnce<T>(
 export async function solanaRpc<T>(
   method: string,
   params: unknown[],
-  options?: { rpcUrl?: string; apiKey?: string }
+  options?: { rpcUrl?: string; apiKey?: string; fallbackRpcUrls?: string[] }
 ): Promise<T> {
   const requests = getSolanaRpcRequests(options);
   let lastError: Error | null = null;

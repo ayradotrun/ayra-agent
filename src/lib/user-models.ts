@@ -51,44 +51,56 @@ export async function resolveTelegramDefaultAgent(
   });
 }
 
-/** Sync chat model to User settings + Telegram default agent */
+/** Re-apply Settings → LLM models onto every agent (heals stale agent.model rows) */
+export async function healAllAgentModelsFromUser(userId: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { defaultModel: true, defaultImageModel: true },
+  });
+  if (!user) return;
+  await syncModelsToAllAgents(userId, {
+    model: user.defaultModel ?? undefined,
+    imageModel: user.defaultImageModel ?? undefined,
+  });
+}
+
+/** Push User Settings chat/image models onto every agent for this user */
+async function syncModelsToAllAgents(
+  userId: string,
+  patch: { model?: string; imageModel?: string }
+): Promise<void> {
+  const data: { model?: string; imageModel?: string } = {};
+  if (patch.model) data.model = normalizeChatModel(patch.model);
+  if (patch.imageModel) data.imageModel = patch.imageModel;
+  if (Object.keys(data).length === 0) return;
+  await prisma.agent.updateMany({ where: { userId }, data });
+}
+
+/** Sync chat model to User settings + all agents */
 export async function syncUserChatModel(
   userId: string,
   model: string,
-  telegramDefaultAgentId?: string | null
+  _telegramDefaultAgentId?: string | null
 ): Promise<void> {
+  const normalized = normalizeChatModel(model);
   await prisma.user.update({
     where: { id: userId },
-    data: { defaultModel: normalizeChatModel(model) },
+    data: { defaultModel: normalized },
   });
-
-  const agent = await resolveTelegramDefaultAgent(userId, telegramDefaultAgentId);
-  if (agent) {
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: { model: normalizeChatModel(model) },
-    });
-  }
+  await syncModelsToAllAgents(userId, { model: normalized });
 }
 
-/** Sync image model to User settings + Telegram default agent */
+/** Sync image model to User settings + all agents */
 export async function syncUserImageModel(
   userId: string,
   model: string,
-  telegramDefaultAgentId?: string | null
+  _telegramDefaultAgentId?: string | null
 ): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: { defaultImageModel: model },
   });
-
-  const agent = await resolveTelegramDefaultAgent(userId, telegramDefaultAgentId);
-  if (agent) {
-    await prisma.agent.update({
-      where: { id: agent.id },
-      data: { imageModel: model },
-    });
-  }
+  await syncModelsToAllAgents(userId, { imageModel: model });
 }
 
 /** User Settings (Dashboard/Telegram) take priority; legacy paid defaults are upgraded to free */
@@ -108,41 +120,40 @@ export function resolveImageModel(
   );
 }
 
-/** Heal desync: apply User model defaults onto the Telegram default agent before a run */
+/** Heal desync: apply User model defaults onto the agent before a run */
 export async function ensureAgentModelsMatchUser(
   userId: string,
   agentId: string,
-  telegramDefaultAgentId?: string | null
+  _telegramDefaultAgentId?: string | null
 ): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       defaultModel: true,
       defaultImageModel: true,
-      telegramDefaultAgentId: true,
     },
   });
   if (!user) return;
 
-  const defaultAgent = await resolveTelegramDefaultAgent(
-    userId,
-    telegramDefaultAgentId ?? user.telegramDefaultAgentId
-  );
-  if (!defaultAgent || defaultAgent.id !== agentId) return;
+  const agent = await prisma.agent.findFirst({
+    where: { id: agentId, userId },
+    select: { id: true, model: true, imageModel: true, template: true },
+  });
+  if (!agent) return;
 
+  const chatModel = normalizeChatModel(user.defaultModel || agent.model);
   const data: { model?: string; imageModel?: string } = {};
-  const chatModel = normalizeChatModel(user.defaultModel || defaultAgent.model);
 
-  if (user.defaultModel !== chatModel) {
+  if (user.defaultModel && user.defaultModel !== chatModel) {
     await prisma.user.update({
       where: { id: userId },
       data: { defaultModel: chatModel },
     });
   }
-  if (defaultAgent.model !== chatModel) {
+  if (agent.model !== chatModel) {
     data.model = chatModel;
   }
-  if (user.defaultImageModel && defaultAgent.imageModel !== user.defaultImageModel) {
+  if (user.defaultImageModel && agent.imageModel !== user.defaultImageModel) {
     data.imageModel = user.defaultImageModel;
   }
 

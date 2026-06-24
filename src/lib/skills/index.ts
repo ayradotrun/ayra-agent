@@ -51,6 +51,9 @@ import { solPriceChecker } from "./sol-price-checker";
 import { PROFESSIONAL_SKILLS } from "./professional-skills";
 import { tokenQuickLookup, trendingTokens } from "./token-quick-lookup";
 import { AYRA_ALERT_SKILLS } from "./ayra-alerts";
+import { AYRA_RESEARCH_SKILLS } from "./ayra-research-skills";
+import { HERMES_RESEARCH_SKILLS } from "./hermes-research-skills";
+import { HERMES_GITHUB_SKILLS } from "./hermes-github-skills";
 import { ALL_SKILL_DEFINITIONS, SKILL_CATEGORIES } from "./catalog";
 
 export { ALL_SKILL_DEFINITIONS, SKILL_CATEGORIES };
@@ -122,6 +125,9 @@ export const WORKING_SKILLS: SkillDefinition[] = [
   tokenQuickLookup,
   trendingTokens,
   ...AYRA_ALERT_SKILLS,
+  ...AYRA_RESEARCH_SKILLS,
+  ...HERMES_RESEARCH_SKILLS,
+  ...HERMES_GITHUB_SKILLS,
 ];
 
 export const SKILL_REGISTRY = new Map<string, SkillDefinition>(

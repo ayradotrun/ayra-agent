@@ -29,6 +29,17 @@
 
 > **Brand palette:** forest green `#2D5A27` · leaf `#5A8F4E` · mint `#A8D08D` · cream `#F5F9F2`
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=ayradotrun/ayra-agent&type=Date)](https://star-history.com/#ayradotrun/ayra-agent&Date)
+
+Track how this repo grows on GitHub:
+
+- **Interactive chart:** [star-history.com/#ayradotrun/ayra-agent](https://star-history.com/#ayradotrun/ayra-agent&Date)
+- **Compare with Hermes Agent:** [star-history.com comparison](https://star-history.com/#NousResearch/hermes-agent&ayradotrun/ayra-agent&Date)
+
+If the chart does not load in a preview, open the link above or paste `ayradotrun/ayra-agent` at [star-history.com](https://www.star-history.com/).
+
 ## Highlights
 
 | Area | What you get |
@@ -40,25 +51,46 @@
 | **Brain** | Scheduled tweets, reminders, content calendars — AYRA Brain worker |
 | **Privacy** | Required private Postgres (BYOD) for chat + brain |
 | **Ops** | Run logs, token usage, Telegram notifications, cron worker |
+| **Auth** | Email verification on sign up, username login, password reset via email |
+| **Admin** | Platform stats & user directory (`/dashboard/admin`, `ADMIN_EMAILS`) |
+
+## Authentication
+
+| Feature | Detail |
+|---------|--------|
+| **Sign up** | `/register` — username (permanent), email, password + confirm, 6-digit email code |
+| **Sign in** | `/login` — username **or** email + password |
+| **Forgot password** | `/forgot-password` — reset code via email |
+| **Username** | 3–30 chars, `a-z`, `0-9`, `_` — cannot be changed after registration |
+| **Email (dev)** | Without SMTP, verification codes appear in server logs as `[email:dev]` |
+| **Email (prod)** | Configure SMTP in `.env` (Resend recommended — see [.env.example](./.env.example)) |
+| **Existing users** | After schema update, run `npm run auth:backfill` to assign usernames + mark emails verified |
+| **Admin** | Set `ADMIN_EMAILS=you@domain.com` in `.env`, re-login — menu **Admin** in sidebar |
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Platform Postgres (DATABASE_URL in .env)                   │
-│  Users · Agents · Auth · Runs · Settings (encrypted keys)   │
+│  Users · Agents · Auth · Runs · Settings (encrypted keys)     │
 └───────────────────────────┬─────────────────────────────────┘
                             │
          ┌──────────────────┼──────────────────┐
          ▼                  ▼                  ▼
    Dashboard chat      Telegram bot       Agent worker
          │                  │                  │
+         │                  │         ┌────────┴────────┐
+         │                  │         ▼                 ▼
+         │                  │   Python runtime    Brain cron
+         │                  │   (port 8765)       scheduler
          ▼                  ▼                  ▼
 ┌──────────────────────────────────────────────────────────────┐
 │ User's private Postgres (required — Settings on first login) │
 │ chat_session · chat_message · brain_task                       │
 └──────────────────────────────────────────────────────────────┘
 ```
+
+**Python runtime** (`python/ayra/`) is required: worker auto-starts it for cron blueprints and Hermes-compatible scheduling. **Telegram** uses `python-telegram-bot` by default (`AYRA_TELEGRAM_PYTHON=true`); agent logic stays in Node. See [python/README.md](./python/README.md).
 
 **Platform operators** sync schema with Prisma (`db push`). **End users** paste a Postgres URL in Settings — tables are created automatically on save.
 
@@ -71,6 +103,7 @@
 | Requirement | Notes |
 |-------------|--------|
 | **Node.js** | 18.18+ (20 LTS recommended) |
+| **Python** | 3.9+ — required runtime sidecar for cron/automation (`npm run python:setup`) |
 | **PostgreSQL** | Platform DB — [Supabase](https://supabase.com) or [Neon](https://neon.tech) |
 | **LLM API key** | [OpenRouter](https://openrouter.ai/keys) recommended (one key, many models) |
 
@@ -94,6 +127,16 @@ Edit `.env` — minimum required:
 | `NEXTAUTH_URL` | App URL (`http://localhost:3000` in dev) |
 | `ENCRYPTION_KEY` | 32+ char key for encrypting user secrets at rest |
 
+**Email (production sign up / password reset):**
+
+| Variable | Purpose |
+|----------|---------|
+| `SMTP_HOST` | e.g. `smtp.resend.com` |
+| `SMTP_PORT` | `587` or `465` |
+| `SMTP_USER` | Resend: literal `resend` |
+| `SMTP_PASS` | Resend API key (`re_...`) or SMTP password |
+| `SMTP_FROM` | Verified sender, e.g. `AYRA Agent <support@ayra.run>` |
+
 Optional but recommended for chat:
 
 | Variable | Purpose |
@@ -113,7 +156,7 @@ npm run setup
 | Command | What it does |
 |---------|----------------|
 | `npm install` | Installs dependencies + runs `prisma generate` (via `postinstall`) |
-| `npm run setup` | Generates Prisma client, syncs platform schema, seeds skill catalog |
+| `npm run setup` | Generates Prisma client, syncs platform schema, seeds skills, installs Python runtime |
 
 Manual equivalent:
 
@@ -139,7 +182,9 @@ npm run dev
 npm run worker
 ```
 
-Open [http://localhost:3000](http://localhost:3000), register, create an agent, and open **Dashboard → Chat**.
+Open [http://localhost:3000](http://localhost:3000), **Sign up** at `/register`, create an agent, and open **Dashboard → Chat**.
+
+> **Existing deployments:** after pulling auth updates, stop dev/worker, run `npx prisma db push`, then `npm run auth:backfill` for legacy accounts.
 
 ### 4. First login checklist
 
@@ -158,6 +203,53 @@ npm run start
 - Run **only one worker** per deployment to avoid duplicate Telegram replies
 - Set `TELEGRAM_POLLING=false` and configure webhook URL in production
 - Use HTTPS and correct `NEXTAUTH_URL`
+
+### Docker
+
+All-in-one (web + worker + Python runtime in one container):
+
+```bash
+cp .env.example .env   # fill OPENROUTER, NEXTAUTH_SECRET, ENCRYPTION_KEY, etc.
+docker compose up --build
+```
+
+Or split services (Postgres + app + dedicated worker):
+
+```bash
+docker compose up --build db app worker
+```
+
+| Path | Role |
+|------|------|
+| `Dockerfile` | Node 20 + Python 3, builds Next.js and installs `python/` package |
+| `docker-compose.yml` | Postgres 16, `app` (all-in-one), optional `worker` service |
+| `docker/ayra-start.sh` | Starts Python runtime, worker, then `npm run start` |
+| `docker/ayra-web.sh` | Web only (Python sidecar + Next.js) |
+| `docker/ayra-worker.sh` | Background worker only |
+
+Set `AYRA_REPO_ROOT=/app` and `AYRA_SKILLS_DIR=/app/skills` in Docker (compose defaults these).
+
+Legacy Hermes s6 scripts under `docker/s6-rc.d/` are reference-only; use the `ayra-*.sh` entrypoints above.
+
+### Python modules (skills, agent, cron)
+
+Repo-root folders are first-class AYRA sources:
+
+| Folder | Fungsi | Env terkait |
+|--------|--------|-------------|
+| `skills/` | Playbook SKILL.md → agent prompt | `AYRA_SKILLS_DIR` (opsional) |
+| `agent/` | Utilitas runtime (retry, error classify, tool guard) | `MAX_TOOL_CALLS_PER_RUN`, `MAX_LLM_FALLBACK_ATTEMPTS` |
+| `cron/` | Blueprint otomatisasi | `AYRA_PYTHON_*` (worker auto-start) |
+| `docker/` | Deploy container | `AYRA_REPO_ROOT=/app` di Docker |
+
+Detail folder `agent/`: [agent/README.md](./agent/README.md)
+
+After editing repo-root `agent/`, `cron/`, or `skills/`:
+
+```bash
+npm run sync:python
+npm run python:setup
+```
 
 ---
 
@@ -272,7 +364,9 @@ Detailed user-facing steps are in the Settings UI and in [docs/private-database.
 | Control | Detail |
 |---------|--------|
 | **Encryption at rest** | User API keys, Telegram token, X credentials, RPC keys, private DB URLs — AES-256-GCM via `ENCRYPTION_KEY` |
-| **Auth** | NextAuth credentials; session scoped to user |
+| **Auth** | NextAuth credentials; bcrypt passwords; email verification on sign up; session scoped to user |
+| **Email codes** | 6-digit OTP for sign up and password reset; hashed in DB; 15-minute expiry; rate limited |
+| **Admin** | `/dashboard/admin` restricted to emails in `ADMIN_EMAILS` |
 | **Isolation** | APIs filter by `userId`; private DB holds only that user's chat/brain rows |
 | **Rate limits** | Chat and API routes throttled per user/IP |
 | **Agent bounds** | Run timeout, max tool calls, no default shell access |
@@ -326,6 +420,8 @@ See existing skills in `src/lib/skills/` for patterns (Zod input schema, `ctx.lo
 | `npm run prisma:generate` | Regenerate Prisma client |
 | `npm run prisma:seed` | Seed skill catalog |
 | `npm run prisma:studio` | Database GUI |
+| `npm run auth:backfill` | Backfill `username` + `emailVerified` for legacy users |
+| `npm run auth:reset-password` | CLI password reset (dev/recovery) |
 | `npm run lint` | ESLint |
 
 `npm install` automatically runs `prisma generate` via `postinstall`.
@@ -338,6 +434,8 @@ Production checklist:
 
 - [ ] Strong `NEXTAUTH_SECRET` and `ENCRYPTION_KEY`
 - [ ] HTTPS and correct `NEXTAUTH_URL`
+- [ ] SMTP configured for sign-up verification and password reset (`SMTP_*`)
+- [ ] `ADMIN_EMAILS` set for platform operators (optional)
 - [ ] Supabase pooler on `DATABASE_URL`, direct on `DIRECT_DATABASE_URL`
 - [ ] `TELEGRAM_POLLING=false` + webhook URL in production
 - [ ] Single worker instance
@@ -351,19 +449,6 @@ Full variable list: [.env.example](./.env.example)
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md). Security reports: [SECURITY.md](./SECURITY.md) (private disclosure only).
-
----
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=ayradotrun/ayra-agent&type=Date)](https://star-history.com/#ayradotrun/ayra-agent&Date)
-
-Track how this repo grows on GitHub:
-
-- **Interactive chart:** [star-history.com/#ayradotrun/ayra-agent](https://star-history.com/#ayradotrun/ayra-agent&Date)
-- **Compare with Hermes Agent:** [star-history.com comparison](https://star-history.com/#NousResearch/hermes-agent&ayradotrun/ayra-agent&Date)
-
-If the chart does not load in a preview, open the link above or paste `ayradotrun/ayra-agent` at [star-history.com](https://www.star-history.com/).
 
 ---
 

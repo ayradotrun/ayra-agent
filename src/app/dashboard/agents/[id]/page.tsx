@@ -2,17 +2,24 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import {
-  Play,
-  Pause,
   Clock,
   ArrowLeft,
-  Loader2,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
+import {
+  AgentRunControl,
+  agentDisplayStatusLabel,
+  agentDisplayStatusVariant,
+} from "@/components/agents/agent-run-control";
+import type { AgentDisplayStatus } from "@/lib/agent/display-status";
 import { RunsList } from "@/components/agents/runs-list";
 import { LogsViewer } from "@/components/logs/logs-viewer";
+import { BlueprintPicker } from "@/components/agents/blueprint-picker";
 import { SkillPicker } from "@/components/skills/skill-picker";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,8 +34,12 @@ interface Agent {
   id: string;
   name: string;
   description?: string | null;
+  template?: string;
   status: string;
   model: string;
+  effectiveChatModel?: string;
+  effectiveImageModel?: string;
+  imageModel?: string | null;
   schedule: string;
   systemPrompt: string;
   memoryEnabled: boolean;
@@ -51,7 +62,14 @@ export default function AgentDetailPage() {
   const [savingSkills, setSavingSkills] = useState(false);
   const [logs, setLogs] = useState<Array<Parameters<typeof LogsViewer>[0]["logs"][0]>>([]);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [displayStatus, setDisplayStatus] = useState<AgentDisplayStatus>("normal");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({
+    name: "",
+    description: "",
+    systemPrompt: "",
+  });
+  const [profileDirty, setProfileDirty] = useState(false);
 
   const loadAgent = useCallback(async () => {
     const res = await fetch(`/api/agents/${id}`);
@@ -59,6 +77,12 @@ export default function AgentDetailPage() {
       const data = await res.json();
       setAgent(data);
       setSkillSlugs(data.skills.map((s: Agent["skills"][0]) => s.skill.slug));
+      setProfileDraft({
+        name: data.name ?? "",
+        description: data.description ?? "",
+        systemPrompt: data.systemPrompt ?? "",
+      });
+      setProfileDirty(false);
       setSkillsDirty(false);
     }
     setLoading(false);
@@ -80,22 +104,9 @@ export default function AgentDetailPage() {
     loadLogs();
   }, [loadAgent, loadLogs]);
 
-  async function handleRun() {
-    setRunning(true);
-    await fetch(`/api/agents/${id}/run`, { method: "POST" });
+  async function refreshAgent() {
     await loadAgent();
     await loadLogs();
-    setRunning(false);
-  }
-
-  async function handleToggle() {
-    if (!agent) return;
-    await fetch(`/api/agents/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: agent.status === "ACTIVE" ? "PAUSED" : "ACTIVE" }),
-    });
-    loadAgent();
   }
 
   async function handleToggleAutoPostX(enabled: boolean) {
@@ -105,6 +116,17 @@ export default function AgentDetailPage() {
       body: JSON.stringify({ autoPostX: enabled }),
     });
     loadAgent();
+  }
+
+  async function handleSaveProfile() {
+    setSavingProfile(true);
+    const res = await fetch(`/api/agents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(profileDraft),
+    });
+    setSavingProfile(false);
+    if (res.ok) await loadAgent();
   }
 
   async function handleSaveSkills() {
@@ -142,7 +164,8 @@ export default function AgentDetailPage() {
 
   const latestRun = agent.runs[0];
   const nextRun = getNextRunTime(agent.schedule as Parameters<typeof getNextRunTime>[0]);
-  const statusVariant = agent.status === "ACTIVE" ? "success" : agent.status === "PAUSED" ? "warning" : "destructive";
+  const statusVariant = agentDisplayStatusVariant(displayStatus);
+  const isCustom = (agent.template ?? "custom") === "custom";
 
   return (
     <div className="space-y-6">
@@ -151,16 +174,13 @@ export default function AgentDetailPage() {
         title={agent.name}
         description={agent.description || "No description"}
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-9" onClick={handleToggle}>
-              {agent.status === "ACTIVE" ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
-              {agent.status === "ACTIVE" ? "Pause" : "Resume"}
-            </Button>
-            <Button className="h-9" onClick={handleRun} disabled={running || agent.status !== "ACTIVE"}>
-              {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
-              {running ? "Running..." : "Run now"}
-            </Button>
-          </div>
+          <AgentRunControl
+            agentId={id}
+            status={agent.status}
+            latestRun={latestRun}
+            onUpdated={refreshAgent}
+            onDisplayStatusChange={setDisplayStatus}
+          />
         }
       />
 
@@ -168,7 +188,14 @@ export default function AgentDetailPage() {
         <Link href="/dashboard/agents" className="inline-flex items-center text-[12px] text-muted-foreground hover:text-foreground">
           <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back to agents
         </Link>
-        <Badge variant={statusVariant} className="capitalize">{agent.status.toLowerCase()}</Badge>
+        <Badge variant={statusVariant} className="capitalize">
+          {agentDisplayStatusLabel(displayStatus)}
+        </Badge>
+        {!isCustom && (
+          <Badge variant="outline" className="text-[11px]">
+            Template
+          </Badge>
+        )}
       </div>
 
       <Tabs defaultValue="overview">
@@ -176,6 +203,7 @@ export default function AgentDetailPage() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="runs">Runs</TabsTrigger>
             <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="automations">Automations</TabsTrigger>
             <TabsTrigger value="skills">Skills</TabsTrigger>
             <TabsTrigger value="memory">Memory</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
@@ -186,7 +214,9 @@ export default function AgentDetailPage() {
               <Card>
                 <CardContent className="p-4">
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <p className="mt-1 font-medium capitalize">{agent.status.toLowerCase()}</p>
+                  <p className="mt-1 font-medium capitalize">
+                    {agentDisplayStatusLabel(displayStatus)}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -250,13 +280,18 @@ export default function AgentDetailPage() {
             <LogsViewer logs={logs} />
           </TabsContent>
 
+          <TabsContent value="automations" className="space-y-4">
+            <BlueprintPicker agentId={id} />
+          </TabsContent>
+
           <TabsContent value="skills" className="space-y-4">
             <SkillPicker
               skills={allSkills}
               selectedSlugs={skillSlugs}
               onChange={handleSkillChange}
+              readOnly={!isCustom}
             />
-            {skillsDirty && (
+            {isCustom && skillsDirty && (
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
@@ -304,9 +339,107 @@ export default function AgentDetailPage() {
           <TabsContent value="settings">
             <Card>
               <CardContent className="space-y-4 p-6">
+                {!isCustom && (
+                  <p className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+                    This is a fixed office template. To customize name, prompt, or skills, create a{" "}
+                    <Link href="/dashboard/agents/new" className="text-primary underline-offset-2 hover:underline">
+                      custom agent (New Hire)
+                    </Link>
+                    .
+                  </p>
+                )}
+
+                {isCustom ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="agent-name">Name</Label>
+                      <Input
+                        id="agent-name"
+                        value={profileDraft.name}
+                        onChange={(e) => {
+                          setProfileDraft((p) => ({ ...p, name: e.target.value }));
+                          setProfileDirty(true);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="agent-desc">Description</Label>
+                      <Input
+                        id="agent-desc"
+                        value={profileDraft.description}
+                        onChange={(e) => {
+                          setProfileDraft((p) => ({ ...p, description: e.target.value }));
+                          setProfileDirty(true);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="agent-prompt">System prompt</Label>
+                      <Textarea
+                        id="agent-prompt"
+                        value={profileDraft.systemPrompt}
+                        onChange={(e) => {
+                          setProfileDraft((p) => ({ ...p, systemPrompt: e.target.value }));
+                          setProfileDirty(true);
+                        }}
+                        rows={8}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Operates under AYRA identity — office rules are enforced automatically.
+                      </p>
+                    </div>
+                    {profileDirty && (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setProfileDraft({
+                              name: agent.name,
+                              description: agent.description ?? "",
+                              systemPrompt: agent.systemPrompt,
+                            });
+                            setProfileDirty(false);
+                          }}
+                        >
+                          Reset
+                        </Button>
+                        <Button onClick={handleSaveProfile} disabled={savingProfile}>
+                          {savingProfile ? "Saving..." : "Save profile"}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Name</p>
+                      <p className="font-medium">{agent.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">System prompt</p>
+                      <pre className="max-h-48 overflow-y-auto rounded-lg bg-secondary/50 p-4 text-xs whitespace-pre-wrap">
+                        {agent.systemPrompt}
+                      </pre>
+                    </div>
+                  </>
+                )}
+
                 <div>
-                  <p className="text-xs text-muted-foreground">Model</p>
-                  <p className="font-medium">{agent.model}</p>
+                  <p className="text-xs text-muted-foreground">Chat & image models</p>
+                  <p className="mt-1 font-medium font-mono text-sm">
+                    {agent.effectiveChatModel ?? agent.model}
+                  </p>
+                  {(agent.effectiveImageModel ?? agent.imageModel) && (
+                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">
+                      Image: {agent.effectiveImageModel ?? agent.imageModel}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Managed in{" "}
+                    <Link href="/dashboard/settings" className="text-primary underline-offset-2 hover:underline">
+                      Settings → LLM
+                    </Link>
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Memory</p>
@@ -324,10 +457,6 @@ export default function AgentDetailPage() {
                     </p>
                   </div>
                   <Switch checked={agent.autoPostX} onCheckedChange={handleToggleAutoPostX} />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-2">System prompt</p>
-                  <pre className="rounded-lg bg-secondary/50 p-4 text-xs whitespace-pre-wrap">{agent.systemPrompt}</pre>
                 </div>
                 <Button
                   variant="destructive"
