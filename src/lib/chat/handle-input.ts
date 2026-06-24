@@ -136,11 +136,7 @@ export async function handleChatInput(
       };
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { telegramDefaultAgentId: true },
-    });
-    await ensureAgentModelsMatchUser(userId, agent.id, user?.telegramDefaultAgentId);
+    await ensureAgentModelsMatchUser(userId, agent.id);
 
     if (skillCmd.def.skillSlug === "token-quality-report") {
       const result = await runQualityReportWithAgent(
@@ -285,7 +281,7 @@ export async function handleChatInput(
       };
     }
 
-    await syncUserChatModel(userId, match.value, user?.telegramDefaultAgentId);
+    await syncUserChatModel(userId, match.value);
     const content = telegram
       ? `✅ Chat model → *${match.label}*\n\`${match.value}\`\n_Synced to Dashboard Settings_`
       : `✅ Chat model → ${match.label}\n${match.value}\nSynced to Dashboard Settings`;
@@ -319,7 +315,7 @@ export async function handleChatInput(
     }
 
     const modelId = normalizeModelId(query);
-    await syncUserChatModel(userId, modelId, user?.telegramDefaultAgentId);
+    await syncUserChatModel(userId, modelId);
     const content = telegram
       ? `✅ Custom chat model → \`${modelId}\`\n_Synced to Dashboard Settings_`
       : `✅ Custom chat model → ${modelId}\nSynced to Dashboard Settings`;
@@ -350,7 +346,7 @@ export async function handleChatInput(
       };
     }
 
-    await syncUserImageModel(userId, match.value, user?.telegramDefaultAgentId);
+    await syncUserImageModel(userId, match.value);
     const content = telegram
       ? `✅ Image model → *${match.label}*\n\`${match.value}\`\n_Synced to Dashboard Settings_`
       : `✅ Image model → ${match.label}\n${match.value}\nSynced to Dashboard Settings`;
@@ -384,7 +380,7 @@ export async function handleChatInput(
     }
 
     const modelId = normalizeModelId(query);
-    await syncUserImageModel(userId, modelId, user?.telegramDefaultAgentId);
+    await syncUserImageModel(userId, modelId);
     const content = telegram
       ? `✅ Custom image model → \`${modelId}\`\n_Synced to Dashboard Settings_`
       : `✅ Custom image model → ${modelId}\nSynced to Dashboard Settings`;
@@ -403,7 +399,7 @@ export async function handleChatInput(
       return { handled: true, content: "No active agent. Create one in the dashboard first." };
     }
 
-    await ensureAgentModelsMatchUser(userId, agent.id, user?.telegramDefaultAgentId);
+    await ensureAgentModelsMatchUser(userId, agent.id);
     const result = await generateImageForAgent(userId, agent.id, prompt, runSource);
     if (!result.ok || !result.imageUrls?.length) {
       return { handled: true, content: `❌ ${result.message}` };
@@ -480,7 +476,7 @@ export async function handleChatInput(
     };
   }
 
-  await ensureAgentModelsMatchUser(userId, agent.id, user?.telegramDefaultAgentId);
+  await ensureAgentModelsMatchUser(userId, agent.id);
 
   const fast = await tryTelegramFastPath(userId, agent.id, trimmed);
   if (fast.handled && fast.message) {

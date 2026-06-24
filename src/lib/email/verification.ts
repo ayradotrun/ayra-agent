@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export type EmailCodePurpose = "signup" | "reset_password";
@@ -36,7 +37,7 @@ export async function createEmailVerificationCode(
       email: normalizedEmail,
       purpose,
       codeHash,
-      payload: payload ?? undefined,
+      payload: payload ? (payload as unknown as Prisma.InputJsonValue) : undefined,
       expiresAt,
     },
   });
@@ -81,8 +82,8 @@ export async function verifyEmailCode(
   await prisma.emailVerificationCode.delete({ where: { id: record.id } });
 
   const payload =
-    record.payload && typeof record.payload === "object"
-      ? (record.payload as SignupPayload)
+    record.payload && typeof record.payload === "object" && !Array.isArray(record.payload)
+      ? (record.payload as unknown as SignupPayload)
       : null;
 
   return { ok: true, payload };

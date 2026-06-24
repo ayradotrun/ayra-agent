@@ -35,7 +35,7 @@ export function blueprintSlashCommand(
 ): string {
   const parts = [`/blueprint ${blueprint.key}`];
   for (const s of blueprint.slots) {
-    let val = values?.[s.name] ?? s.default;
+    const val = values?.[s.name] ?? s.default;
     if ((val === null || val === undefined || val === "") && s.optional) continue;
     let sval = String(val ?? "");
     if (s.type === "text" || sval.includes(" ")) {
@@ -94,7 +94,7 @@ export function blueprintCatalogEntry(blueprint: AutomationBlueprint) {
 }
 
 function resolveSchedule(blueprint: AutomationBlueprint, values: Record<string, unknown>): string {
-  let sched = blueprint.scheduleTemplate;
+  const sched = blueprint.scheduleTemplate;
 
   if (values.schedule) return String(values.schedule);
 

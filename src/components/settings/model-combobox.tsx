@@ -136,6 +136,7 @@ export function ModelCombobox({
               <button
                 type="button"
                 role="option"
+                aria-selected={false}
                 className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-xs hover:bg-muted/30"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => selectModel(trimmedQuery)}

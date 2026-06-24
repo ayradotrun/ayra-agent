@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { requireAuth, forbiddenResponse, AuthError } from "@/lib/auth-helpers";
+import { requireAuth, forbiddenResponse } from "@/lib/auth-helpers";
 
 export class AdminError extends Error {
   constructor(message = "Forbidden") {

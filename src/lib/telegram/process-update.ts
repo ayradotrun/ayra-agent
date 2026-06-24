@@ -145,7 +145,7 @@ export async function processTelegramUpdate(
     return item;
   };
 
-  let telegramSession: Awaited<ReturnType<typeof getOrCreateTelegramSession>> | null =
+  const telegramSession: Awaited<ReturnType<typeof getOrCreateTelegramSession>> | null =
     await withTimeoutFallback(
       getOrCreateTelegramSession(userId, agentId),
       SESSION_TIMEOUT_MS,
@@ -185,7 +185,7 @@ export async function processTelegramUpdate(
       return { ok: true, chatId, deliveries };
     }
 
-    await ensureAgentModelsMatchUser(userId, agentId, user.telegramDefaultAgentId);
+    await ensureAgentModelsMatchUser(userId, agentId);
 
     const agent = await prisma.agent.findUnique({
       where: { id: agentId },

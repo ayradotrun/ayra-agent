@@ -32,11 +32,7 @@ function lower(text: string): string {
   return text.toLowerCase();
 }
 
-export function classifyApiError(
-  status: number,
-  body: string,
-  options?: { model?: string }
-): ClassifiedError {
+export function classifyApiError(status: number, body: string): ClassifiedError {
   const msg = body.slice(0, 500);
   const l = lower(msg);
 

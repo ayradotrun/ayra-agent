@@ -1,6 +1,5 @@
 import {
   suggestFreeModelVariant,
-  getFreeModelFallbackChain,
   getChatModelFallbackChain,
   getImageModelFallbackChain,
   isFreeModel,
@@ -243,7 +242,7 @@ export async function callOpenRouter(params: {
     lastBody = result.body;
     lastModel = model;
 
-    const classified = classifyApiError(result.status, result.body, { model });
+    const classified = classifyApiError(result.status, result.body);
     const hasMoreModels = attempt < modelsToTry.length;
     const mayTryNextModel =
       hasMoreModels &&

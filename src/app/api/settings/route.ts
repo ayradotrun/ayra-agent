@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser, unauthorizedResponse } from "@/lib/auth-helpers";
-import { encryptSafe, decryptSafe } from "@/lib/encryption";
+import { decryptSafe } from "@/lib/encryption";
 import {
   generateWebhookSecret,
   registerTelegramWebhook,
@@ -379,10 +379,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (data.defaultModel) {
-      await syncUserChatModel(user.id, normalizeChatModel(data.defaultModel), updated.telegramDefaultAgentId);
+      await syncUserChatModel(user.id, normalizeChatModel(data.defaultModel));
     }
     if (data.defaultImageModel) {
-      await syncUserImageModel(user.id, data.defaultImageModel, updated.telegramDefaultAgentId);
+      await syncUserImageModel(user.id, data.defaultImageModel);
     }
 
     if (data.telegramDefaultAgentId !== undefined && !data.defaultModel && !data.defaultImageModel) {
@@ -391,10 +391,10 @@ export async function PATCH(request: NextRequest) {
         select: { defaultModel: true, defaultImageModel: true },
       });
       if (u?.defaultModel) {
-        await syncUserChatModel(user.id, u.defaultModel, updated.telegramDefaultAgentId);
+        await syncUserChatModel(user.id, u.defaultModel);
       }
       if (u?.defaultImageModel) {
-        await syncUserImageModel(user.id, u.defaultImageModel, updated.telegramDefaultAgentId);
+        await syncUserImageModel(user.id, u.defaultImageModel);
       }
     }
 

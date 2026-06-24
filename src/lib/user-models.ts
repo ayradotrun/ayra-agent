@@ -77,11 +77,7 @@ async function syncModelsToAllAgents(
 }
 
 /** Sync chat model to User settings + all agents */
-export async function syncUserChatModel(
-  userId: string,
-  model: string,
-  _telegramDefaultAgentId?: string | null
-): Promise<void> {
+export async function syncUserChatModel(userId: string, model: string): Promise<void> {
   const normalized = normalizeChatModel(model);
   await prisma.user.update({
     where: { id: userId },
@@ -91,11 +87,7 @@ export async function syncUserChatModel(
 }
 
 /** Sync image model to User settings + all agents */
-export async function syncUserImageModel(
-  userId: string,
-  model: string,
-  _telegramDefaultAgentId?: string | null
-): Promise<void> {
+export async function syncUserImageModel(userId: string, model: string): Promise<void> {
   await prisma.user.update({
     where: { id: userId },
     data: { defaultImageModel: model },
@@ -121,11 +113,7 @@ export function resolveImageModel(
 }
 
 /** Heal desync: apply User model defaults onto the agent before a run */
-export async function ensureAgentModelsMatchUser(
-  userId: string,
-  agentId: string,
-  _telegramDefaultAgentId?: string | null
-): Promise<void> {
+export async function ensureAgentModelsMatchUser(userId: string, agentId: string): Promise<void> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {

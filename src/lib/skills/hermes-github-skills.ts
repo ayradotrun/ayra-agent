@@ -44,7 +44,7 @@ export const githubIssueSearch: SkillDefinition = {
 
     const state = input.state ?? "open";
     const perPage = input.limit ?? 10;
-    let path = `/repos/${input.owner}/${input.repo}/issues?state=${state}&per_page=${perPage}`;
+    const path = `/repos/${input.owner}/${input.repo}/issues?state=${state}&per_page=${perPage}`;
 
     const items = (await githubFetch(path, token)) as Array<Record<string, unknown>>;
     let filtered = items.filter((i) => !i.pull_request);
