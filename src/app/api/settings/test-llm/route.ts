@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser, unauthorizedResponse } from "@/lib/auth-helpers";
 import { getDecryptedSecret } from "@/lib/secrets/secret-store";
-import { resolveLlmBaseUrl } from "@/lib/llm-config";
+import { buildCompletionTokenFields, resolveLlmBaseUrl } from "@/lib/llm-config";
 import { getLlmProviderPreset } from "@/lib/llm-providers";
 import { z } from "zod";
 
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       body: JSON.stringify({
         model: preset.exampleModels[0] || "gpt-4.1-mini",
         messages: [{ role: "user", content: "ping" }],
-        max_tokens: 1,
+        ...buildCompletionTokenFields(resolvedBase, 1),
       }),
       signal: AbortSignal.timeout(15_000),
     });

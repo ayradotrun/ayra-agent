@@ -133,7 +133,13 @@ function SettingsContent() {
     if (xStatus === "connected") {
       setMessage(`X connected as @${handle || "user"}`);
     } else if (xError) {
-      setMessage(`X login failed: ${xError}`);
+      const hints: Record<string, string> = {
+        access_denied: "You declined authorization on X.",
+        invalid_oauth_state: "OAuth session expired — click Connect with X again (don't open in multiple tabs).",
+      };
+      setMessage(
+        `X login failed: ${hints[xError] ?? xError}. Check callback URL in Settings matches developer.x.com exactly.`
+      );
     }
   }, [searchParams]);
 
@@ -657,6 +663,12 @@ function SettingsContent() {
                       Connect with X
                     </Button>
                   </Link>
+                  {settings.xOAuthCallbackUrl && (
+                    <p className="text-xs text-muted-foreground break-all">
+                      Register this callback at developer.x.com → User authentication → Callback URI:{" "}
+                      <strong className="text-foreground">{settings.xOAuthCallbackUrl}</strong>
+                    </p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-sm">

@@ -2,6 +2,7 @@ import {
   extractTickerFromMessage,
   isSolanaMint,
 } from "@/lib/agent/token-card";
+import { extractXUsername, isXAccountLookupMessage } from "@/lib/x/extract-username";
 import { runSkillFast, runTokenLookupFast } from "./skill-runner";
 import { QUALITY_MAX_PAIR_AGE_HOURS } from "@/lib/agent/meme-quality";
 
@@ -68,6 +69,19 @@ export async function tryTelegramFastPath(
 
   if (SOL_PRICE_PATTERN.test(trimmed)) {
     return runSkillFast(userId, agentId, "sol-price-checker", {}, "Could not fetch SOL price.");
+  }
+
+  if (isXAccountLookupMessage(trimmed)) {
+    const username = extractXUsername(trimmed);
+    if (username) {
+      return runSkillFast(
+        userId,
+        agentId,
+        "x-profile-lookup",
+        { username },
+        "Could not look up X profile."
+      );
+    }
   }
 
   const ticker = extractTickerFromMessage(trimmed);

@@ -4,7 +4,7 @@ import BetterSqlite3 from "better-sqlite3";
 import { prisma } from "@/lib/prisma";
 import { getUserBrainDatabaseUrl, listUsersWithBrainDatabase } from "@/lib/brain/brain-db-url";
 import {
-  ensureBrainPgSchema,
+  ensureBrainPgSchemaOnce,
   getBrainPgPool,
   pgCountBrainTasks,
   pgCreateBrainTask,
@@ -231,8 +231,8 @@ export async function migrateSqliteBrainToPostgres(
 
   if (rows.length === 0) return 0;
 
-  const pool = getBrainPgPool(userId, connectionString);
-  await ensureBrainPgSchema(pool);
+  const pool = await getBrainPgPool(userId, connectionString);
+  await ensureBrainPgSchemaOnce(userId, connectionString, pool);
   return pgImportBrainTasks(pool, rows.map(sqliteRowToRecord));
 }
 
@@ -397,8 +397,8 @@ function sqliteFindDueBrainTasks(
 export async function createBrainTask(input: CreateBrainTaskInput): Promise<BrainTaskRecord> {
   const dbUrl = await getUserBrainDatabaseUrl(input.userId);
   if (dbUrl) {
-    const pool = getBrainPgPool(input.userId, dbUrl);
-    await ensureBrainPgSchema(pool);
+    const pool = await getBrainPgPool(input.userId, dbUrl);
+    await ensureBrainPgSchemaOnce(input.userId, dbUrl, pool);
     return pgCreateBrainTask(pool, input);
   }
   return sqliteCreateBrainTask(input);
@@ -410,8 +410,8 @@ export async function getBrainTaskById(
 ): Promise<BrainTaskRecord | null> {
   const dbUrl = await getUserBrainDatabaseUrl(userId);
   if (dbUrl) {
-    const pool = getBrainPgPool(userId, dbUrl);
-    await ensureBrainPgSchema(pool);
+    const pool = await getBrainPgPool(userId, dbUrl);
+    await ensureBrainPgSchemaOnce(userId, dbUrl, pool);
     return pgGetBrainTaskById(pool, userId, taskId);
   }
   return sqliteGetBrainTaskById(userId, taskId);
@@ -423,8 +423,8 @@ export async function listBrainTasks(
 ): Promise<BrainTaskRecord[]> {
   const dbUrl = await getUserBrainDatabaseUrl(userId);
   if (dbUrl) {
-    const pool = getBrainPgPool(userId, dbUrl);
-    await ensureBrainPgSchema(pool);
+    const pool = await getBrainPgPool(userId, dbUrl);
+    await ensureBrainPgSchemaOnce(userId, dbUrl, pool);
     return pgListBrainTasks(pool, userId, filter);
   }
   return sqliteListBrainTasks(userId, filter);
@@ -436,8 +436,8 @@ export async function countBrainTasks(
 ): Promise<number> {
   const dbUrl = await getUserBrainDatabaseUrl(userId);
   if (dbUrl) {
-    const pool = getBrainPgPool(userId, dbUrl);
-    await ensureBrainPgSchema(pool);
+    const pool = await getBrainPgPool(userId, dbUrl);
+    await ensureBrainPgSchemaOnce(userId, dbUrl, pool);
     return pgCountBrainTasks(pool, userId, filter);
   }
   return sqliteCountBrainTasks(userId, filter);
@@ -450,8 +450,8 @@ export async function updateBrainTask(
 ): Promise<BrainTaskRecord | null> {
   const dbUrl = await getUserBrainDatabaseUrl(userId);
   if (dbUrl) {
-    const pool = getBrainPgPool(userId, dbUrl);
-    await ensureBrainPgSchema(pool);
+    const pool = await getBrainPgPool(userId, dbUrl);
+    await ensureBrainPgSchemaOnce(userId, dbUrl, pool);
     return pgUpdateBrainTask(pool, userId, taskId, data);
   }
   return sqliteUpdateBrainTask(userId, taskId, data);
@@ -467,8 +467,8 @@ export async function findDueBrainTasksGlobally(
   for (const user of pgUsers) {
     pgUserIds.add(user.id);
     try {
-      const pool = getBrainPgPool(user.id, user.brainDatabaseUrl);
-      await ensureBrainPgSchema(pool);
+      const pool = await getBrainPgPool(user.id, user.brainDatabaseUrl);
+      await ensureBrainPgSchemaOnce(user.id, user.brainDatabaseUrl, pool);
       const rows = await pgFindDueBrainTasks(pool, user.id, limit);
       due.push(...rows);
     } catch (error) {

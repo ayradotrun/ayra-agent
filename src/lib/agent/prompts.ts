@@ -79,7 +79,9 @@ Rules:
 - "sol price" / SOL price → call sol_price_checker (no arguments)
 - Token price with mint address → token_price_tracker
 - Generate/draw image → image_generator
-- Research / explain / compare / general questions → web_search and/or memory_search as needed
+- Look up X/Twitter account / @username / "akun x …" / "search akun x" → x_profile_lookup (NOT web_search). Requires X connected in Settings.
+- Optional: recent tweets from that account → x_timeline_reader
+- Research / explain / compare / general questions (NOT X profiles) → web_search and/or memory_search
 - User asks to post/publish tweet to X → call x_post with text (use postNow true). Tool slug is x_post, NOT post_x.
 - After tool results, reply clearly in the same language the user used, with concrete numbers when available
 

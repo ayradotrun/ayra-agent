@@ -53,15 +53,35 @@ Tables `chat_session`, `chat_message`, and `brain_task` live alongside platform 
 3. Wait until the project is ready
 4. Go to **Project Settings → Database**
 5. Under **Connection string**, select **URI**
-6. Copy the string (mode **Session** or **Direct** on port `5432` is recommended for DDL on first connect)
+6. Copy the **Direct connection** string (host `db.[project-ref].supabase.co`) — easiest for AYRA
 7. Replace `[YOUR-PASSWORD]` with your database password
-8. In AYRA: **Dashboard → Settings → Private Database (AYRA)** → paste → **Connect**
+8. In AYRA: **Dashboard → Settings → Private Database (AYRA)** → paste → pick **project region** → **Connect**
 
-Example shape:
+AYRA converts direct URLs (IPv6-only) to **Session pooler** (IPv4) automatically — you do not need to copy the pooler hostname yourself.
+
+Example direct URL (paste this):
+
+```
+postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+```
+
+Example pooler URL (also works if DNS resolves on your server):
 
 ```
 postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
 ```
+
+Region examples:
+
+| Supabase dashboard region | Pooler slug in hostname |
+|---------------------------|-------------------------|
+| Europe (Frankfurt) | `eu-central-1` |
+| Asia (Singapore) | `ap-southeast-1` |
+| US East (N. Virginia) | `us-east-1` |
+
+Do **not** combine prefixes (wrong: `eu-ap-southeast-1`; correct for Singapore: `ap-southeast-1`).
+
+Avoid the direct host `db.[project-ref].supabase.co` on VPS without IPv6 — use the Session pooler URI instead.
 
 ## Neon
 
@@ -100,11 +120,13 @@ postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.co
 | Problem | Fix |
 |---------|-----|
 | Connection failed | Check password, IP allowlist, SSL; try appending `?sslmode=require` to the URL |
+| `ENOTFOUND aws-0-….pooler…` | Wrong region or server DNS — paste **direct** URL (`db.[ref].supabase.co`) and select project region in Settings; AYRA converts to IPv4 pooler |
+| `ENOTFOUND db.[ref].supabase.co` | Normal on IPv4-only networks — paste direct URL in AYRA and pick region (auto Session pooler conversion) |
 | self-signed certificate / certificate chain | Cloud Postgres (Supabase, Neon) is supported — click Connect again after updating AYRA; or add `?sslmode=no-verify` to the URL |
 | Invalid URL | Must start with `postgresql://` or `postgres://` |
 | Platform database rejected | Set `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` for solo self-host, or use a separate Postgres project |
 | Empty after migrate | Connect again once, or start a new chat after connecting |
-| Slow chat / Telegram | Platform DB (`.env`) and private DB (Settings) in different regions — use the same region as the app server for both |
+| `EMAXCONNSESSION` / max clients reached | Supabase Session pooler (port 5432) allows ~15 connections. Reconnect in Settings (AYRA saves port **6543** Transaction pooler). Restart app and wait 1–2 min for idle sessions to clear |
 
 - Treat the connection string like a password — anyone with it can read your chat/brain data
 - Prefer a dedicated database or project per user

@@ -1,11 +1,40 @@
 import { Pool, type PoolConfig } from "pg";
+import { resolveHostToIpv4 } from "@/lib/brain/resolve-pg-host";
+import { expandSupabasePoolerCandidates } from "@/lib/brain/normalize-pg-url";
 import type {
   BrainTaskRecord,
   BrainTaskStatus,
   BrainTaskType,
 } from "@/lib/brain/brain-types";
 
-const poolCache = new Map<string, { url: string; pool: Pool }>();
+const globalForPg = globalThis as typeof globalThis & {
+  __brainPgPoolCache?: Map<string, { url: string; pool: Pool }>;
+  __brainPgSchemaReady?: Set<string>;
+};
+
+function getPoolCache(): Map<string, { url: string; pool: Pool }> {
+  if (!globalForPg.__brainPgPoolCache) {
+    globalForPg.__brainPgPoolCache = new Map();
+  }
+  return globalForPg.__brainPgPoolCache;
+}
+
+function getSchemaReadyKeys(): Set<string> {
+  if (!globalForPg.__brainPgSchemaReady) {
+    globalForPg.__brainPgSchemaReady = new Set();
+  }
+  return globalForPg.__brainPgSchemaReady;
+}
+
+function brainPgPoolMax(): number {
+  const raw = process.env.BRAIN_PG_POOL_MAX?.trim();
+  const parsed = raw ? parseInt(raw, 10) : 1;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function schemaCacheKey(userId: string, connectionString: string): string {
+  return `${userId}:${connectionString}`;
+}
 
 export const BRAIN_PG_SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS brain_task (
@@ -152,57 +181,150 @@ export function resolvePgSsl(connectionString: string): PoolConfig["ssl"] {
   return undefined;
 }
 
-function buildPgPoolConfig(
+export interface PgConnectionParts {
+  user: string;
+  password: string;
+  host: string;
+  port: number;
+  database: string;
+}
+
+export function parsePgConnectionString(connectionString: string): PgConnectionParts | null {
+  try {
+    const normalized = connectionString.trim().replace(/^postgres:\/\//, "postgresql://");
+    const parsed = new URL(normalized);
+    return {
+      user: decodeURIComponent(parsed.username),
+      password: decodeURIComponent(parsed.password),
+      host: parsed.hostname,
+      port: parsed.port ? parseInt(parsed.port, 10) : 5432,
+      database: decodeURIComponent(parsed.pathname.replace(/^\//, "") || "postgres"),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function isIpv4Host(host: string): boolean {
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
+}
+
+function isRetryablePgConnectError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /ENOTFOUND|getaddrinfo|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED/i.test(msg);
+}
+
+async function buildPgPoolConfig(
   connectionString: string,
   overrides?: Partial<PoolConfig>
-): PoolConfig {
-  const cleaned = stripPgSslQueryParams(connectionString);
+): Promise<PoolConfig> {
   const ssl = resolvePgSsl(connectionString);
+  const parsed = parsePgConnectionString(connectionString);
 
+  if (parsed) {
+    const resolved = await resolveHostToIpv4(parsed.host);
+    const connectHost = resolved ?? parsed.host;
+
+    return {
+      host: connectHost,
+      port: parsed.port,
+      user: parsed.user,
+      password: parsed.password,
+      database: parsed.database,
+      ssl,
+      max: brainPgPoolMax(),
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 20_000,
+      allowExitOnIdle: true,
+      ...overrides,
+    };
+  }
+
+  const cleaned = stripPgSslQueryParams(connectionString);
   return {
     connectionString: cleaned,
     ssl,
-    max: 4,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    max: brainPgPoolMax(),
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 20_000,
+    allowExitOnIdle: true,
     ...overrides,
   };
 }
 
-export function getBrainPgPool(userId: string, connectionString: string): Pool {
+export async function getBrainPgPool(userId: string, connectionString: string): Promise<Pool> {
+  const poolCache = getPoolCache();
   const cached = poolCache.get(userId);
   if (cached && cached.url === connectionString) return cached.pool;
 
   if (cached) {
     void cached.pool.end().catch(() => undefined);
+    poolCache.delete(userId);
   }
 
-  const pool = new Pool(buildPgPoolConfig(connectionString));
+  const config = await buildPgPoolConfig(connectionString);
+  const pool = new Pool(config);
 
   poolCache.set(userId, { url: connectionString, pool });
   return pool;
 }
 
+export function markBrainPgSchemaReady(userId: string, connectionString: string): void {
+  getSchemaReadyKeys().add(schemaCacheKey(userId, connectionString));
+}
+
+export async function ensureBrainPgSchemaOnce(
+  userId: string,
+  connectionString: string,
+  pool: Pool
+): Promise<void> {
+  const key = schemaCacheKey(userId, connectionString);
+  const ready = getSchemaReadyKeys();
+  if (ready.has(key)) return;
+  await ensureBrainPgSchema(pool);
+  ready.add(key);
+}
+
 export function clearBrainPgPool(userId: string): void {
+  const poolCache = getPoolCache();
   const cached = poolCache.get(userId);
   if (!cached) return;
   void cached.pool.end().catch(() => undefined);
   poolCache.delete(userId);
+  for (const key of Array.from(getSchemaReadyKeys())) {
+    if (key.startsWith(`${userId}:`)) {
+      getSchemaReadyKeys().delete(key);
+    }
+  }
 }
 
 export async function ensureBrainPgSchema(pool: Pool): Promise<void> {
   await pool.query(BRAIN_PG_SCHEMA_SQL);
 }
 
-export async function testBrainPgConnection(connectionString: string): Promise<void> {
-  const pool = new Pool(buildPgPoolConfig(connectionString, { max: 1 }));
+/** Test connection; returns the URL variant that worked (may differ for aws-0 vs aws-1 pooler). */
+export async function testBrainPgConnection(connectionString: string): Promise<string> {
+  const candidates = expandSupabasePoolerCandidates(connectionString);
+  let lastError: unknown;
 
-  try {
-    await pool.query("SELECT 1");
-    await ensureBrainPgSchema(pool);
-  } finally {
-    await pool.end().catch(() => undefined);
+  for (const candidate of candidates) {
+    const pool = new Pool(await buildPgPoolConfig(candidate, { max: 1 }));
+
+    try {
+      await pool.query("SELECT 1");
+      await ensureBrainPgSchema(pool);
+      return candidate;
+    } catch (error) {
+      lastError = error;
+      if (!isRetryablePgConnectError(error)) {
+        throw error;
+      }
+    } finally {
+      await pool.end().catch(() => undefined);
+    }
   }
+
+  throw lastError instanceof Error ? lastError : new Error("Connection failed");
 }
 
 export async function pgCreateBrainTask(

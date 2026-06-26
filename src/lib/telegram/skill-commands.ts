@@ -10,7 +10,8 @@ export type SkillCommandArg =
   | "ticker"
   | "query"
   | "url"
-  | "domain";
+  | "domain"
+  | "username";
 
 export interface TelegramSkillCommandDef {
   command: string;
@@ -135,6 +136,14 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
     arg: "query",
   },
   {
+    command: "x",
+    aliases: ["xuser", "twitter"],
+    skillSlug: "x-profile-lookup",
+    description: "🐦 X profile lookup",
+    usage: "/x [@username]",
+    arg: "username",
+  },
+  {
     command: "rpc",
     skillSlug: "solana-rpc-monitor",
     description: "⚡ RPC health",
@@ -197,12 +206,16 @@ export function parseSkillCommand(
       if (!args) return { error: `Usage: ${def.usage}` };
       input.domain = args.replace(/\.sol$/i, "");
       break;
+    case "username":
+      if (!args) return { error: `Usage: ${def.usage}` };
+      input.username = args.replace(/^@/, "");
+      break;
   }
 
   return { def, input };
 }
 
-const TOOL_COMMANDS = new Set(["search", "rpc"]);
+const TOOL_COMMANDS = new Set(["search", "rpc", "x"]);
 
 export function formatSkillCommandsHelp(format: "telegram" | "plain" = "telegram"): string {
   const crypto = TELEGRAM_SKILL_COMMANDS.filter((c) => !TOOL_COMMANDS.has(c.command));

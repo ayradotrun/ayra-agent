@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, Database, Loader2, XCircle } from "lucide-react";
+import { CheckCircle2, Database, Info, Loader2, XCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,12 @@ import {
   type PrivateDbProvider,
   describeDatabaseHost,
 } from "@/lib/brain/build-pg-url";
+import {
+  SUPABASE_POOLER_REGIONS,
+  detectSupabaseUrlKind,
+  normalizePrivateDatabaseUrl,
+  upgradeSupabaseDirectToPooler,
+} from "@/lib/brain/normalize-pg-url";
 
 type InputMode = "wizard" | "url";
 
@@ -56,7 +62,7 @@ export function PrivateDatabaseSetup({
   const [password, setPassword] = useState("");
   const [database, setDatabase] = useState("postgres");
   const [projectRef, setProjectRef] = useState("");
-  const [supabaseRegion, setSupabaseRegion] = useState("");
+  const [supabaseRegion, setSupabaseRegion] = useState("eu-central-1");
   const [neonHost, setNeonHost] = useState("");
   const [neonUser, setNeonUser] = useState("neondb_owner");
   const [customHost, setCustomHost] = useState("");
@@ -65,6 +71,8 @@ export function PrivateDatabaseSetup({
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
   const [connectSuccess, setConnectSuccess] = useState("");
+  /** Region for converting Supabase direct (IPv6) URLs in paste mode. */
+  const [pasteSupabaseRegion, setPasteSupabaseRegion] = useState("ap-southeast-1");
 
   const builtUrl = useMemo(
     () =>
@@ -94,7 +102,23 @@ export function PrivateDatabaseSetup({
     ]
   );
 
-  const urlToConnect = mode === "wizard" ? builtUrl : value.trim();
+  const pastedSupabaseKind = useMemo(
+    () => (mode === "url" && value.trim() ? detectSupabaseUrlKind(value) : "other"),
+    [mode, value]
+  );
+
+  const convertedPoolerPreview = useMemo(() => {
+    if (pastedSupabaseKind !== "direct" || !value.trim()) return null;
+    return upgradeSupabaseDirectToPooler(value.trim(), pasteSupabaseRegion);
+  }, [pastedSupabaseKind, value, pasteSupabaseRegion]);
+
+  const urlToConnect = useMemo(() => {
+    if (mode === "wizard") return builtUrl;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (pastedSupabaseKind === "direct") return trimmed;
+    return normalizePrivateDatabaseUrl(trimmed);
+  }, [mode, builtUrl, value, pastedSupabaseKind]);
 
   function switchProvider(next: PrivateDbProvider) {
     setProvider(next);
@@ -113,9 +137,10 @@ export function PrivateDatabaseSetup({
     setMode("url");
     setPassword("");
     setProjectRef("");
-    setSupabaseRegion("");
+    setSupabaseRegion("eu-central-1");
     setNeonHost("");
     setCustomHost("");
+    setPasteSupabaseRegion("ap-southeast-1");
     setConnectError("");
     setConnectSuccess("");
   }
@@ -140,10 +165,15 @@ export function PrivateDatabaseSetup({
     setConnectSuccess("");
 
     try {
+      const payload: { url: string; supabaseRegion?: string } = { url: urlToConnect };
+      if (mode === "url" && pastedSupabaseKind === "direct") {
+        payload.supabaseRegion = pasteSupabaseRegion;
+      }
+
       const res = await fetch("/api/settings/private-database", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: urlToConnect }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Connection failed");
@@ -323,17 +353,26 @@ export function PrivateDatabaseSetup({
                   />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
-                  <Label htmlFor="supabase-region">Pooler region</Label>
-                  <Input
-                    id="supabase-region"
-                    value={supabaseRegion}
-                    onChange={(e) => setSupabaseRegion(e.target.value)}
-                    placeholder="eu-central-1"
-                  />
+                  <Label htmlFor="supabase-region">Pooler region *</Label>
+                  <Select value={supabaseRegion} onValueChange={setSupabaseRegion}>
+                    <SelectTrigger id="supabase-region">
+                      <SelectValue placeholder="Select region" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPABASE_POOLER_REGIONS.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>
+                          {r.label} ({r.value})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <p className="text-[11px] text-muted-foreground">
-                    Recommended: <strong className="text-foreground/90">eu-central-1</strong> (Germany).
-                    From your connection string:{" "}
-                    <code className="text-foreground/80">aws-0-eu-central-1.pooler.supabase.com</code>
+                    Must match your Supabase project region. Host looks like{" "}
+                    <code className="text-foreground/80">
+                      aws-0-{supabaseRegion || "eu-central-1"}.pooler.supabase.com
+                    </code>
+                    . Singapore = <strong className="text-foreground/90">ap-southeast-1</strong> (not
+                    eu-ap-southeast-1).
                   </p>
                 </div>
               </div>
@@ -488,25 +527,72 @@ export function PrivateDatabaseSetup({
               setConnectError("");
               setConnectSuccess("");
             }}
-            placeholder="postgresql://user:password@your-host:5432/your_database"
+            placeholder="postgresql://postgres:password@db.your-ref.supabase.co:5432/postgres"
             className="font-mono text-xs"
           />
+          {pastedSupabaseKind === "direct" && (
+            <div className="space-y-3 rounded-lg border border-amber-500/35 bg-amber-500/8 p-4">
+              <div className="flex gap-2">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                <div className="space-y-1 text-xs">
+                  <p className="font-medium text-amber-100">Direct Supabase URL detected (IPv6-only)</p>
+                  <p className="leading-relaxed text-muted-foreground">
+                    Host <code className="text-foreground/85">db.*.supabase.co</code> usually has no IPv4
+                    address — most VPS and home networks cannot connect. Pick your Supabase project
+                    region below; AYRA converts to Session pooler (IPv4) automatically.
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="paste-supabase-region">Supabase project region *</Label>
+                <Select value={pasteSupabaseRegion} onValueChange={setPasteSupabaseRegion}>
+                  <SelectTrigger id="paste-supabase-region">
+                    <SelectValue placeholder="Select region" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPABASE_POOLER_REGIONS.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>
+                        {r.label} ({r.value})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {convertedPoolerPreview && (
+                <div className="rounded-md border border-border/60 bg-background/40 p-3">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Will connect via (IPv4 pooler)
+                  </p>
+                  <p className="mt-1 break-all font-mono text-[11px] text-foreground/90">
+                    {maskDatabaseUrl(convertedPoolerPreview)}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+          {pastedSupabaseKind === "pooler" && (
+            <div className="flex gap-2 rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2.5 text-xs text-muted-foreground">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-sky-400" />
+              <p className="leading-relaxed">
+                Session pooler URL detected (IPv4). If Connect fails with a DNS error, paste the{" "}
+                <strong className="text-foreground/90">direct</strong> URI from Supabase (
+                <code className="text-foreground/85">db.[ref].supabase.co</code>) instead — AYRA
+                will convert it using your project region.
+              </p>
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             {allowPlatformBrainDb ? (
               <>
-                Solo / self-host: you may paste the same Postgres as the platform (
-                <code className="text-[11px]">DATABASE_URL</code> or{" "}
-                <code className="text-[11px]">DIRECT_DATABASE_URL</code> from server{" "}
-                <code className="text-[11px]">.env</code>). Pooler URLs are auto-upgraded to the
-                direct session URL for table creation.
+                Solo / self-host: paste platform <code className="text-[11px]">DATABASE_URL</code> or{" "}
+                <code className="text-[11px]">DIRECT_DATABASE_URL</code>. For Supabase, the direct URL (
+                <code className="text-[11px]">db.*.supabase.co</code>) is fine — pick region when prompted.
               </>
             ) : (
               <>
-                Paste your <strong>own</strong> empty Postgres URL (Supabase, Neon, Railway, etc.).
-                We recommend <strong>Germany (eu-central-1)</strong> for lower latency. Each user
-                connects a separate
-                private database — do not use the platform{" "}
-                <code className="text-[11px]">DATABASE_URL</code> on shared deployments.
+                <strong>Supabase tip:</strong> paste the direct URI from Settings → Database (
+                <code className="text-[11px]">db.[ref].supabase.co</code>) — not the pooler string if
+                DNS fails. Select your project region and AYRA uses IPv4 Session pooler under the hood.
               </>
             )}
           </p>

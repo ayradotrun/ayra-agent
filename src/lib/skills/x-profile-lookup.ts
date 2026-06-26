@@ -27,7 +27,11 @@ export const xProfileLookup: SkillDefinition = {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Lookup failed";
       await ctx.log("ERROR", message, "x-profile-lookup");
-      return { found: false, username, error: message };
+      const hint =
+        message.includes("not connected") || message.includes("X account")
+          ? "Connect X in Dashboard → Settings → X (Twitter) first."
+          : undefined;
+      return { found: false, username, error: message, hint };
     }
   },
 };

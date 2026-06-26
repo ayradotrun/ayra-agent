@@ -20,6 +20,8 @@ const TELEGRAM_ALWAYS = [
   "goal-tracker",
   "x-post",
   "x-draft-generator",
+  "x-profile-lookup",
+  "x-timeline-reader",
 ] as const;
 
 const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
@@ -50,7 +52,7 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
     slugs: ["image-generator"],
   },
   {
-    pattern: /\b(tweet|thread|twitter|\bx\b|post|posting|publish|tes post|coba post|content plan|calendar|schedule)\b/i,
+    pattern: /\b(tweet|thread|twitter|post|posting|publish|tes post|coba post|content plan|calendar|schedule)\b/i,
     slugs: [
       "x-draft-generator",
       "x-thread-drafter",
@@ -60,6 +62,11 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
       "brain-task-schedule",
       "content-calendar",
     ],
+  },
+  {
+    pattern:
+      /\b(akun\s+x|x\s+account|twitter\s+profile|profile\s+x|search\s+akun|cari\s+akun|lookup\s+@|x\.com\/|twitter\.com\/)\b|@[a-z0-9_]{1,15}\b/i,
+    slugs: ["x-profile-lookup", "x-timeline-reader"],
   },
   {
     pattern: /\b(task|reminder|todo|goals?|plan my|schedule)\b/i,

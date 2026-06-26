@@ -385,9 +385,14 @@ export function AgentChat() {
           )}
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6">
+        <div
+          className={cn(
+            "min-h-0 flex-1 overflow-y-auto px-4 py-6",
+            messages.length === 0 && !sending && "flex flex-col justify-end md:block md:justify-start"
+          )}
+        >
           {messages.length === 0 && !sending && (
-            <div className="mx-auto max-w-lg text-center pt-[10vh]">
+            <div className="mx-auto w-full max-w-lg pb-2 text-center md:pb-0 md:pt-[10vh]">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
                 <Bot className="h-6 w-6 text-emerald-400" />
               </div>
@@ -459,7 +464,7 @@ export function AgentChat() {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-white/[0.06] p-3 sm:p-4">
+        <div className="shrink-0 border-t border-white/[0.06] bg-background/95 p-3 backdrop-blur-sm sm:p-4 md:bg-transparent md:backdrop-blur-none">
           {error && <p className="mb-2 text-center text-xs text-destructive">{error}</p>}
           <div className="mx-auto w-full max-w-3xl">
             {pendingImages.length > 0 && (

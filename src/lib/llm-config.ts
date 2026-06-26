@@ -39,6 +39,27 @@ export function isOpenRouterBaseUrl(baseUrl: string): boolean {
   }
 }
 
+/** Direct OpenAI API — newer models require max_completion_tokens instead of max_tokens. */
+export function isOpenAiDirectBaseUrl(baseUrl: string): boolean {
+  try {
+    const host = new URL(normalizeLlmBaseUrl(baseUrl)).hostname.toLowerCase();
+    return host === "api.openai.com";
+  } catch {
+    return baseUrl.toLowerCase().includes("api.openai.com");
+  }
+}
+
+/** Token limit field for chat/completions — OpenAI direct vs other OpenAI-compatible APIs. */
+export function buildCompletionTokenFields(
+  baseUrl: string,
+  maxTokens: number
+): { max_tokens: number } | { max_completion_tokens: number } {
+  if (isOpenAiDirectBaseUrl(baseUrl)) {
+    return { max_completion_tokens: maxTokens };
+  }
+  return { max_tokens: maxTokens };
+}
+
 export function getLlmApiKey(userKey?: string | null): string {
   const key = userKey || process.env.LLM_API_KEY || process.env.OPENROUTER_API_KEY;
   if (!key) {

@@ -6,10 +6,12 @@ import {
   isValidBrainDatabaseUrl,
   resolvePrivateDatabaseUrl,
 } from "@/lib/brain/brain-db-url";
+import { formatPrivateDatabaseConnectError, supabaseDirectUrlNeedsRegion, toSupabaseTransactionPoolerUrl } from "@/lib/brain/normalize-pg-url";
 import {
   migrateSqliteBrainToPostgres,
   testBrainPgConnection,
 } from "@/lib/brain/brain-store";
+import { clearBrainPgPool, markBrainPgSchemaReady } from "@/lib/brain/brain-pg";
 import { migratePrismaChatToPrivatePostgres } from "@/lib/chat/chat-store";
 
 export class PrivateDatabaseConnectError extends Error {
@@ -21,12 +23,19 @@ export class PrivateDatabaseConnectError extends Error {
 
 export async function connectUserPrivateDatabase(
   userId: string,
-  rawUrl: string
+  rawUrl: string,
+  options?: { supabaseRegion?: string }
 ): Promise<string> {
   const trimmed = rawUrl.trim();
 
   if (!trimmed) {
     throw new PrivateDatabaseConnectError("Private database URL is required.");
+  }
+
+  if (supabaseDirectUrlNeedsRegion(trimmed) && !options?.supabaseRegion?.trim()) {
+    throw new PrivateDatabaseConnectError(
+      "Supabase direct URL (db.*.supabase.co) uses IPv6-only — most servers cannot reach it. Select your Supabase project region in the form; AYRA will connect via Session pooler (IPv4) instead."
+    );
   }
 
   if (!isValidBrainDatabaseUrl(trimmed)) {
@@ -41,22 +50,28 @@ export async function connectUserPrivateDatabase(
     );
   }
 
-  const connectionUrl = resolvePrivateDatabaseUrl(trimmed);
+  const connectionUrl = resolvePrivateDatabaseUrl(trimmed, {
+    supabaseRegion: options?.supabaseRegion,
+  });
 
+  let savedUrl = connectionUrl;
   try {
-    await testBrainPgConnection(connectionUrl);
+    const sessionUrl = await testBrainPgConnection(connectionUrl);
+    savedUrl = toSupabaseTransactionPoolerUrl(sessionUrl);
+    clearBrainPgPool(userId);
+    markBrainPgSchemaReady(userId, savedUrl);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Connection failed";
+    const message = formatPrivateDatabaseConnectError(error, connectionUrl);
     throw new PrivateDatabaseConnectError(`Could not connect: ${message}`);
   }
 
   await prisma.user.update({
     where: { id: userId },
-    data: { brainDatabaseUrl: encryptSafe(connectionUrl) },
+    data: { brainDatabaseUrl: encryptSafe(savedUrl) },
   });
 
   try {
-    const imported = await migrateSqliteBrainToPostgres(userId, connectionUrl);
+    const imported = await migrateSqliteBrainToPostgres(userId, savedUrl);
     if (imported > 0) {
       console.log(`[Brain] Imported ${imported} task(s) into private DB for ${userId.slice(0, 8)}…`);
     }
@@ -65,7 +80,7 @@ export async function connectUserPrivateDatabase(
   }
 
   try {
-    const chatImported = await migratePrismaChatToPrivatePostgres(userId, connectionUrl);
+    const chatImported = await migratePrismaChatToPrivatePostgres(userId, savedUrl);
     if (chatImported.sessions > 0 || chatImported.messages > 0) {
       console.log(
         `[Chat] Imported ${chatImported.sessions} session(s) and ${chatImported.messages} message(s) into private DB for ${userId.slice(0, 8)}…`
@@ -75,5 +90,5 @@ export async function connectUserPrivateDatabase(
     console.warn("[Chat] Main DB → private Postgres import skipped:", error);
   }
 
-  return connectionUrl;
+  return savedUrl;
 }

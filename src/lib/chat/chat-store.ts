@@ -3,7 +3,7 @@ import path from "path";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { getUserBrainDatabaseUrl } from "@/lib/brain/brain-db-url";
-import { ensureBrainPgSchema, getBrainPgPool } from "@/lib/brain/brain-pg";
+import { ensureBrainPgSchemaOnce, getBrainPgPool } from "@/lib/brain/brain-pg";
 import {
   pgCreateChatMessage,
   pgCreateChatSession,
@@ -30,8 +30,8 @@ function chatMigrationFlagPath(userId: string): string {
 async function getPrivatePool(userId: string) {
   const url = await getUserBrainDatabaseUrl(userId);
   if (!url) return null;
-  const pool = getBrainPgPool(userId, url);
-  await ensureBrainPgSchema(pool);
+  const pool = await getBrainPgPool(userId, url);
+  await ensureBrainPgSchemaOnce(userId, url, pool);
   return pool;
 }
 
@@ -235,8 +235,8 @@ export async function migratePrismaChatToPrivatePostgres(
     orderBy: { createdAt: "asc" },
   });
 
-  const pool = getBrainPgPool(userId, connectionString);
-  await ensureBrainPgSchema(pool);
+  const pool = await getBrainPgPool(userId, connectionString);
+  await ensureBrainPgSchemaOnce(userId, connectionString, pool);
 
   const imported = await pgImportChatData(
     pool,

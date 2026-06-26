@@ -6,7 +6,6 @@ import { Sidebar } from "@/components/layout/sidebar";
 import {
   MobileHeader,
   MobileNav,
-  DASHBOARD_MOBILE_BOTTOM_OFFSET,
 } from "@/components/layout/mobile-nav";
 import { GridBackground } from "@/components/layout/grid-background";
 import { PrivateDatabaseGate } from "@/components/layout/private-database-gate";
@@ -36,10 +35,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
       <main
         className={cn(
           isChatPage
-            ? cn(
-                "fixed inset-x-0 top-0 overflow-hidden md:inset-y-0 md:left-[260px] md:right-0 md:top-0 md:bottom-0",
-                DASHBOARD_MOBILE_BOTTOM_OFFSET
-              )
+            ? "fixed inset-x-0 top-0 bottom-[var(--bottom-nav-height,5.5rem)] overflow-hidden md:inset-y-0 md:bottom-0 md:left-[260px] md:right-0"
             : cn("min-h-screen md:ml-[260px]")
         )}
       >
@@ -52,12 +48,14 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
         >
           <Suspense
             fallback={
-              <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground">
+              <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted-foreground md:min-h-0 md:h-full">
                 Loading…
               </div>
             }
           >
-            <PrivateDatabaseGate>{children}</PrivateDatabaseGate>
+            <div className={cn(isChatPage && "flex h-full min-h-0 flex-col")}>
+              <PrivateDatabaseGate>{children}</PrivateDatabaseGate>
+            </div>
           </Suspense>
           {!isChatPage && <MobileBottomSpacer />}
         </div>

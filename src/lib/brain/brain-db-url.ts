@@ -1,4 +1,5 @@
 import { decryptSafe } from "@/lib/encryption";
+import { normalizePrivateDatabaseUrl } from "@/lib/brain/normalize-pg-url";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -61,8 +62,11 @@ export function allowPlatformBrainDatabase(): boolean {
 }
 
 /** Prefer session/direct URL when user pasted the platform pooler URL (DDL needs direct). */
-export function resolvePrivateDatabaseUrl(url: string): string {
-  const trimmed = url.trim();
+export function resolvePrivateDatabaseUrl(
+  url: string,
+  options?: { supabaseRegion?: string }
+): string {
+  const trimmed = normalizePrivateDatabaseUrl(url.trim(), options);
   if (!allowPlatformBrainDatabase() || !isPlatformDatabaseUrl(trimmed)) {
     return trimmed;
   }

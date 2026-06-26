@@ -136,6 +136,28 @@ export function formatToolResult(data: unknown, context?: FormatToolResultContex
     return lines.join("\n");
   }
 
+  if (typeof r.found === "boolean" && typeof r.username === "string") {
+    if (!r.found) {
+      const lines = [`🐦 *X profile @${String(r.username)}*`, "", "Account not found or lookup failed."];
+      if (typeof r.error === "string") lines.push(`_${r.error}_`);
+      if (typeof r.hint === "string") lines.push("", r.hint);
+      return lines.join("\n");
+    }
+    const metrics = (r.metrics ?? {}) as Record<string, number | undefined>;
+    const lines = [
+      `🐦 *@${String(r.username)}*`,
+      r.name ? `Name: *${String(r.name)}*` : "",
+      r.description ? `\n${String(r.description).slice(0, 280)}` : "",
+      "",
+      `Followers: ${metrics.followers_count?.toLocaleString() ?? "—"}`,
+      `Following: ${metrics.following_count?.toLocaleString() ?? "—"}`,
+      `Posts: ${metrics.tweet_count?.toLocaleString() ?? "—"}`,
+      "",
+      `https://x.com/${String(r.username)}`,
+    ].filter(Boolean);
+    return lines.join("\n");
+  }
+
   if (typeof r.query === "string" && (Array.isArray(r.related) || r.summary != null || r.error)) {
     const lines = [`🔍 *Search: ${String(r.query)}*`];
     if (typeof r.summary === "string" && r.summary.trim()) {

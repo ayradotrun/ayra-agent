@@ -245,6 +245,7 @@ export async function runAgent(
         messages.push({
           role: "assistant",
           content: assistantMessage.content || "",
+          tool_calls: assistantMessage.tool_calls,
         });
 
         for (const toolCall of assistantMessage.tool_calls) {

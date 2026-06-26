@@ -9,6 +9,8 @@ import { z } from "zod";
 
 const bodySchema = z.object({
   url: z.string().min(1, "URL is required"),
+  /** Required when url is Supabase direct (db.*.supabase.co) — upgrades to Session pooler. */
+  supabaseRegion: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -21,7 +23,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const savedUrl = await connectUserPrivateDatabase(user.id, parsed.data.url);
+    const savedUrl = await connectUserPrivateDatabase(user.id, parsed.data.url, {
+      supabaseRegion: parsed.data.supabaseRegion,
+    });
 
     return NextResponse.json({
       ok: true,

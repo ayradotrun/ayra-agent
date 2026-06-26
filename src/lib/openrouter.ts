@@ -8,6 +8,7 @@ import { FailoverReason, classifyApiError } from "@/lib/agent/error-classifier";
 import { sleepMs } from "@/lib/agent/retry";
 import {
   buildChatCompletionsUrl,
+  buildCompletionTokenFields,
   DEFAULT_LLM_BASE_URL,
   isOpenRouterBaseUrl,
 } from "@/lib/llm-config";
@@ -40,6 +41,11 @@ export interface OpenRouterMessage {
   content: OpenRouterMessageContent;
   tool_call_id?: string;
   name?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }>;
 }
 
 export interface OpenRouterTool {
@@ -158,7 +164,7 @@ async function callOpenRouterOnce(params: {
     model: params.model,
     messages: params.messages,
     tools: params.tools,
-    max_tokens: params.maxTokens ?? 2048,
+    ...buildCompletionTokenFields(baseUrl, params.maxTokens ?? 2048),
   };
   if (params.modalities?.length) body.modalities = params.modalities;
   if (params.imageConfig) body.image_config = params.imageConfig;

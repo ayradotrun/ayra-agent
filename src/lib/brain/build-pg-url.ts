@@ -1,3 +1,5 @@
+import { normalizeSupabasePoolerRegion } from "@/lib/brain/normalize-pg-url";
+
 export type PrivateDbProvider = "supabase" | "neon" | "custom";
 
 export interface PrivateDbFormFields {
@@ -28,8 +30,9 @@ export function buildPrivateDatabaseUrl(fields: PrivateDbFormFields): string | n
 
   if (fields.provider === "supabase") {
     const ref = fields.projectRef?.trim();
-    const region = fields.supabaseRegion?.trim();
-    if (!ref || !region) return null;
+    const regionRaw = fields.supabaseRegion?.trim();
+    if (!ref || !regionRaw) return null;
+    const region = normalizeSupabasePoolerRegion(regionRaw);
     const user = `postgres.${ref}`;
     const host = `aws-0-${region}.pooler.supabase.com`;
     return `postgresql://${encodePg(user)}:${encodePg(password)}@${host}:5432/${encodePg(database)}`;
