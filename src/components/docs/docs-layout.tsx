@@ -1,34 +1,47 @@
 import type { Metadata } from "next";
-import {
-  LandingHeader,
-  LANDING_CONTAINER_CLASS,
-  LANDING_HEADER_OFFSET,
-} from "@/components/landing/landing-header";
-import { LandingFooter } from "@/components/landing/landing-footer";
-import { DocsSidebar } from "@/components/docs/docs-sidebar";
+import { PublicBottomNav } from "@/components/layout/public-bottom-nav";
+import { DocsSidebarNav } from "@/components/docs/docs-sidebar-nav";
+import { DocsMobileChrome, DocsBreadcrumb } from "@/components/docs/docs-mobile-chrome";
+import { DocsToc } from "@/components/docs/docs-toc";
+import type { DocHeading } from "@/lib/docs/headings";
+import { SITE_BOTTOM_OFFSET } from "@/lib/layout/site-layout";
 
 interface DocsLayoutProps {
   children: React.ReactNode;
+  tocHeadings?: DocHeading[];
 }
 
-export function DocsLayout({ children }: DocsLayoutProps) {
+export function DocsLayout({ children, tocHeadings = [] }: DocsLayoutProps) {
+  const hasToc = tocHeadings.length > 0;
+
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 grid-bg opacity-25" />
-      <div className="pointer-events-none absolute left-1/2 top-[5rem] h-[400px] w-[700px] -translate-x-1/2 rounded-full bg-emerald-500/5 blur-3xl sm:top-[5.5rem]" />
+    <div className="docs-shell min-h-screen bg-background">
+      {/* Desktop left sidebar — full height, Hypernova-style */}
+      <aside className="docs-left-sidebar fixed inset-y-0 left-0 z-40 hidden w-[288px] border-r border-white/[0.06] bg-background lg:flex lg:flex-col">
+        <DocsSidebarNav className="h-full" />
+      </aside>
 
-      <LandingHeader />
+      <DocsMobileChrome />
 
-      <main className={`relative z-0 pb-20 ${LANDING_HEADER_OFFSET}`}>
-        <div className={`${LANDING_CONTAINER_CLASS} max-w-6xl`}>
-          <div className="flex gap-8 lg:gap-10">
-            <DocsSidebar />
-            <div className="min-w-0 flex-1">{children}</div>
+      {/* Desktop right TOC */}
+      {hasToc && (
+        <aside className="docs-right-toc fixed inset-y-0 right-0 z-30 hidden w-[220px] border-l border-white/[0.06] bg-background xl:block">
+          <div className="sticky top-0 max-h-screen overflow-y-auto px-6 py-10">
+            <DocsToc headings={tocHeadings} />
           </div>
+        </aside>
+      )}
+
+      <main
+        className={`docs-main relative min-h-screen lg:pl-[288px] ${hasToc ? "xl:pr-[220px]" : ""} ${SITE_BOTTOM_OFFSET} pb-20 lg:pb-10`}
+      >
+        <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+          <DocsBreadcrumb />
+          {children}
         </div>
       </main>
 
-      <LandingFooter />
+      <PublicBottomNav />
     </div>
   );
 }

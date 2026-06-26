@@ -8,8 +8,20 @@ import {
   HelpCircle,
   Server,
   AtSign,
+  Code2,
+  Package,
+  FileCode,
+  LayoutTemplate,
+  Rocket,
+  Plug,
+  ScrollText,
+  Wrench,
+  Lightbulb,
+  Library,
   type LucideIcon,
 } from "lucide-react";
+
+export type DocCategory = "Start" | "Setup" | "Integrations" | "Operations" | "Resources";
 
 export interface DocPageMeta {
   slug: string;
@@ -18,7 +30,7 @@ export interface DocPageMeta {
   icon: LucideIcon;
   /** Markdown file under /docs (without .md) */
   file: string;
-  category: "Start" | "Setup" | "Integrations" | "Operations";
+  category: DocCategory;
 }
 
 export const DOC_PAGES: DocPageMeta[] = [
@@ -79,6 +91,14 @@ export const DOC_PAGES: DocPageMeta[] = [
     category: "Integrations",
   },
   {
+    slug: "integrations",
+    title: "Integrations overview",
+    description: "Telegram, X, Solana RPC, web search, and AgentMemory.",
+    icon: Plug,
+    file: "integrations",
+    category: "Integrations",
+  },
+  {
     slug: "deployment",
     title: "Deployment (VPS / PM2)",
     description: "Production build, worker, Postgres, and region sync.",
@@ -87,17 +107,93 @@ export const DOC_PAGES: DocPageMeta[] = [
     category: "Operations",
   },
   {
+    slug: "api-reference",
+    title: "API reference",
+    description: "REST endpoints for chat, agents, settings, and auth.",
+    icon: Code2,
+    file: "api-reference",
+    category: "Resources",
+  },
+  {
+    slug: "sdk",
+    title: "SDK & automation",
+    description: "Scripts, webhooks, and programmatic agent runs.",
+    icon: Package,
+    file: "sdk",
+    category: "Resources",
+  },
+  {
+    slug: "examples",
+    title: "Examples",
+    description: "Common workflows: research, posting, wallet watch.",
+    icon: FileCode,
+    file: "examples",
+    category: "Resources",
+  },
+  {
+    slug: "templates",
+    title: "Agent templates",
+    description: "Ayra, Aria, Marcus, Nova, and custom prompts.",
+    icon: LayoutTemplate,
+    file: "templates",
+    category: "Resources",
+  },
+  {
+    slug: "starter-kits",
+    title: "Starter kits",
+    description: "Docker, VPS, and cloud quick-start bundles.",
+    icon: Rocket,
+    file: "starter-kits",
+    category: "Resources",
+  },
+  {
+    slug: "changelog",
+    title: "Changelog",
+    description: "Recent platform updates and migration notes.",
+    icon: ScrollText,
+    file: "changelog",
+    category: "Resources",
+  },
+  {
+    slug: "troubleshooting",
+    title: "Troubleshooting",
+    description: "Build failures, worker issues, and auth problems.",
+    icon: Wrench,
+    file: "troubleshooting",
+    category: "Resources",
+  },
+  {
+    slug: "best-practices",
+    title: "Best practices",
+    description: "Security, performance, and production checklist.",
+    icon: Lightbulb,
+    file: "best-practices",
+    category: "Resources",
+  },
+  {
     slug: "faq",
-    title: "FAQ & troubleshooting",
-    description: "Common errors, slow chat, and database issues.",
+    title: "FAQ",
+    description: "Common questions about setup, chat, and databases.",
     icon: HelpCircle,
     file: "faq",
-    category: "Operations",
+    category: "Resources",
   },
 ];
 
-export const DOC_CATEGORIES = ["Start", "Setup", "Integrations", "Operations"] as const;
+export const DOC_CATEGORIES: DocCategory[] = [
+  "Start",
+  "Setup",
+  "Integrations",
+  "Operations",
+  "Resources",
+];
+
+export const RESOURCES_HUB_ICON = Library;
 
 export function getDocBySlug(slug: string): DocPageMeta | undefined {
   return DOC_PAGES.find((p) => p.slug === slug);
+}
+
+export function getDocsByCategory(category: DocCategory): DocPageMeta[] {
+  return DOC_PAGES.filter((p) => p.category === category);
 }

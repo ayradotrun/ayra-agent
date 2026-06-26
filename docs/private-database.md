@@ -15,7 +15,7 @@ Keep both in the **same region** as the AYRA app server. If the operator hosts t
 
 | Recommended setup | Platform (`.env`) | Private (Settings) |
 |-------------------|-------------------|---------------------|
-| VPS self-host | `127.0.0.1:5432/ayra` | `127.0.0.1:5432/nami` |
+| VPS self-host | `127.0.0.1:5432/platform_db` | `127.0.0.1:5432/private_db` |
 | Solo self-host (one DB) | `DATABASE_URL` in `.env` | Same `DIRECT_DATABASE_URL` + `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` |
 | Cloud | Supabase/Neon **eu-central-1** | Second project/DB also **eu-central-1** |
 

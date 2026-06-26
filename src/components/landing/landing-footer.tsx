@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AyraSocialLinks } from "@/components/brand/ayra-social-links";
 import { AyraLogo } from "@/components/brand/ayra-logo";
 import { AYRA_SUPPORT_CS_URL, AYRA_SUPPORT_EMAIL } from "@/components/brand/ayra-support";
+import { GITHUB_REPO_URL } from "@/lib/docs/github";
 
 const legalLinks = [
   { href: "/privacy", label: "Privacy Policy" },
@@ -12,9 +13,12 @@ const legalLinks = [
 
 const resourceLinks = [
   { href: "/docs", label: "Documentation", external: false },
+  { href: "/docs/resources", label: "Resources", external: false },
   { href: "/docs/getting-started", label: "Getting started", external: false },
   { href: "/docs/private-database", label: "Private database", external: false },
-  { href: "https://github.com/ayradotrun/ayra-agent", label: "GitHub", external: true },
+  { href: "/docs/api-reference", label: "API reference", external: false },
+  { href: "/docs/faq", label: "FAQ", external: false },
+  { href: GITHUB_REPO_URL, label: "GitHub", external: true },
 ];
 
 export function LandingFooter() {

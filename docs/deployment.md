@@ -57,12 +57,12 @@ Run **only one worker** per deployment.
 ## Local Postgres on one VPS (recommended)
 
 ```bash
-# Platform only — database name ayra
-DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/ayra
-DIRECT_DATABASE_URL=postgresql://user:pass@127.0.0.1:5432/ayra
+# Platform only — e.g. database name platform_db
+DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
+DIRECT_DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
 ```
 
-Users paste private URL in Settings, e.g. `postgresql://user:pass@127.0.0.1:5432/nami` — same host, zero cross-region latency.
+Users paste private URL in Settings, e.g. `postgresql://postgres:PASSWORD@127.0.0.1:5432/private_db` — same host, zero cross-region latency.
 
 > **Never** run `prisma db push --force-reset` against production. It wipes the platform DB in `.env`.
 

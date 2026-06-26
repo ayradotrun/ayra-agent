@@ -8,7 +8,7 @@ import {
   ImagePlus,
   Lightbulb,
   Loader2,
-  Menu,
+  History,
   Send,
   X,
 } from "lucide-react";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { CHAT_COMMAND_HINTS, AGENT_META_COMMANDS_UI, MODEL_COMMANDS_UI, SKILL_COMMANDS_UI } from "@/lib/telegram/commands";
-import { useMobileWorkspace } from "@/components/layout/mobile-workspace-context";
+import { ChatRecentsDrawer } from "@/components/chat/chat-sidebar";
 import { chatSessionHref, notifyChatSessionsChanged } from "@/lib/chat/recents";
 
 interface AgentOption {
@@ -121,7 +121,7 @@ export function AgentChat() {
   const [deepThinking, setDeepThinking] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const { openWorkspace } = useMobileWorkspace();
+  const [recentsOpen, setRecentsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -353,16 +353,18 @@ export function AgentChat() {
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
+      <ChatRecentsDrawer open={recentsOpen} onClose={() => setRecentsOpen(false)} />
+
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 py-2.5 sm:px-4">
           <Button
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 md:hidden"
-            onClick={openWorkspace}
-            aria-label="Open workspace"
+            onClick={() => setRecentsOpen(true)}
+            aria-label="Open chat history"
           >
-            <Menu className="h-4 w-4" />
+            <History className="h-4 w-4" />
           </Button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{agentName || "AYRA Chat"}</p>

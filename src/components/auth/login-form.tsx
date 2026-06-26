@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AyraLogo } from "@/components/brand/ayra-logo";
 import { Button } from "@/components/ui/button";
@@ -10,15 +10,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GridBackground } from "@/components/layout/grid-background";
+import { loginErrorMessage, safeCallbackUrl } from "@/lib/auth/login-errors";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+  const { status } = useSession();
+  const callbackUrl = safeCallbackUrl(searchParams.get("callbackUrl"));
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace(callbackUrl);
+    }
+  }, [status, callbackUrl, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,15 +41,18 @@ export function LoginForm() {
 
     setLoading(false);
     if (result?.error) {
-      setError("Invalid username/email or password");
-    } else {
+      setError(loginErrorMessage(result.error));
+    } else if (result?.ok) {
       router.push(callbackUrl);
+      router.refresh();
+    } else {
+      setError(loginErrorMessage(undefined));
     }
   }
 
   return (
     <GridBackground>
-      <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="flex min-h-screen items-center justify-center px-4 py-8">
         <Card className="w-full max-w-md glow-emerald">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 flex justify-center">
@@ -78,7 +89,11 @@ export function LoginForm() {
                   required
                 />
               </div>
-              {error && <p className="text-sm text-red-400">{error}</p>}
+              {error && (
+                <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {error}
+                </p>
+              )}
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? "Signing in..." : "Sign in"}
               </Button>

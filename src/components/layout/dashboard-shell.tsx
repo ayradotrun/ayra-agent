@@ -3,8 +3,11 @@
 import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
-import { MobileHeader, MobileNav } from "@/components/layout/mobile-nav";
-import { MobileWorkspaceProvider } from "@/components/layout/mobile-workspace-context";
+import {
+  MobileHeader,
+  MobileNav,
+  DASHBOARD_MOBILE_BOTTOM_OFFSET,
+} from "@/components/layout/mobile-nav";
 import { GridBackground } from "@/components/layout/grid-background";
 import { PrivateDatabaseGate } from "@/components/layout/private-database-gate";
 import { cn } from "@/lib/utils";
@@ -23,7 +26,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
   const isChatPage = pathname === "/dashboard/chat" || pathname.startsWith("/dashboard/chat/");
 
   return (
-    <MobileWorkspaceProvider user={user}>
+    <>
       <div className="hidden md:block">
         <Sidebar user={user} />
       </div>
@@ -32,8 +35,11 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
       <main
         className={cn(
           isChatPage
-            ? "fixed inset-x-0 top-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] overflow-hidden md:inset-y-0 md:left-[260px] md:right-0 md:top-0 md:bottom-0"
-            : "min-h-screen pt-14 pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:ml-[260px] md:pt-0 md:pb-0"
+            ? cn(
+                "fixed inset-x-0 top-0 overflow-hidden md:inset-y-0 md:left-[260px] md:right-0 md:top-0 md:bottom-0",
+                DASHBOARD_MOBILE_BOTTOM_OFFSET
+              )
+            : cn("min-h-screen md:ml-[260px]", DASHBOARD_MOBILE_BOTTOM_OFFSET)
         )}
       >
         <div
@@ -54,7 +60,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           </Suspense>
         </div>
       </main>
-    </MobileWorkspaceProvider>
+    </>
   );
 }
 

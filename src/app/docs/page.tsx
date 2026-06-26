@@ -1,75 +1,172 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight } from "lucide-react";
+import {
+  Bot,
+  Code2,
+  Database,
+  Lock,
+  MessageCircle,
+  Rocket,
+  Shield,
+  Zap,
+} from "lucide-react";
 import { DocsLayout, docsMetadata } from "@/components/docs/docs-layout";
+import {
+  DocsHero,
+  DocsCard,
+  DocsCardGrid,
+  DocsSection,
+  DocsCategoryLabel,
+} from "@/components/docs/docs-ui";
 import { DOC_CATEGORIES, DOC_PAGES } from "@/lib/docs/nav";
+import { GITHUB_DOCS_TREE_URL, GITHUB_REPO_URL } from "@/lib/docs/github";
 
 export const metadata: Metadata = docsMetadata(
   "Documentation",
   "Guides for AYRA Agent — setup, private database, web search, Telegram, deployment, and troubleshooting."
 );
 
+const HIGHLIGHTS = [
+  {
+    icon: Bot,
+    title: "Autonomous agents",
+    description: "Personas, skills, schedules, and chat — built for Solana dev workflows.",
+    href: "/docs/agents-and-skills",
+  },
+  {
+    icon: Database,
+    title: "Your private database",
+    description: "BYOD Postgres for chat history and brain tasks — nothing shared on our DB.",
+    href: "/docs/private-database",
+  },
+  {
+    icon: Lock,
+    title: "Encrypted secrets",
+    description: "API keys, bot tokens, and DB URLs encrypted at rest with AES-256-GCM.",
+    href: "/docs/settings",
+  },
+  {
+    icon: MessageCircle,
+    title: "Telegram + web chat",
+    description: "Dashboard sessions, slash commands, and a bot for your default agent.",
+    href: "/docs/telegram",
+  },
+  {
+    icon: Shield,
+    title: "Open source",
+    description: "MIT-licensed — audit, self-host, and extend the platform yourself.",
+    href: GITHUB_REPO_URL,
+    external: true,
+  },
+  {
+    icon: Zap,
+    title: "Production ready",
+    description: "VPS deploy with PM2, worker process, and region-aware cron blueprints.",
+    href: "/docs/deployment",
+  },
+];
+
 export default function DocsHubPage() {
   return (
     <DocsLayout>
-      <div className="glass-panel rounded-2xl border border-white/[0.08] p-6 sm:p-8 lg:p-10">
-        <header className="border-b border-border/40 pb-6">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">Documentation</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-            Everything you need to run AYRA — from first sign-up to production deployment. These
-            guides mirror what you configure in the dashboard and what operators set in server{" "}
-            <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs">.env</code>.
-          </p>
-        </header>
+      <DocsHero
+        eyebrow="Getting Started"
+        title="Build trusted AI agents for Solana"
+        description="Privacy-first autonomous agents — wallet tracking, token research, X drafts, Telegram alerts, and scheduled brain tasks. Self-hostable and open source."
+        coverSrc="/docs/introduction-hero.png"
+        coverAlt="AYRA Agent — build trusted AI agents for Solana"
+      />
 
-        <div className="mt-8 space-y-10">
+      <DocsSection className="mb-12">
+        <DocsCardGrid cols={3}>
+          <DocsCard
+            href="/docs/getting-started"
+            icon={Rocket}
+            title="Getting started"
+            description="Sign up, connect your database, and launch your first agent"
+          />
+          <DocsCard
+            href="/docs/resources"
+            icon={Code2}
+            title="Resources"
+            description="API reference, examples, FAQ, and troubleshooting"
+          />
+          <DocsCard
+            href={GITHUB_REPO_URL}
+            icon={Bot}
+            title="GitHub"
+            description="Source code, issues, and contributions"
+            external
+          />
+        </DocsCardGrid>
+      </DocsSection>
+
+      <DocsSection title="Key highlights" className="mb-12">
+        <DocsCardGrid cols={3}>
+          {HIGHLIGHTS.map((item) => (
+            <DocsCard
+              key={item.title}
+              href={item.href}
+              icon={item.icon}
+              title={item.title}
+              description={item.description}
+              external={"external" in item && item.external}
+            />
+          ))}
+        </DocsCardGrid>
+      </DocsSection>
+
+      <DocsSection title="Browse by topic" className="mb-8">
+        <div className="space-y-10">
           {DOC_CATEGORIES.map((category) => {
             const pages = DOC_PAGES.filter((p) => p.category === category);
             return (
-              <section key={category}>
-                <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground/80">
-                  {category}
-                </h2>
-                <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div key={category}>
+                <DocsCategoryLabel>{category}</DocsCategoryLabel>
+                <DocsCardGrid cols={2}>
                   {pages.map((page) => (
-                    <li key={page.slug}>
-                      <Link
-                        href={`/docs/${page.slug}`}
-                        className="group flex h-full flex-col rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-colors hover:border-emerald-500/25 hover:bg-emerald-500/[0.04]"
-                      >
-                        <div className="flex items-start gap-3">
-                          <page.icon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-foreground group-hover:text-emerald-300">
-                              {page.title}
-                            </p>
-                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                              {page.description}
-                            </p>
-                          </div>
-                          <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                        </div>
-                      </Link>
-                    </li>
+                    <DocsCard
+                      key={page.slug}
+                      href={`/docs/${page.slug}`}
+                      icon={page.icon}
+                      title={page.title}
+                      description={page.description}
+                    />
                   ))}
-                </ul>
-              </section>
+                </DocsCardGrid>
+              </div>
             );
           })}
         </div>
+      </DocsSection>
 
-        <p className="mt-10 text-xs text-muted-foreground">
-          Source on GitHub:{" "}
-          <a
-            href="https://github.com/ayradotrun/ayra-agent/tree/main/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline-offset-2 hover:underline"
-          >
-            docs/
-          </a>
-        </p>
-      </div>
+      <DocsSection className="mt-12">
+        <DocsCardGrid cols={2}>
+          <DocsCard
+            href="/docs/getting-started"
+            icon={Rocket}
+            title="How it works"
+            description="From sign-up to your first agent in four steps"
+          />
+          <DocsCard
+            href="/docs/private-database"
+            icon={Database}
+            title="Private database setup"
+            description="Connect BYOD Postgres — required for chat and brain tasks"
+          />
+        </DocsCardGrid>
+      </DocsSection>
+
+      <p className="mt-12 text-center text-sm text-muted-foreground">
+        Source markdown on{" "}
+        <a
+          href={GITHUB_DOCS_TREE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-emerald-400 underline-offset-2 hover:underline"
+        >
+          GitHub
+        </a>
+      </p>
     </DocsLayout>
   );
 }

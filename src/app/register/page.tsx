@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { AyraLogo } from "@/components/brand/ayra-logo";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ type Step = "details" | "verify";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { status } = useSession();
   const [step, setStep] = useState<Step>("details");
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
@@ -25,6 +26,12 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [status, router]);
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();

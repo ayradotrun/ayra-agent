@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { isAdminEmail } from "@/lib/admin";
 import { normalizeUsername } from "@/lib/auth/username";
+import { LOGIN_ERROR } from "@/lib/auth/login-errors";
 import type { Adapter } from "next-auth/adapters";
 
 export const authOptions: NextAuthOptions = {
@@ -22,7 +23,9 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.login || !credentials?.password) return null;
+        if (!credentials?.login || !credentials?.password) {
+          throw new Error(LOGIN_ERROR.MISSING);
+        }
 
         const login = credentials.login.trim();
         const loginLower = login.toLowerCase();
@@ -43,11 +46,17 @@ export const authOptions: NextAuthOptions = {
           },
         });
 
-        if (!user?.password) return null;
-        if (!user.emailVerified) return null;
+        if (!user?.password) {
+          throw new Error(LOGIN_ERROR.INVALID);
+        }
+        if (!user.emailVerified) {
+          throw new Error(LOGIN_ERROR.UNVERIFIED);
+        }
 
         const valid = await bcrypt.compare(credentials.password, user.password);
-        if (!valid) return null;
+        if (!valid) {
+          throw new Error(LOGIN_ERROR.INVALID);
+        }
 
         return {
           id: user.id,

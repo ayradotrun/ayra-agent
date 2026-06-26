@@ -5,6 +5,7 @@ import {
   Puzzle,
   Settings,
   Shield,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,6 +19,7 @@ export const NAV_ITEMS: Array<{
   { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard/agents", label: "Agents", icon: Bot },
   { href: "/dashboard/skills", label: "Skills", icon: Puzzle },
+  { href: "/docs", label: "Docs", icon: BookOpen },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 

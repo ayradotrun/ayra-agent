@@ -273,7 +273,7 @@ Every request that touches chat or brain may hit **both** databases. Keep them i
 
 | Setup | Platform (`.env`) | Private (Settings) | Notes |
 |-------|-------------------|--------------------|--------|
-| **Self-host VPS (recommended)** | `127.0.0.1:5432/ayra` | `127.0.0.1:5432/nami` (or same DB with `AYRA_ALLOW_PLATFORM_BRAIN_DB=true`) | Both on the VPS — lowest latency |
+| **Self-host VPS (recommended)** | `127.0.0.1:5432/platform_db` | `127.0.0.1:5432/private_db` (or same DB with `AYRA_ALLOW_PLATFORM_BRAIN_DB=true`) | Both on the VPS — lowest latency |
 | **Cloud (Supabase / Neon)** | Project in **eu-central-1** (Frankfurt) | Second project or DB in **eu-central-1** | Match the region in both URLs |
 | **Avoid** | Singapore / US East | Different region than platform | Slow `/help`, chat load, brain cron |
 
@@ -282,12 +282,12 @@ Every request that touches chat or brain may hit **both** databases. Keep them i
 **Self-host example** (one VPS in Germany):
 
 ```bash
-# .env — platform only; never point these at the private DB name by mistake
-DATABASE_URL=postgresql://nami:PASSWORD@127.0.0.1:5432/ayra
-DIRECT_DATABASE_URL=postgresql://nami:PASSWORD@127.0.0.1:5432/ayra
+# .env — platform only; never point these at the private database name by mistake
+DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
+DIRECT_DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
 ```
 
-Then in **Settings → Private Database**: `postgresql://nami:PASSWORD@127.0.0.1:5432/nami` — same host, same machine, zero cross-region delay.
+Then in **Settings → Private Database**: `postgresql://postgres:PASSWORD@127.0.0.1:5432/private_db` — same host, same machine, zero cross-region delay.
 
 See [docs/private-database.md](./docs/private-database.md) for connect steps and [Performance](#performance) for model tuning.
 
@@ -374,7 +374,7 @@ Every user must connect **their own Postgres** for dashboard chat history and AY
 
 The platform database (operator `.env`) and the private database (user **Settings**) must use the **same region** as the AYRA server:
 
-- **Self-host:** platform DB `ayra` + private DB `nami` on the same VPS (`127.0.0.1`) — recommended
+- **Self-host:** platform database in `.env` (e.g. `platform_db`) + separate private database in Settings (e.g. `private_db`) on the same VPS (`127.0.0.1`) — recommended
 - **Cloud:** if `DATABASE_URL` uses Supabase **eu-central-1**, the private URL in Settings must also be **eu-central-1** (not Singapore, US, etc.)
 - **Solo self-host:** you may use one Postgres database for both — set `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` and paste `DIRECT_DATABASE_URL` in Settings
 

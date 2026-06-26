@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useSession } from "next-auth/react";
 import {
   Bot,
   Coins,
@@ -21,11 +22,17 @@ import {
   CheckCircle2,
   Zap,
   Code2,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { LandingHeader, LANDING_HEADER_OFFSET, LANDING_SECTION_SCROLL } from "@/components/landing/landing-header";
+import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingFooter } from "@/components/landing/landing-footer";
+import { PublicBottomNav } from "@/components/layout/public-bottom-nav";
+import {
+  SITE_SECTION_ANCHOR,
+  SITE_BOTTOM_OFFSET,
+} from "@/lib/layout/site-layout";
 import { LandingHeroBg } from "@/components/landing/landing-hero-bg";
 import { LandingAgentTerminal } from "@/components/landing/landing-agent-terminal";
 import { LandingArchitectureDiagram } from "@/components/landing/landing-architecture-diagram";
@@ -122,15 +129,33 @@ const faqs = [
 ];
 
 export function LandingPage() {
+  const { data: session, status } = useSession();
+  const isAuthenticated = status === "authenticated" && !!session?.user;
+
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background">
+    <div className={`relative min-h-screen overflow-x-hidden bg-background ${SITE_BOTTOM_OFFSET}`}>
       <div className="pointer-events-none absolute inset-0 grid-bg opacity-30" />
       <LandingHeroBg />
 
       <LandingHeader />
 
       {/* Hero */}
-      <section className={`relative z-10 mx-auto max-w-6xl px-4 pb-12 sm:px-6 sm:pb-16 ${LANDING_HEADER_OFFSET}`}>
+      <section className="relative z-10 mx-auto max-w-6xl px-4 pb-12 pt-2 sm:px-6 sm:pb-16 sm:pt-4">
+        {isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] px-4 py-3 text-center sm:text-left"
+          >
+            <p className="text-sm text-muted-foreground">
+              Welcome back{session?.user?.name ? `, ${session.user.name}` : ""}.{" "}
+              <Link href="/dashboard" className="font-medium text-emerald-400 hover:underline">
+                Open dashboard →
+              </Link>
+            </p>
+          </motion.div>
+        )}
+
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -156,23 +181,60 @@ export function LandingPage() {
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
-              <Link href="/register" className="w-full sm:w-auto">
-                <Button size="lg" className="glow-emerald h-12 w-full sm:h-11 sm:w-auto">
-                  Start building free
-                  <ArrowRight className="ml-1 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link
-                href="https://github.com/ayradotrun/ayra-agent"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto"
-              >
-                <Button variant="outline" size="lg" className="h-12 w-full sm:h-11 sm:w-auto">
-                  <Code2 className="mr-2 h-4 w-4" />
-                  GitHub
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link href="/dashboard" className="w-full sm:w-auto">
+                    <Button size="lg" className="glow-emerald h-12 w-full sm:h-11 sm:w-auto">
+                      Go to dashboard
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/docs" className="w-full sm:w-auto">
+                    <Button variant="outline" size="lg" className="h-12 w-full sm:h-11 sm:w-auto">
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Documentation
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/register" className="w-full sm:w-auto">
+                    <Button size="lg" className="glow-emerald h-12 w-full sm:h-11 sm:w-auto">
+                      Start building free
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link
+                    href="https://github.com/ayradotrun/ayra-agent"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full sm:w-auto"
+                  >
+                    <Button variant="outline" size="lg" className="h-12 w-full sm:h-11 sm:w-auto">
+                      <Code2 className="mr-2 h-4 w-4" />
+                      GitHub
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
+
+            {/* Mobile quick links */}
+            <div className="mt-6 flex flex-wrap justify-center gap-2 lg:justify-start md:hidden">
+              {[
+                { href: "/docs", label: "Docs" },
+                { href: "/#features", label: "Features" },
+                { href: "/docs/resources", label: "Resources" },
+                { href: "/security", label: "Security" },
+              ].map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-emerald-500/30 hover:text-foreground"
+                >
+                  {link.label}
+                </Link>
+              ))}
             </div>
           </motion.div>
 
@@ -197,7 +259,7 @@ export function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
+      <section id="features" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${SITE_SECTION_ANCHOR}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <ScrollReveal variant="fadeUp" className="max-w-2xl text-center md:text-left">
             <Badge variant="secondary" className="mb-4">Platform</Badge>
@@ -288,7 +350,7 @@ export function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
+      <section id="how-it-works" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${SITE_SECTION_ANCHOR}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <ScrollReveal variant="fadeUp">
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">How it works</h2>
@@ -366,7 +428,7 @@ export function LandingPage() {
       </section>
 
       {/* Skills */}
-      <section id="skills" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${LANDING_SECTION_SCROLL}`}>
+      <section id="skills" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${SITE_SECTION_ANCHOR}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <ScrollReveal variant="fadeUp">
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Skills for devs & token teams</h2>
@@ -436,12 +498,21 @@ export function LandingPage() {
                 Self-host anytime with the open-source repo.
               </p>
               <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-                <Link href="/register">
-                  <Button size="lg" className="glow-emerald">
-                    Get started free
-                    <ArrowRight className="ml-1 h-4 w-4" />
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link href="/dashboard">
+                    <Button size="lg" className="glow-emerald">
+                      Open dashboard
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/register">
+                    <Button size="lg" className="glow-emerald">
+                      Get started free
+                      <ArrowRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
                 <Link href="/terms">
                   <Button variant="ghost" size="sm" className="text-muted-foreground">
                     Terms of Service
@@ -453,22 +524,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Mobile sticky CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.08] bg-[hsl(220,18%,7%)]/90 p-3 backdrop-blur-xl sm:hidden">
-        <div className="mx-auto flex max-w-lg gap-2">
-          <Link href="/login" className="flex-1">
-            <Button variant="outline" className="h-11 w-full">
-              Sign in
-            </Button>
-          </Link>
-          <Link href="/register" className="flex-[1.4]">
-            <Button className="h-11 w-full glow-emerald">
-              Start free
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
-      </div>
+      {/* Mobile bottom navigation */}
+      <PublicBottomNav />
 
       <LandingFooter />
     </div>

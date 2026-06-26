@@ -28,6 +28,24 @@
     --radius: 0.625rem;
     --glass: rgba(12, 14, 18, 0.78);
     --glass-border: rgba(255, 255, 255, 0.06);
+    /* Layout chrome — fallback until JS measures actual header height */
+    --site-header-gap: 0.75rem;
+    --site-header-height: 5.75rem;
+    --site-header-scroll-offset: calc(var(--site-header-height) + 0.5rem);
+    --dashboard-header-height: 3.75rem;
+    --bottom-nav-height: 4.75rem;
+  }
+
+  @media (min-width: 640px) {
+    :root {
+      --site-header-gap: 1rem;
+      --site-header-height: 6rem;
+    }
+  }
+
+  html {
+    scroll-padding-top: var(--site-header-scroll-offset);
+    scroll-behavior: smooth;
   }
 
   * {
@@ -97,5 +115,70 @@
   .terminal-panel {
     @apply rounded-xl border border-white/[0.06] bg-[#0b0d10];
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .site-header-spacer {
+    height: var(--site-header-height);
+    pointer-events: none;
+  }
+
+  .dashboard-header-spacer {
+    height: var(--dashboard-header-height);
+    pointer-events: none;
+  }
+
+  @media (min-width: 768px) {
+    .dashboard-header-spacer {
+      display: none;
+    }
+  }
+
+  .site-section-anchor {
+    scroll-margin-top: var(--site-header-scroll-offset);
+  }
+
+  .prose-heading-anchor {
+    scroll-margin-top: var(--site-header-scroll-offset);
+  }
+
+  .site-bottom-offset {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+  }
+
+  @media (min-width: 768px) {
+    .site-bottom-offset {
+      padding-bottom: 0;
+    }
+  }
+
+  .docs-sidebar-sticky {
+    position: sticky;
+    top: calc(var(--site-header-height) + 1rem);
+    max-height: calc(100vh - var(--site-header-height) - 2rem);
+  }
+
+  .docs-mobile-chrome-spacer {
+    height: calc(5.25rem + env(safe-area-inset-top, 0px));
+  }
+
+  :root {
+    --docs-scroll-offset: 5.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    :root {
+      --docs-scroll-offset: 2rem;
+    }
+  }
+
+  .docs-divider {
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.08) 20%,
+      rgba(255, 255, 255, 0.08) 80%,
+      transparent
+    );
   }
 }
