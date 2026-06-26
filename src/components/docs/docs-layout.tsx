@@ -4,7 +4,7 @@ import { DocsSidebarNav } from "@/components/docs/docs-sidebar-nav";
 import { DocsMobileChrome, DocsBreadcrumb } from "@/components/docs/docs-mobile-chrome";
 import { DocsToc } from "@/components/docs/docs-toc";
 import type { DocHeading } from "@/lib/docs/headings";
-import { SITE_BOTTOM_OFFSET } from "@/lib/layout/site-layout";
+import { MobileBottomSpacer } from "@/components/layout/mobile-bottom-spacer";
 
 interface DocsLayoutProps {
   children: React.ReactNode;
@@ -33,11 +33,12 @@ export function DocsLayout({ children, tocHeadings = [] }: DocsLayoutProps) {
       )}
 
       <main
-        className={`docs-main relative min-h-screen lg:pl-[288px] ${hasToc ? "xl:pr-[220px]" : ""} ${SITE_BOTTOM_OFFSET} pb-20 lg:pb-10`}
+        className={`docs-main relative min-h-screen lg:pl-[288px] ${hasToc ? "xl:pr-[220px]" : ""} lg:pb-10`}
       >
         <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
           <DocsBreadcrumb />
           {children}
+          <MobileBottomSpacer />
         </div>
       </main>
 

@@ -33,7 +33,8 @@
     --site-header-height: 5.75rem;
     --site-header-scroll-offset: calc(var(--site-header-height) + 0.5rem);
     --dashboard-header-height: 3.75rem;
-    --bottom-nav-height: 4.75rem;
+    --bottom-nav-height: 5.5rem;
+    --bottom-nav-offset: 6rem;
   }
 
   @media (min-width: 640px) {
@@ -142,7 +143,44 @@
   }
 
   .site-bottom-offset {
-    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+    display: flow-root;
+    padding-bottom: calc(var(--bottom-nav-height, 5.5rem) + 1.5rem);
+  }
+
+  .mobile-bottom-spacer {
+    height: calc(var(--bottom-nav-height, 5.5rem) + 1.5rem);
+    min-height: 7rem;
+    flex-shrink: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 767px) {
+    html {
+      scroll-padding-bottom: calc(var(--bottom-nav-height, 5.5rem) + 1.5rem);
+    }
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    background: hsl(220 20% 5% / 0.55);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mobile-form-actions {
+    padding-top: 0.5rem;
+  }
+
+  @media (max-width: 767px) {
+    .mobile-form-actions {
+      margin-bottom: 0.25rem;
+    }
   }
 
   @media (min-width: 768px) {

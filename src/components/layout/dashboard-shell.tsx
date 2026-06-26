@@ -10,6 +10,7 @@ import {
 } from "@/components/layout/mobile-nav";
 import { GridBackground } from "@/components/layout/grid-background";
 import { PrivateDatabaseGate } from "@/components/layout/private-database-gate";
+import { MobileBottomSpacer } from "@/components/layout/mobile-bottom-spacer";
 import { cn } from "@/lib/utils";
 
 interface DashboardShellProps {
@@ -39,7 +40,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
                 "fixed inset-x-0 top-0 overflow-hidden md:inset-y-0 md:left-[260px] md:right-0 md:top-0 md:bottom-0",
                 DASHBOARD_MOBILE_BOTTOM_OFFSET
               )
-            : cn("min-h-screen md:ml-[260px]", DASHBOARD_MOBILE_BOTTOM_OFFSET)
+            : cn("min-h-screen md:ml-[260px]")
         )}
       >
         <div
@@ -58,6 +59,7 @@ export function DashboardShell({ children, user }: DashboardShellProps) {
           >
             <PrivateDatabaseGate>{children}</PrivateDatabaseGate>
           </Suspense>
+          {!isChatPage && <MobileBottomSpacer />}
         </div>
       </main>
     </>

@@ -21,6 +21,9 @@ export function useChromeHeight(
           `${height + 8}px`
         );
       }
+      if (cssVar === "--bottom-nav-height") {
+        document.documentElement.style.setProperty("--bottom-nav-offset", `${height}px`);
+      }
     }
 
     sync();

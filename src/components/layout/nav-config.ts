@@ -12,10 +12,11 @@ import {
 export const NAV_ITEMS: Array<{
   href: string;
   label: string;
+  mobileLabel?: string;
   icon: LucideIcon;
   exact?: boolean;
 }> = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/dashboard", label: "Overview", mobileLabel: "Home", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
   { href: "/dashboard/agents", label: "Agents", icon: Bot },
   { href: "/dashboard/skills", label: "Skills", icon: Puzzle },
@@ -30,6 +31,6 @@ export const ADMIN_NAV_ITEM = {
   exact: true as const,
 };
 
-export const MOBILE_NAV_ITEMS = NAV_ITEMS;
+export const MOBILE_NAV_ITEMS = NAV_ITEMS.filter((item) => item.href !== "/docs");
 
 export const NEW_AGENT_HREF = "/dashboard/agents/new";

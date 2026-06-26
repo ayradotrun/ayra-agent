@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -15,6 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getDocsByCategory } from "@/lib/docs/nav";
 import { SITE_BOTTOM_OFFSET } from "@/lib/layout/site-layout";
+import { useChromeHeight } from "@/hooks/use-chrome-height";
 
 const RESOURCE_HREFS = new Set([
   "/docs/resources",
@@ -26,6 +28,7 @@ type NavIcon = React.ComponentType<{ className?: string }>;
 interface BottomNavItem {
   key: string;
   label: string;
+  mobileLabel?: string;
   icon: NavIcon;
   href?: string;
   exact?: boolean;
@@ -36,17 +39,38 @@ interface BottomNavItem {
 const GUEST_ITEMS: BottomNavItem[] = [
   { key: "home", href: "/", label: "Home", icon: Home, exact: true },
   { key: "docs", href: "/docs", label: "Docs", icon: BookOpen, exact: true },
-  { key: "resources", href: "/docs/resources", label: "Resources", icon: Library, resourceHub: true },
-  { key: "login", href: "/login", label: "Sign in", icon: LogIn, exact: true },
-  { key: "register", href: "/register", label: "Sign up", icon: UserPlus, exact: true },
+  {
+    key: "resources",
+    href: "/docs/resources",
+    label: "Resources",
+    mobileLabel: "Library",
+    icon: Library,
+    resourceHub: true,
+  },
+  { key: "login", href: "/login", label: "Sign in", mobileLabel: "Sign in", icon: LogIn, exact: true },
+  { key: "register", href: "/register", label: "Sign up", mobileLabel: "Sign up", icon: UserPlus, exact: true },
 ];
 
 const AUTH_ITEMS: BottomNavItem[] = [
   { key: "home", href: "/", label: "Home", icon: Home, exact: true },
   { key: "docs", href: "/docs", label: "Docs", icon: BookOpen, exact: true },
-  { key: "resources", href: "/docs/resources", label: "Resources", icon: Library, resourceHub: true },
-  { key: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: false },
-  { key: "signout", label: "Sign out", icon: LogOut, action: "signout" },
+  {
+    key: "resources",
+    href: "/docs/resources",
+    label: "Resources",
+    mobileLabel: "Library",
+    icon: Library,
+    resourceHub: true,
+  },
+  {
+    key: "dashboard",
+    href: "/dashboard",
+    label: "Dashboard",
+    mobileLabel: "Dash",
+    icon: LayoutDashboard,
+    exact: false,
+  },
+  { key: "signout", label: "Sign out", mobileLabel: "Sign out", icon: LogOut, action: "signout" },
 ];
 
 function isItemActive(pathname: string, item: BottomNavItem): boolean {
@@ -62,24 +86,32 @@ export function PublicBottomNav() {
   const { data: session, status } = useSession();
   const isAuthenticated = status === "authenticated" && !!session?.user;
   const items = isAuthenticated ? AUTH_ITEMS : GUEST_ITEMS;
+  const navRef = useRef<HTMLElement>(null);
+  useChromeHeight(navRef, "--bottom-nav-height", [isAuthenticated]);
+
+  const linkClass = (active: boolean) =>
+    cn(
+      "flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1.5 text-[10px] font-medium leading-none transition-colors duration-200 sm:text-[11px]",
+      active ? "text-emerald-400" : "text-muted-foreground hover:text-foreground"
+    );
+
+  const iconClass = (active: boolean) =>
+    cn(
+      "h-5 w-5 shrink-0 transition-transform duration-200",
+      active ? "scale-105 text-emerald-400" : "opacity-75"
+    );
 
   return (
     <nav
+      ref={navRef}
       aria-label="Site navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.08] bg-[hsl(220,20%,5%)]/95 backdrop-blur-xl md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="mobile-bottom-nav md:hidden"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-5 px-0.5 pb-1 pt-1">
+      <div className="grid grid-cols-5 px-1 pb-1.5 pt-1.5">
         {items.map((item) => {
           const active = isItemActive(pathname, item);
-          const className = cn(
-            "flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-[10px] font-medium transition-colors duration-200",
-            active ? "text-emerald-400" : "text-muted-foreground hover:text-foreground"
-          );
-          const iconClass = cn(
-            "h-5 w-5 shrink-0 transition-transform duration-200",
-            active ? "scale-105 text-emerald-400" : "opacity-75"
-          );
+          const label = item.mobileLabel ?? item.label;
+          const className = linkClass(active);
 
           if (item.action === "signout") {
             return (
@@ -89,16 +121,16 @@ export function PublicBottomNav() {
                 className={className}
                 onClick={() => signOut({ callbackUrl: "/" })}
               >
-                <item.icon className={iconClass} />
-                <span className="max-w-full truncate">{item.label}</span>
+                <item.icon className={iconClass(active)} />
+                <span className="max-w-full truncate text-center">{label}</span>
               </button>
             );
           }
 
           return (
             <Link key={item.key} href={item.href!} className={className}>
-              <item.icon className={iconClass} />
-              <span className="max-w-full truncate">{item.label}</span>
+              <item.icon className={iconClass(active)} />
+              <span className="max-w-full truncate text-center">{label}</span>
             </Link>
           );
         })}

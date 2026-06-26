@@ -312,7 +312,7 @@ export default function CreateAgentPage() {
           </>
         )}
 
-        <div className="flex justify-end gap-3">
+        <div className="mobile-form-actions flex justify-end gap-3">
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>

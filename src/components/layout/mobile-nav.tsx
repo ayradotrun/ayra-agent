@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
+import { BookOpen, Plus } from "lucide-react";
 import { AyraLogo } from "@/components/brand/ayra-logo";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,14 @@ export function MobileHeader() {
             </span>
           </div>
 
+          <Link
+            href="/docs"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.05] hover:text-foreground"
+            aria-label="Documentation"
+          >
+            <BookOpen className="h-4 w-4" />
+          </Link>
+
           <Link href={NEW_AGENT_HREF} className="shrink-0">
             <Button
               size="sm"
@@ -48,14 +56,16 @@ export function MobileHeader() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const navRef = useRef<HTMLElement>(null);
+  useChromeHeight(navRef, "--bottom-nav-height", []);
 
   return (
     <nav
+      ref={navRef}
       aria-label="Dashboard navigation"
-      className="fixed bottom-0 left-0 right-0 z-40 border-t border-white/[0.06] bg-[hsl(220,20%,5%)]/95 backdrop-blur-xl md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      className="mobile-bottom-nav md:hidden"
     >
-      <div className="mx-auto grid max-w-lg grid-cols-6 px-0.5 pb-1 pt-1">
+      <div className="grid grid-cols-5 px-1 pb-1.5 pt-1.5">
         {MOBILE_NAV_ITEMS.map((item) => {
           const active = item.exact
             ? pathname === item.href
@@ -63,21 +73,14 @@ export function MobileNav() {
               pathname.startsWith(`${item.href}/`) ||
               pathname.startsWith(`${item.href}?`);
 
-          const shortLabel =
-            item.href === "/dashboard"
-              ? "Home"
-              : item.href === "/docs"
-                ? "Docs"
-                : item.label.length > 7
-                  ? item.label.slice(0, 6)
-                  : item.label;
+          const label = item.mobileLabel ?? item.label;
 
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-0.5 py-2 text-[9px] font-medium transition-colors duration-200 sm:text-[10px]",
+                "flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1.5 text-[10px] font-medium leading-none transition-colors duration-200 sm:text-[11px]",
                 active ? "text-emerald-400" : "text-muted-foreground"
               )}
             >
@@ -87,7 +90,7 @@ export function MobileNav() {
                   active ? "scale-105 text-emerald-400" : "opacity-70"
                 )}
               />
-              <span className="max-w-full truncate">{shortLabel}</span>
+              <span className="max-w-full truncate text-center">{label}</span>
             </Link>
           );
         })}

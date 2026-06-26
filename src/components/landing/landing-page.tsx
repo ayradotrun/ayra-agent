@@ -29,10 +29,8 @@ import { Badge } from "@/components/ui/badge";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { PublicBottomNav } from "@/components/layout/public-bottom-nav";
-import {
-  SITE_SECTION_ANCHOR,
-  SITE_BOTTOM_OFFSET,
-} from "@/lib/layout/site-layout";
+import { MobileBottomSpacer } from "@/components/layout/mobile-bottom-spacer";
+import { SITE_SECTION_ANCHOR } from "@/lib/layout/site-layout";
 import { LandingHeroBg } from "@/components/landing/landing-hero-bg";
 import { LandingAgentTerminal } from "@/components/landing/landing-agent-terminal";
 import { LandingArchitectureDiagram } from "@/components/landing/landing-architecture-diagram";
@@ -133,7 +131,7 @@ export function LandingPage() {
   const isAuthenticated = status === "authenticated" && !!session?.user;
 
   return (
-    <div className={`relative min-h-screen overflow-x-hidden bg-background ${SITE_BOTTOM_OFFSET}`}>
+    <div className="relative min-h-screen overflow-x-hidden bg-background">
       <div className="pointer-events-none absolute inset-0 grid-bg opacity-30" />
       <LandingHeroBg />
 
@@ -525,6 +523,7 @@ export function LandingPage() {
       </section>
 
       {/* Mobile bottom navigation */}
+      <MobileBottomSpacer />
       <PublicBottomNav />
 
       <LandingFooter />

@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { PublicBottomNav } from "@/components/layout/public-bottom-nav";
+import { MobileBottomSpacer } from "@/components/layout/mobile-bottom-spacer";
 import {
-  SITE_BOTTOM_OFFSET,
   SITE_CONTAINER,
   SITE_SECTION_ANCHOR,
 } from "@/lib/layout/site-layout";
@@ -24,7 +24,7 @@ export function LegalPageLayout({ title, lastUpdated, children }: LegalPageLayou
 
       <LandingHeader />
 
-      <main className={`relative z-0 ${SITE_BOTTOM_OFFSET} pt-4 md:pb-20 md:pt-6`}>
+      <main className="relative z-0 pt-4 md:pb-20 md:pt-6">
         <div className={SITE_CONTAINER}>
           <Link
             href="/"
@@ -44,6 +44,7 @@ export function LegalPageLayout({ title, lastUpdated, children }: LegalPageLayou
               {children}
             </div>
           </article>
+          <MobileBottomSpacer />
         </div>
       </main>
 
