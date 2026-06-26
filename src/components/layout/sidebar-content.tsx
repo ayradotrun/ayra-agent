@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LogOut, Plus } from "lucide-react";
+import { BookOpen, LogOut, Plus } from "lucide-react";
 import { AyraLogo } from "@/components/brand/ayra-logo";
 import { AyraSocialLinks } from "@/components/brand/ayra-social-links";
 import { cn } from "@/lib/utils";
@@ -167,6 +167,14 @@ export function SidebarContent({ user, onNavigate }: SidebarContentProps) {
       </div>
 
       <div className="shrink-0 border-t border-white/[0.06] p-3">
+        <Link
+          href="/docs"
+          onClick={onNavigate}
+          className="mb-3 flex items-center gap-2 rounded-lg px-2 py-2 text-[12px] text-muted-foreground transition-colors hover:bg-white/[0.03] hover:text-foreground"
+        >
+          <BookOpen className="h-3.5 w-3.5 text-emerald-400/80" />
+          Documentation
+        </Link>
         <AyraSocialLinks
           className="mb-3 justify-center gap-4 px-1 sm:justify-start"
           showLabels

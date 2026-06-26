@@ -56,7 +56,7 @@ export const TRUST_LINKS: TrustLink[] = [
     icon: Database,
     label: "Private DB guide",
     desc: "BYOD Postgres setup",
-    href: "https://github.com/ayradotrun/ayra-agent/blob/main/docs/private-database.md",
-    external: true,
+    href: "/docs/private-database",
+    external: false,
   },
 ];

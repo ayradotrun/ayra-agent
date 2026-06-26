@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { encryptSafe, decryptSafe } from "@/lib/encryption";
 
-export type SecretScope = "llm" | "telegram" | "x" | "solana" | "discord";
+export type SecretScope = "llm" | "telegram" | "x" | "solana" | "discord" | "jina";
 
 export type SecretName =
   | "api_key"
@@ -128,5 +128,6 @@ export async function listSecretFlags(userId: string) {
     hasXAccessToken: has("x", "access_token") || !!user?.xAccessToken,
     hasXAccessSecret: has("x", "access_secret") || !!user?.xAccessSecret,
     hasSolanaRpcApiKey: has("solana", "rpc_api_key") || !!user?.solanaRpcApiKey,
+    hasJinaApiKey: has("jina", "api_key"),
   };
 }

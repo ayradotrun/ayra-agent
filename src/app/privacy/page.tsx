@@ -35,7 +35,7 @@ export default function PrivacyPage() {
       <h3>Configuration and credentials</h3>
       <ul>
         <li>Agent settings, prompts, skill selections, and schedules</li>
-        <li>Encrypted API keys (LLM, Telegram, X, RPC) when you provide them</li>
+        <li>Encrypted API keys (LLM, Telegram, X, RPC, optional Jina web-search) when you provide them</li>
         <li>Your private Postgres connection URL (encrypted at rest)</li>
       </ul>
 
@@ -75,6 +75,8 @@ export default function PrivacyPage() {
       <p>When you enable integrations, data may be sent to:</p>
       <ul>
         <li>LLM providers (e.g. OpenRouter) for agent inference</li>
+        <li>Jina AI when you add a Jina API key for web-search (search queries are sent to Jina)</li>
+        <li>Public search fallbacks (Bing, DuckDuckGo) when Jina is unavailable or no key is set</li>
         <li>X (Twitter) when you connect OAuth or enable auto-post</li>
         <li>Telegram when you configure a bot token</li>
         <li>Solana RPC providers and public APIs for on-chain research skills</li>

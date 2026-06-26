@@ -63,7 +63,7 @@ export const newsDigest: SkillDefinition = {
   }),
   async execute(input, ctx) {
     await ctx.log("INFO", `News digest: ${input.topic}`, "news-digest");
-    const result = await performWebSearch(`${input.topic} news latest`, input.maxItems ?? 5);
+    const result = await performWebSearch(`${input.topic} news latest`, input.maxItems ?? 5, ctx.userId);
     if (!result.ok || !result.related?.length) {
       return { topic: input.topic, items: [], ok: false, error: result.error ?? "No results" };
     }

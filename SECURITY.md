@@ -25,7 +25,7 @@ We aim to acknowledge reports within **72 hours** and provide a status update wi
 
 ## What we protect
 
-- **Credentials at rest** — API keys, Telegram tokens, X OAuth tokens, RPC keys, and private database URLs are encrypted with AES-256-GCM when `ENCRYPTION_KEY` is set.
+- **Credentials at rest** — API keys, Telegram tokens, X OAuth tokens, RPC keys, optional Jina web-search keys, and private database URLs are encrypted with AES-256-GCM when `ENCRYPTION_KEY` is set.
 - **Session security** — NextAuth sessions; bcrypt password hashing; email verification required for new accounts; production requires a strong `NEXTAUTH_SECRET`.
 - **Email codes** — Sign up and password reset use hashed one-time codes (15-minute expiry) with rate limits.
 - **Admin access** — `/dashboard/admin` is gated by `ADMIN_EMAILS`.

@@ -26,7 +26,7 @@ export default function SecurityPage() {
 
       <h3>Credentials at rest</h3>
       <p>
-        API keys, Telegram tokens, X OAuth tokens, RPC keys, and private database URLs are encrypted
+        API keys, Telegram tokens, X OAuth tokens, RPC keys, optional Jina web-search keys, and private database URLs are encrypted
         with <strong>AES-256-GCM</strong> when <code>ENCRYPTION_KEY</code> is set in your environment.
       </p>
 
@@ -75,13 +75,9 @@ export default function SecurityPage() {
         tasks. Your conversation history and scheduled tasks live in infrastructure you control.
         Learn more in our{" "}
         <Link href="/privacy">Privacy Policy</Link> and{" "}
-        <a
-          href="https://github.com/ayradotrun/ayra-agent/blob/main/docs/private-database.md"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Link href="/docs/private-database" className="text-primary underline-offset-2 hover:underline">
           private database guide
-        </a>
+        </Link>
         .
       </p>
 

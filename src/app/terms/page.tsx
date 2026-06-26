@@ -30,7 +30,7 @@ export default function TermsPage() {
       <h2>3. Your account</h2>
       <ul>
         <li>You are responsible for keeping your login credentials secure</li>
-        <li>You are responsible for API keys, bot tokens, and database URLs you configure</li>
+        <li>You are responsible for API keys, bot tokens, database URLs, and optional Jina web-search keys you configure</li>
         <li>You must provide accurate registration information and verify your email address</li>
         <li>
           Your <strong>username</strong> is chosen at sign up and cannot be changed; display name
@@ -67,7 +67,7 @@ export default function TermsPage() {
 
       <h2>7. Third-party services</h2>
       <p>
-        Your use of OpenRouter, X, Telegram, Solana RPC providers, and database hosts is subject
+        Your use of OpenRouter, Jina AI (web search), X, Telegram, Solana RPC providers, and database hosts is subject
         to their respective terms. AYRA is not responsible for outages, policy changes, or costs
         imposed by third parties.
       </p>

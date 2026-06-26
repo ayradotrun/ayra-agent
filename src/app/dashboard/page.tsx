@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bot, Play, Bell, Zap, Plus } from "lucide-react";
+import { Bot, Play, Bell, Zap, Plus, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard, EmptyState, ErrorState } from "@/components/dashboard/stat-card";
 import { SkillCard } from "@/components/skills/skill-card";
@@ -65,6 +65,23 @@ export default function DashboardPage() {
           </Link>
         }
       />
+
+      <div className="flex flex-col gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Documentation</p>
+            <p className="text-xs text-muted-foreground">
+              Setup guides for private database, Jina web search, Telegram, deployment, and more.
+            </p>
+          </div>
+        </div>
+        <Link href="/docs">
+          <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs">
+            Open docs
+          </Button>
+        </Link>
+      </div>
 
       {error && (
         <ErrorState

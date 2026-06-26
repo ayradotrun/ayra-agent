@@ -11,13 +11,10 @@ const legalLinks = [
 ];
 
 const resourceLinks = [
+  { href: "/docs", label: "Documentation", external: false },
+  { href: "/docs/getting-started", label: "Getting started", external: false },
+  { href: "/docs/private-database", label: "Private database", external: false },
   { href: "https://github.com/ayradotrun/ayra-agent", label: "GitHub", external: true },
-  { href: "https://github.com/ayradotrun/ayra-agent#quick-start", label: "Documentation", external: true },
-  {
-    href: "https://github.com/ayradotrun/ayra-agent/blob/main/docs/private-database.md",
-    label: "Private DB guide",
-    external: true,
-  },
 ];
 
 export function LandingFooter() {
@@ -58,14 +55,23 @@ export function LandingFooter() {
             <ul className="mt-4 space-y-2.5">
               {resourceLinks.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {link.label}
-                  </a>
+                  {link.external ? (
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </a>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {link.label}
+                    </Link>
+                  )}
                 </li>
               ))}
               <li>

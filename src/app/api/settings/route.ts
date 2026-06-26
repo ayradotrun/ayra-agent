@@ -118,6 +118,7 @@ export async function GET() {
     hasXAccessToken: secretFlags.hasXAccessToken,
     hasXAccessSecret: secretFlags.hasXAccessSecret,
     hasSolanaRpcApiKey: secretFlags.hasSolanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
+    hasJinaApiKey: secretFlags.hasJinaApiKey,
     hasBrainDatabaseUrl: !!dbUser?.brainDatabaseUrl,
     effectiveSolanaDefaultRpc: dbUser?.solanaDefaultRpc?.trim() || DEFAULT_SOLANA_RPC,
     fallbackRpcUrls: dbUser?.fallbackRpcUrls ?? [],
@@ -194,6 +195,7 @@ const updateSettingsSchema = z.object({
   fallbackImageModels: z.array(z.string()).optional(),
   agentMemoryEnabled: z.boolean().optional(),
   agentMemoryUrl: z.union([z.string(), z.null()]).optional(),
+  jinaApiKey: z.string().optional(),
 });
 
 export async function PATCH(request: NextRequest) {
@@ -227,6 +229,9 @@ export async function PATCH(request: NextRequest) {
     }
     if (data.solanaRpcApiKey?.trim()) {
       await upsertEncryptedSecret(user.id, "solana", "rpc_api_key", data.solanaRpcApiKey.trim());
+    }
+    if (data.jinaApiKey?.trim()) {
+      await upsertEncryptedSecret(user.id, "jina", "api_key", data.jinaApiKey.trim());
     }
     if (data.fallbackRpcUrls !== undefined) {
       const urls: string[] = [];
@@ -468,6 +473,7 @@ export async function PATCH(request: NextRequest) {
       hasXAccessToken: secretFlags.hasXAccessToken,
       hasXAccessSecret: secretFlags.hasXAccessSecret,
       hasSolanaRpcApiKey: secretFlags.hasSolanaRpcApiKey || !!process.env.SOLANA_RPC_API_KEY,
+      hasJinaApiKey: secretFlags.hasJinaApiKey,
       hasBrainDatabaseUrl: !!updated.brainDatabaseUrl,
       brainDatabaseUrl: updated.brainDatabaseUrl
         ? decryptSafe(updated.brainDatabaseUrl)

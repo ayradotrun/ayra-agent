@@ -78,6 +78,7 @@ interface Settings {
   hasXAccessToken?: boolean;
   hasXAccessSecret?: boolean;
   hasSolanaRpcApiKey?: boolean;
+  hasJinaApiKey?: boolean;
   hasBrainDatabaseUrl?: boolean;
   brainDatabaseUrl?: string | null;
   fallbackModels?: string[];
@@ -118,6 +119,7 @@ function SettingsContent() {
   const [xAccessToken, setXAccessToken] = useState("");
   const [xAccessSecret, setXAccessSecret] = useState("");
   const [solanaRpcApiKey, setSolanaRpcApiKey] = useState("");
+  const [jinaApiKey, setJinaApiKey] = useState("");
   const [brainDatabaseUrl, setBrainDatabaseUrl] = useState("");
   const [fallbackModels, setFallbackModels] = useState<string[]>([]);
   const [fallbackImageModels, setFallbackImageModels] = useState<string[]>([]);
@@ -203,6 +205,7 @@ function SettingsContent() {
     if (xAccessToken) body.xAccessToken = xAccessToken;
     if (xAccessSecret) body.xAccessSecret = xAccessSecret;
     if (solanaRpcApiKey) body.solanaRpcApiKey = solanaRpcApiKey;
+    if (jinaApiKey) body.jinaApiKey = jinaApiKey;
 
     const trimmedDbUrl = brainDatabaseUrl.trim();
     const savedDbUrl = settings.brainDatabaseUrl?.trim() ?? "";
@@ -304,8 +307,13 @@ function SettingsContent() {
                   migrations required.
                 </p>
                 <p>
-                  See{" "}
-                  <code className="text-foreground/80">docs/private-database.md</code> in the repo.
+                  Full guide:{" "}
+                  <Link
+                    href="/docs/private-database"
+                    className="text-primary underline-offset-2 hover:underline"
+                  >
+                    Private database docs
+                  </Link>
                 </p>
               </div>
             </CardContent>
@@ -374,6 +382,88 @@ function SettingsContent() {
                 <code className="text-[11px]">/model</code>,{" "}
                 <code className="text-[11px]">/imagemodel</code>, or{" "}
                 <code className="text-[11px]">/status</code> in Telegram to verify.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Web Search (Jina)</CardTitle>
+              <CardDescription>
+                Your own Jina key (BYOK) for web-search — optional. AYRA never uses a platform
+                server key for your searches.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-md border border-sky-500/20 bg-sky-500/5 p-4 text-xs text-muted-foreground space-y-2">
+                <p className="font-medium text-foreground/90">How to get a free Jina API key</p>
+                <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
+                  <li>
+                    Open{" "}
+                    <a
+                      href="https://jina.ai/?sui=apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      jina.ai/?sui=apikey
+                    </a>{" "}
+                    (or{" "}
+                    <a
+                      href="https://jina.ai/reader"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      jina.ai/reader
+                    </a>{" "}
+                    → Get API key)
+                  </li>
+                  <li>Sign up or log in</li>
+                  <li>
+                    Go to{" "}
+                    <a
+                      href="https://jina.ai/api-dashboard"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      API dashboard
+                    </a>{" "}
+                    → <strong>Create API key</strong>
+                  </li>
+                  <li>Copy the key (starts with <code className="text-foreground/80">jina_</code>)</li>
+                  <li>
+                    Paste below → scroll down → click <strong>Save settings</strong>
+                  </li>
+                </ol>
+                <p>
+                  Guide:{" "}
+                  <Link
+                    href="/docs/jina-web-search"
+                    className="text-primary underline-offset-2 hover:underline"
+                  >
+                    Web search (Jina) docs
+                  </Link>
+                </p>
+              </div>
+              <SecretField
+                id="jina-api-key"
+                label="Jina API Key"
+                value={jinaApiKey}
+                onChange={setJinaApiKey}
+                configured={settings.hasJinaApiKey}
+                placeholder="jina_… (free at jina.ai/?sui=apikey)"
+                secretScope="jina"
+                secretName="api_key"
+                onDeleted={() => {
+                  void refreshSettingsFlags().then(setSettings);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                {settings.hasJinaApiKey
+                  ? "Your Jina key is active — higher rate limits for Jina Search/Reader."
+                  : "No Jina key — search still works: anonymous Jina (limited), then Bing and DuckDuckGo. Add a free key at jina.ai/?sui=apikey for better limits."}
               </p>
             </CardContent>
           </Card>

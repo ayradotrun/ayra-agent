@@ -1,4 +1,5 @@
 import { stripHtml } from "@/lib/skills/helpers";
+import { resolveJinaApiKey } from "@/lib/search/jina-api-key";
 
 export interface WebSearchResult {
   query: string;
@@ -12,6 +13,11 @@ export interface WebSearchResult {
 
 const BROWSER_UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+
+function jinaAuthHeaders(apiKey?: string): Record<string, string> {
+  if (!apiKey?.trim()) return {};
+  return { Authorization: `Bearer ${apiKey.trim()}` };
+}
 
 function decodeHtmlEntities(value: string): string {
   return value
@@ -45,6 +51,12 @@ function looksLikeDomain(query: string): string | null {
   return null;
 }
 
+function normalizeUrl(url: string): string {
+  const trimmed = url.trim();
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed;
+  return `https://${trimmed}`;
+}
+
 async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 12_000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -60,6 +72,119 @@ async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 12_
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Agent-Reach style web search via Jina Reader (s.jina.ai).
+ * Fetches top results with page content as markdown — no Exa/mcporter required.
+ * @see https://github.com/Panniantong/Agent-Reach
+ */
+export function parseJinaSearchMarkdown(
+  markdown: string,
+  maxResults: number
+): Pick<WebSearchResult, "summary" | "sourceUrl" | "related"> {
+  const related: Array<{ title: string; url?: string; snippet?: string }> = [];
+  const blocks = markdown.split(/\n(?=Title:\s)/i).filter((b) => b.trim());
+
+  for (const block of blocks) {
+    const title = block.match(/^Title:\s*(.+)$/im)?.[1]?.trim();
+    const url =
+      block.match(/^URL Source:\s*(.+)$/im)?.[1]?.trim() ||
+      block.match(/^URL:\s*(.+)$/im)?.[1]?.trim();
+    const contentMatch = block.match(/Markdown Content:\s*\n([\s\S]*?)(?=\nTitle:\s|$)/i);
+    const snippet = contentMatch?.[1]?.replace(/\s+/g, " ").trim().slice(0, 280);
+
+    if (title) {
+      related.push({ title, url: url || undefined, snippet: snippet || undefined });
+    }
+    if (related.length >= maxResults) break;
+  }
+
+  if (related.length === 0) {
+    const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    let match: RegExpExecArray | null;
+    while ((match = linkRegex.exec(markdown)) && related.length < maxResults) {
+      related.push({ title: match[1].trim(), url: match[2] });
+    }
+  }
+
+  const first = related[0];
+  const summary =
+    first?.snippet ||
+    markdown.replace(/^Title:[\s\S]*?Markdown Content:\s*\n/i, "").trim().slice(0, 600) ||
+    null;
+
+  return {
+    summary: summary?.trim() || null,
+    sourceUrl: first?.url || null,
+    related,
+  };
+}
+
+async function searchJina(
+  query: string,
+  maxResults: number,
+  jinaApiKey?: string
+): Promise<WebSearchResult | null> {
+  const url = `https://s.jina.ai/${encodeURIComponent(query)}`;
+  const response = await fetchWithTimeout(
+    url,
+    {
+      headers: {
+        Accept: "text/plain",
+        "User-Agent": BROWSER_UA,
+        ...jinaAuthHeaders(jinaApiKey),
+      },
+    },
+    25_000
+  );
+
+  if (!response.ok) return null;
+
+  const text = (await response.text()).trim();
+  if (!text || text.length < 40) return null;
+
+  const parsed = parseJinaSearchMarkdown(text, maxResults);
+  if (parsed.related.length === 0 && !parsed.summary) return null;
+
+  return {
+    query,
+    summary: parsed.summary,
+    sourceUrl: parsed.sourceUrl,
+    related: parsed.related,
+    provider: "jina",
+    ok: true,
+  };
+}
+
+/** Agent-Reach style page read via Jina Reader (r.jina.ai). */
+async function readJinaPage(
+  pageUrl: string,
+  jinaApiKey?: string
+): Promise<{ title: string; excerpt: string; url: string } | null> {
+  const target = normalizeUrl(pageUrl);
+  const jinaUrl = `https://r.jina.ai/${target}`;
+  const response = await fetchWithTimeout(
+    jinaUrl,
+    {
+      headers: {
+        Accept: "text/plain",
+        "User-Agent": BROWSER_UA,
+        ...jinaAuthHeaders(jinaApiKey),
+      },
+    },
+    25_000
+  );
+  if (!response.ok) return null;
+
+  const text = (await response.text()).trim();
+  if (!text) return null;
+
+  const title = text.match(/^Title:\s*(.+)$/im)?.[1]?.trim() || target;
+  const body = text.replace(/^Title:[^\n]*\n?/im, "").trim();
+  const excerpt = body.slice(0, 500);
+
+  return { title, excerpt, url: target };
 }
 
 async function searchDuckDuckGo(query: string, maxResults: number): Promise<WebSearchResult | null> {
@@ -102,13 +227,13 @@ function parseBingHtml(html: string, maxResults: number): Array<{ title: string;
     const snippetMatch = section.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
     if (!titleMatch) continue;
 
-    const url = resolveBingRedirectUrl(titleMatch[1]);
-    if (seen.has(url)) continue;
-    seen.add(url);
+    const href = resolveBingRedirectUrl(titleMatch[1]);
+    if (seen.has(href)) continue;
+    seen.add(href);
 
     const title = stripHtml(titleMatch[2]);
     const snippet = snippetMatch ? stripHtml(snippetMatch[1]) : undefined;
-    if (title) results.push({ title, url, snippet });
+    if (title) results.push({ title, url: href, snippet });
   }
 
   return results;
@@ -139,7 +264,15 @@ async function searchBing(query: string, maxResults: number): Promise<WebSearchR
   };
 }
 
-async function fetchDomainSummary(domain: string): Promise<{ title: string; description: string; url: string } | null> {
+async function fetchDomainSummary(
+  domain: string,
+  jinaApiKey?: string
+): Promise<{ title: string; description: string; url: string } | null> {
+  const jina = await readJinaPage(`https://${domain}`, jinaApiKey);
+  if (jina) {
+    return { title: jina.title, description: jina.excerpt, url: jina.url };
+  }
+
   for (const scheme of ["https", "http"]) {
     try {
       const url = `${scheme}://${domain}`;
@@ -165,37 +298,43 @@ async function fetchDomainSummary(domain: string): Promise<{ title: string; desc
   return null;
 }
 
-export async function performWebSearch(query: string, maxResults = 5): Promise<WebSearchResult> {
+export async function performWebSearch(
+  query: string,
+  maxResults = 5,
+  userId?: string
+): Promise<WebSearchResult> {
   const trimmed = query.trim();
   if (!trimmed) {
     return { query: trimmed, summary: null, sourceUrl: null, related: [], ok: false, error: "Empty search query." };
   }
+
+  const jinaApiKey = await resolveJinaApiKey(userId);
 
   const domain = looksLikeDomain(trimmed);
   let domainResult: WebSearchResult | null = null;
 
   if (domain) {
     try {
-      const site = await fetchDomainSummary(domain);
+      const site = await fetchDomainSummary(domain, jinaApiKey);
       if (site) {
         domainResult = {
           query: trimmed,
           summary: site.description || site.title,
           sourceUrl: site.url,
           related: [{ title: site.title || domain, url: site.url, snippet: site.description }],
-          provider: "direct",
+          provider: "jina",
           ok: true,
         };
       }
     } catch (error) {
-      // Continue to web search providers.
       void error;
     }
   }
 
   const providers: Array<() => Promise<WebSearchResult | null>> = [
-    () => searchDuckDuckGo(trimmed, maxResults),
+    () => searchJina(trimmed, maxResults, jinaApiKey),
     () => searchBing(trimmed, maxResults),
+    () => searchDuckDuckGo(trimmed, maxResults),
   ];
 
   const errors: string[] = [];

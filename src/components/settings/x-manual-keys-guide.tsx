@@ -51,14 +51,9 @@ export function XManualKeysGuide() {
 
       <p className="mt-3 text-xs text-muted-foreground">
         Full tutorial:{" "}
-        <a
-          href="https://github.com/ayradotrun/ayra-agent/blob/main/docs/x-manual-keys.md"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary underline-offset-2 hover:underline"
-        >
-          docs/x-manual-keys.md
-        </a>
+        <Link href="/docs/x-manual-keys" className="text-primary underline-offset-2 hover:underline">
+          X manual API keys docs
+        </Link>
       </p>
     </div>
   );

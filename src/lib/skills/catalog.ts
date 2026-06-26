@@ -11,7 +11,7 @@ export const SKILL_CATEGORIES = [
 ] as const;
 
 export const ALL_SKILL_DEFINITIONS = [
-  { slug: "web-search", name: "Web Search", category: "Research", description: "Search the web for information.", icon: "search", isEnabled: true },
+  { slug: "web-search", name: "Web Search", category: "Research", description: "Web search via Jina (Agent-Reach style) with Bing/DDG fallback.", icon: "search", isEnabled: true },
   { slug: "rss-reader", name: "RSS Reader", category: "Research", description: "Fetch and parse RSS feeds.", icon: "rss", isEnabled: true },
   { slug: "news-monitor", name: "News Monitor", category: "Research", description: "Monitor news sources for topics.", icon: "newspaper", isEnabled: true },
   { slug: "website-scraper", name: "Website Scraper", category: "Research", description: "Extract content from web pages.", icon: "globe", isEnabled: true },

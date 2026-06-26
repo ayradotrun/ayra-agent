@@ -8,7 +8,7 @@ export const webSearch: SkillDefinition = {
   name: "Web Search",
   slug: "web-search",
   category: "Research",
-  description: "Search the web for information using DuckDuckGo.",
+  description: "Search the web (Jina Search — Agent-Reach style, with Bing/DuckDuckGo fallback).",
   icon: "search",
   permission: "network",
   isEnabled: true,
@@ -18,7 +18,7 @@ export const webSearch: SkillDefinition = {
   }),
   async execute(input, ctx) {
     await ctx.log("INFO", `Searching: ${input.query}`, "web-search");
-    const result = await performWebSearch(input.query, input.maxResults ?? 5);
+    const result = await performWebSearch(input.query, input.maxResults ?? 5, ctx.userId);
     if (!result.ok) {
       await ctx.log("WARN", result.error ?? "No search results", "web-search");
     } else {

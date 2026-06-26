@@ -8,15 +8,28 @@ import {
 
 export { getTelegramSkillMenuCommands };
 
-export const META_COMMANDS_UI = [
-  { cmd: "/post [text]", desc: "🐦 Post to X (auto-post must be on)" },
-  { cmd: "/help", desc: "📋 All commands" },
-  { cmd: "/agents", desc: "🤖 List agents" },
-  { cmd: "/use [name]", desc: "🔄 Switch agent" },
-  { cmd: "/status", desc: "📊 Agent + models" },
+export const AGENT_META_COMMANDS_UI = [
+  { cmd: "/help", desc: "📋 All commands (same as /start)" },
+  { cmd: "/agents", desc: "🤖 List your agents" },
+  { cmd: "/use [name]", desc: "🔄 Switch active agent" },
+  { cmd: "/status", desc: "📊 Agent + models + account" },
   { cmd: "/tasks", desc: "📅 Pending brain tasks" },
+  { cmd: "/post [text]", desc: "🐦 Post to X (auto-post must be on)" },
   { cmd: "/image [prompt]", desc: "🎨 Generate image" },
 ] as const;
+
+export const MODEL_COMMANDS_UI = [
+  { cmd: "/model [name]", desc: "🧠 Switch chat model" },
+  { cmd: "/models", desc: "📃 List chat + image models" },
+  { cmd: "/models chat", desc: "📃 List chat models only" },
+  { cmd: "/models image", desc: "📃 List image models only" },
+  { cmd: "/custommodel [id]", desc: "🧠 Set custom chat model (provider/model)" },
+  { cmd: "/imagemodel [name]", desc: "🖼️ Switch image model" },
+  { cmd: "/customimagemodel [id]", desc: "🖼️ Set custom image model" },
+] as const;
+
+/** @deprecated use AGENT_META_COMMANDS_UI */
+export const META_COMMANDS_UI = AGENT_META_COMMANDS_UI;
 
 export const TELEGRAM_BOT_COMMANDS = [
   { command: "help", description: "📋 All commands" },
@@ -30,6 +43,9 @@ export const TELEGRAM_BOT_COMMANDS = [
   { command: "tasks", description: "📅 Brain task queue" },
   { command: "post", description: "🐦 Post tweet to X" },
   { command: "image", description: "🎨 Generate image" },
+  { command: "model", description: "🧠 Switch chat model" },
+  { command: "models", description: "📃 List models" },
+  { command: "imagemodel", description: "🖼️ Switch image model" },
 ] as const;
 
 export function getAllTelegramBotCommands(): Array<{ command: string; description: string }> {
@@ -51,31 +67,51 @@ export function getAllTelegramBotCommands(): Array<{ command: string; descriptio
   return merged;
 }
 
-const CHAT_HELP_META = `Agent: 🤖 /agents · 🔄 /use · 📊 /status · 📅 /tasks · 🎨 /image
-💡 Paste a CA mint, or /p [token|CA]`;
+function formatMetaCommandsHelp(format: "telegram" | "plain"): string {
+  const heading = (label: string) => (format === "plain" ? label : `*${label}*`);
+  const lines: string[] = [heading("Agent"), ""];
 
-const TELEGRAM_HELP_META = `*Agent:* 🤖 /agents · 🔄 /use · 📊 /status · 📅 /tasks · 🎨 /image
-_💡 Paste a CA mint, or /p \\[token|CA\\]_`;
+  for (const c of AGENT_META_COMMANDS_UI) {
+    lines.push(`${c.cmd} — ${c.desc}`);
+  }
+
+  lines.push("");
+  lines.push(heading("Models"));
+  lines.push("");
+
+  for (const c of MODEL_COMMANDS_UI) {
+    lines.push(`${c.cmd} — ${c.desc}`);
+  }
+
+  lines.push("");
+  lines.push(
+    format === "plain"
+      ? "💡 Paste a Solana CA mint for a quick lookup, or use /p [token|CA]."
+      : "_💡 Paste a Solana CA mint for a quick lookup, or /p \\[token|CA\\]._"
+  );
+
+  return lines.join("\n");
+}
 
 export const CHAT_HELP_TEXT = `${formatSkillCommandsHelp("plain")}
 
-${CHAT_HELP_META}`;
+${formatMetaCommandsHelp("plain")}`;
 
 export const TELEGRAM_HELP_TEXT = `${formatSkillCommandsHelp("telegram")}
 
-${TELEGRAM_HELP_META}`;
+${formatMetaCommandsHelp("telegram")}`;
 
+/** Quick-insert chips on empty dashboard chat */
 export const CHAT_COMMAND_HINTS = [
-  "/post",
   "/help",
+  "/search",
   "/p",
-  "/t",
   "/q",
   "/ayrascan",
   "/trending",
-  "/w",
-  "/rug",
-  "/f",
+  "/agents",
+  "/status",
+  "/image",
 ] as const;
 
 const SKILL_COMMANDS_UI = TELEGRAM_SKILL_COMMANDS.map((c) => ({
@@ -83,7 +119,10 @@ const SKILL_COMMANDS_UI = TELEGRAM_SKILL_COMMANDS.map((c) => ({
   desc: c.description,
 }));
 
+export { SKILL_COMMANDS_UI };
+
 export const TELEGRAM_COMMANDS_UI: Array<{ cmd: string; desc: string }> = [
   ...SKILL_COMMANDS_UI,
-  ...META_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })),
+  ...AGENT_META_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })),
+  ...MODEL_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })),
 ];

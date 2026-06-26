@@ -192,7 +192,8 @@ Open [http://localhost:3000](http://localhost:3000), **Sign up** at `/register`,
 
 1. **Settings → LLM** — paste OpenRouter (or OpenAI-compatible) API key and pick a model
 2. **Settings → Private Database** — paste your personal Postgres URL (required for chat history). Use the **same region** as `DATABASE_URL` in server `.env` — see [Database region sync](#database-region-sync)
-3. **Settings → Telegram / X** — optional integrations
+3. **Settings → Web Search (Jina)** — optional [free Jina API key](https://jina.ai/?sui=apikey) for better web-search limits ([guide](./docs/jina-web-search.md))
+4. **Settings → Telegram / X** — optional integrations
 
 ### Production
 
@@ -402,11 +403,25 @@ Detailed user-facing steps are in the Settings UI and in [docs/private-database.
 
 ---
 
+## Web search (Jina — BYOK)
+
+The **web-search** skill uses [Jina Reader / Search](https://jina.ai/reader) (Agent-Reach style), with Bing and DuckDuckGo fallback.
+
+| Who | What |
+|-----|------|
+| **Users** | Optional free key at [jina.ai/?sui=apikey](https://jina.ai/?sui=apikey) → **Settings → Web Search (Jina)** → Save |
+| **Operators** | Do **not** put Jina keys in server `.env` for users — each account uses its own encrypted key |
+| **No key** | Search still works (anonymous Jina → Bing → DDG) |
+
+Full steps: [docs/jina-web-search.md](./docs/jina-web-search.md)
+
+---
+
 ## Security
 
 | Control | Detail |
 |---------|--------|
-| **Encryption at rest** | User API keys, Telegram token, X credentials, RPC keys, private DB URLs — AES-256-GCM via `ENCRYPTION_KEY` |
+| **Encryption at rest** | User API keys, Telegram token, X credentials, RPC keys, Jina web-search key, private DB URLs — AES-256-GCM via `ENCRYPTION_KEY` |
 | **Auth** | NextAuth credentials; bcrypt passwords; email verification on sign up; session scoped to user |
 | **Email codes** | 6-digit OTP for sign up and password reset; hashed in DB; 15-minute expiry; rate limited |
 | **Admin** | `/dashboard/admin` restricted to emails in `ADMIN_EMAILS` |

@@ -8,7 +8,7 @@ export function shouldShowTelegramThinking(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed) return false;
 
-  if (cmdIs(trimmed, "help", "start", "agents", "status")) return false;
+  if (cmdIs(trimmed, "help", "start", "agents", "status", "tasks")) return false;
   if (trimmed === "/models" || trimmed.startsWith("/models ")) return false;
   if (cmdStarts(trimmed, "use")) return false;
   if (cmdStarts(trimmed, "model")) return false;

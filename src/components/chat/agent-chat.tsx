@@ -22,8 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { CHAT_COMMAND_HINTS, TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
-import { ChatRecentsDrawer } from "@/components/chat/chat-sidebar";
+import { CHAT_COMMAND_HINTS, AGENT_META_COMMANDS_UI, MODEL_COMMANDS_UI, SKILL_COMMANDS_UI } from "@/lib/telegram/commands";
+import { useMobileWorkspace } from "@/components/layout/mobile-workspace-context";
 import { chatSessionHref, notifyChatSessionsChanged } from "@/lib/chat/recents";
 
 interface AgentOption {
@@ -121,7 +121,7 @@ export function AgentChat() {
   const [deepThinking, setDeepThinking] = useState(false);
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [recentsOpen, setRecentsOpen] = useState(false);
+  const { openWorkspace } = useMobileWorkspace();
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -353,16 +353,14 @@ export function AgentChat() {
 
   return (
     <div className="flex h-full min-h-0 w-full overflow-hidden">
-      <ChatRecentsDrawer open={recentsOpen} onClose={() => setRecentsOpen(false)} />
-
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center gap-2 border-b border-white/[0.06] px-3 py-2.5 sm:px-4">
           <Button
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 md:hidden"
-            onClick={() => setRecentsOpen(true)}
-            aria-label="Open chats"
+            onClick={openWorkspace}
+            aria-label="Open workspace"
           >
             <Menu className="h-4 w-4" />
           </Button>
@@ -407,33 +405,39 @@ export function AgentChat() {
                   </button>
                 ))}
               </div>
-              <details className="mx-auto mt-6 max-w-md text-left">
-                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">
-                  Skill commands
-                </summary>
-                <ul className="mt-3 max-h-64 space-y-1.5 overflow-y-auto rounded-lg border border-border/60 p-3 text-xs text-muted-foreground">
-                  {TELEGRAM_COMMANDS_UI.map((c) => (
-                    <li key={c.cmd}>
-                      <button
-                        type="button"
-                        className="flex w-full items-start gap-2 text-left hover:text-foreground"
-                        onClick={() =>
-                          setInput(
-                            c.cmd.includes("[")
-                              ? `${c.cmd.split(" [")[0]} `
-                              : c.cmd
-                          )
-                        }
-                      >
-                        <span className="shrink-0 font-mono text-[11px] text-foreground/90">
-                          {c.cmd}
-                        </span>
-                        <span>{c.desc}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </details>
+              <div className="mx-auto mt-6 grid max-w-md gap-3 text-left">
+                {[
+                  { title: "Skill commands", items: SKILL_COMMANDS_UI },
+                  { title: "Agent commands", items: AGENT_META_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })) },
+                  { title: "Model commands", items: MODEL_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })) },
+                ].map((section) => (
+                  <details key={section.title} className="rounded-lg border border-border/60">
+                    <summary className="cursor-pointer px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground">
+                      {section.title}
+                    </summary>
+                    <ul className="max-h-48 space-y-1.5 overflow-y-auto border-t border-border/40 p-3 text-xs text-muted-foreground">
+                      {section.items.map((c) => (
+                        <li key={c.cmd}>
+                          <button
+                            type="button"
+                            className="flex w-full items-start gap-2 text-left hover:text-foreground"
+                            onClick={() =>
+                              setInput(
+                                c.cmd.includes("[") ? `${c.cmd.split(" [")[0]} ` : c.cmd
+                              )
+                            }
+                          >
+                            <span className="shrink-0 font-mono text-[11px] text-foreground/90">
+                              {c.cmd}
+                            </span>
+                            <span>{c.desc}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
+              </div>
             </div>
           )}
 

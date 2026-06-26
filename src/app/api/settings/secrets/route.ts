@@ -12,6 +12,7 @@ const VALID: Record<string, SecretName[]> = {
   x: ["api_key", "api_secret", "access_token", "access_secret"],
   solana: ["rpc_api_key"],
   discord: ["bot_token"],
+  jina: ["api_key"],
 };
 
 export async function DELETE(request: NextRequest) {
