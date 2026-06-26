@@ -15,7 +15,7 @@ Keep both in the **same region** as the AYRA app server. If the operator hosts t
 
 | Recommended setup | Platform (`.env`) | Private (Settings) |
 |-------------------|-------------------|---------------------|
-| VPS self-host | `127.0.0.1:5432/platform_db` | `127.0.0.1:5432/private_db` |
+| VPS self-host | `127.0.0.1/platform_db` | `127.0.0.1/private_db` |
 | Solo self-host (one DB) | `DATABASE_URL` in `.env` | Same `DIRECT_DATABASE_URL` + `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` |
 | Cloud | Supabase/Neon **eu-central-1** | Second project/DB also **eu-central-1** |
 
@@ -39,8 +39,8 @@ If you are the **only user** on your instance, you may store chat/brain tables o
    (Enabled by default in `NODE_ENV=development`.)
 
 2. **Dashboard → Settings → Private Database** → paste either:
-   - `DATABASE_URL` (pooler, port 6543), or
-   - `DIRECT_DATABASE_URL` (session, port 5432 — recommended)
+   - `DATABASE_URL` (pooler), or
+   - `DIRECT_DATABASE_URL` (direct/session — recommended)
 
 3. Click **Connect**. If you paste the pooler URL, AYRA auto-switches to `DIRECT_DATABASE_URL` for creating tables.
 
@@ -62,13 +62,13 @@ AYRA converts direct URLs (IPv6-only) to **Session pooler** (IPv4) automatically
 Example direct URL (paste this):
 
 ```
-postgresql://postgres:[password]@db.[project-ref].supabase.co:5432/postgres
+postgresql://postgres:[password]@db.[project-ref].supabase.co/postgres
 ```
 
 Example pooler URL (also works if DNS resolves on your server):
 
 ```
-postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com:5432/postgres
+postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.com/postgres
 ```
 
 Region examples:
@@ -126,7 +126,7 @@ Avoid the direct host `db.[project-ref].supabase.co` on VPS without IPv6 — use
 | Invalid URL | Must start with `postgresql://` or `postgres://` |
 | Platform database rejected | Set `AYRA_ALLOW_PLATFORM_BRAIN_DB=true` for solo self-host, or use a separate Postgres project |
 | Empty after migrate | Connect again once, or start a new chat after connecting |
-| `EMAXCONNSESSION` / max clients reached | Supabase Session pooler (port 5432) allows ~15 connections. Reconnect in Settings (AYRA saves port **6543** Transaction pooler). Restart app and wait 1–2 min for idle sessions to clear |
+| `EMAXCONNSESSION` / max clients reached | Supabase Session pooler connection limit reached (~15). Reconnect in Settings (AYRA saves the Transaction pooler URL after connect). Restart app and wait 1–2 min for idle sessions to clear |
 
 - Treat the connection string like a password — anyone with it can read your chat/brain data
 - Prefer a dedicated database or project per user

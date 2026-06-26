@@ -138,8 +138,23 @@ export function formatToolResult(data: unknown, context?: FormatToolResultContex
 
   if (typeof r.found === "boolean" && typeof r.username === "string") {
     if (!r.found) {
-      const lines = [`🐦 *X profile @${String(r.username)}*`, "", "Account not found or lookup failed."];
-      if (typeof r.error === "string") lines.push(`_${r.error}_`);
+      const billing =
+        r.errorKind === "billing" ||
+        (typeof r.error === "string" &&
+          /402|pay-per-use credits|payment required|usage.capped/i.test(r.error));
+      const lines = [`🐦 *X profile @${String(r.username)}*`, ""];
+
+      if (billing) {
+        lines.push("*Insufficient X API pay-per-use credits* (error 402).");
+        lines.push(
+          "Add credits at developer.x.com → your Project → Billing, then try again."
+        );
+      } else if (typeof r.error === "string") {
+        lines.push(`Lookup failed: ${r.error}`);
+      } else {
+        lines.push("Account not found.");
+      }
+
       if (typeof r.hint === "string") lines.push("", r.hint);
       return lines.join("\n");
     }

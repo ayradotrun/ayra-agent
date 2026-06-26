@@ -66,7 +66,7 @@ export function PrivateDatabaseSetup({
   const [neonHost, setNeonHost] = useState("");
   const [neonUser, setNeonUser] = useState("neondb_owner");
   const [customHost, setCustomHost] = useState("");
-  const [customPort, setCustomPort] = useState("5432");
+  const [customPort, setCustomPort] = useState("");
   const [customUser, setCustomUser] = useState("postgres");
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
@@ -478,10 +478,11 @@ export function PrivateDatabaseSetup({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="custom-port">Port</Label>
+                <Label htmlFor="custom-port">Port (optional)</Label>
                 <Input
                   id="custom-port"
                   value={customPort}
+                  placeholder="default if empty"
                   onChange={(e) => setCustomPort(e.target.value)}
                 />
               </div>
@@ -527,7 +528,7 @@ export function PrivateDatabaseSetup({
               setConnectError("");
               setConnectSuccess("");
             }}
-            placeholder="postgresql://postgres:password@db.your-ref.supabase.co:5432/postgres"
+            placeholder="postgresql://postgres:password@db.your-ref.supabase.co/postgres"
             className="font-mono text-xs"
           />
           {pastedSupabaseKind === "direct" && (

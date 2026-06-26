@@ -205,10 +205,6 @@ export function parsePgConnectionString(connectionString: string): PgConnectionP
   }
 }
 
-function isIpv4Host(host: string): boolean {
-  return /^\d{1,3}(\.\d{1,3}){3}$/.test(host);
-}
-
 function isRetryablePgConnectError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error);
   return /ENOTFOUND|getaddrinfo|EAI_AGAIN|ETIMEDOUT|ECONNREFUSED/i.test(msg);

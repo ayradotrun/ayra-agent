@@ -273,7 +273,7 @@ Every request that touches chat or brain may hit **both** databases. Keep them i
 
 | Setup | Platform (`.env`) | Private (Settings) | Notes |
 |-------|-------------------|--------------------|--------|
-| **Self-host VPS (recommended)** | `127.0.0.1:5432/platform_db` | `127.0.0.1:5432/private_db` (or same DB with `AYRA_ALLOW_PLATFORM_BRAIN_DB=true`) | Both on the VPS — lowest latency |
+| **Self-host VPS (recommended)** | `127.0.0.1/platform_db` | `127.0.0.1/private_db` (or same DB with `AYRA_ALLOW_PLATFORM_BRAIN_DB=true`) | Both on the VPS — lowest latency |
 | **Cloud (Supabase / Neon)** | Project in **eu-central-1** (Frankfurt) | Second project or DB in **eu-central-1** | Match the region in both URLs |
 | **Avoid** | Singapore / US East | Different region than platform | Slow `/help`, chat load, brain cron |
 
@@ -283,11 +283,11 @@ Every request that touches chat or brain may hit **both** databases. Keep them i
 
 ```bash
 # .env — platform only; never point these at the private database name by mistake
-DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
-DIRECT_DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
+DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1/platform_db
+DIRECT_DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1/platform_db
 ```
 
-Then in **Settings → Private Database**: `postgresql://postgres:PASSWORD@127.0.0.1:5432/private_db` — same host, same machine, zero cross-region delay.
+Then in **Settings → Private Database**: paste your private connection string (same host as platform, different database name) — same machine, zero cross-region delay.
 
 See [docs/private-database.md](./docs/private-database.md) for connect steps and [Performance](#performance) for model tuning.
 

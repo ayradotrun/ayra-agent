@@ -7,7 +7,7 @@ import {
   registerTelegramWebhook,
   setTelegramBotCommands,
 } from "@/lib/telegram/client";
-import { getXConnectionInfo, getXCallbackUrl, isXOAuthConfigured, verifyXCredentialsForUser } from "@/lib/x-oauth";
+import { getXConnectionInfo, isXOAuthConfigured, verifyXCredentialsForUser } from "@/lib/x-oauth";
 import { isValidModelId, normalizeModelId, normalizeChatModel } from "@/lib/models";
 import { isValidLlmBaseUrl, resolveLlmBaseUrl, normalizeLlmBaseUrl } from "@/lib/llm-config";
 import { syncUserChatModel, syncUserImageModel } from "@/lib/user-models";
@@ -106,7 +106,6 @@ export async function GET() {
     telegramPollingMode: baseUrl.includes("localhost") || process.env.TELEGRAM_POLLING === "true",
     xConnection,
     xOAuthConfigured,
-    xOAuthCallbackUrl: getXCallbackUrl(),
     hasOpenRouterKey: secretFlags.hasLlmApiKey,
     hasLlmApiKey: secretFlags.hasLlmApiKey,
     llmBaseUrl: dbUser?.llmBaseUrl,

@@ -16,12 +16,126 @@ export function getXOAuthConfig() {
   return { clientId, clientSecret };
 }
 
-export function getXCallbackUrl(): string {
-  const explicit = process.env.X_CALLBACK_URL?.trim();
-  if (explicit) return explicit.replace(/\/$/, "");
+/** Origin from incoming request (nginx x-forwarded-* or Host header). */
+export function resolveRequestOrigin(request?: Request): string | null {
+  if (!request) return null;
 
-  const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  return `${base.replace(/\/$/, "")}/api/x/callback`;
+  try {
+    const url = new URL(request.url);
+    const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const host = forwardedHost || request.headers.get("host") || url.host;
+    if (!host) return null;
+
+    const proto =
+      forwardedProto ||
+      (url.protocol === "https:" ? "https" : url.protocol === "http:" ? "http" : "https");
+    return `${proto}://${host}`;
+  } catch {
+    return null;
+  }
+}
+
+function isLocalhostHost(host: string): boolean {
+  const h = host.toLowerCase();
+  return h === "localhost" || h === "127.0.0.1";
+}
+
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.includes("://") ? url : `https://${url}`);
+    return isLocalhostHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function envAppOrigin(): string | null {
+  for (const raw of [process.env.NEXTAUTH_URL, process.env.X_CALLBACK_URL]) {
+    const value = raw?.trim();
+    if (!value) continue;
+    try {
+      return new URL(value.includes("://") ? value : `https://${value}`).origin;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+/** Upgrade http→https for public hosts in production (common VPS .env mistake behind nginx). */
+function upgradeProductionOrigin(origin: string): string {
+  if (process.env.NODE_ENV !== "production") return origin;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol === "http:" && !isLocalhostHost(parsed.hostname)) {
+      parsed.protocol = "https:";
+      return parsed.origin;
+    }
+  } catch {
+    /* ignore */
+  }
+  return origin;
+}
+
+/** Align env callback with the browser/proxy origin (localhost or http→https mismatch). */
+function alignCallbackWithRequest(explicit: string, requestOrigin: string | null): string {
+  const normalized = explicit.replace(/\/$/, "");
+  if (!requestOrigin) return normalized;
+
+  try {
+    const envUrl = new URL(normalized.includes("://") ? normalized : `https://${normalized}`);
+    const reqUrl = new URL(requestOrigin);
+
+    if (isLocalhostUrl(normalized) && !isLocalhostHost(reqUrl.hostname)) {
+      return `${requestOrigin}/api/x/callback`;
+    }
+
+    if (
+      envUrl.hostname === reqUrl.hostname &&
+      reqUrl.protocol === "https:" &&
+      envUrl.protocol === "http:"
+    ) {
+      return `${requestOrigin}/api/x/callback`;
+    }
+  } catch {
+    /* use explicit */
+  }
+
+  return normalized;
+}
+
+/** Public site origin for redirects — request-aware with production https fallback. */
+export function resolveAppOrigin(request?: Request): string {
+  const requestOrigin = resolveRequestOrigin(request);
+  if (requestOrigin) return upgradeProductionOrigin(requestOrigin);
+
+  const envOrigin = envAppOrigin();
+  if (envOrigin) return upgradeProductionOrigin(envOrigin);
+
+  return "http://localhost:3000";
+}
+
+/** OAuth redirect URI — prefers request origin on production to avoid stale localhost .env on VPS. */
+export function getXCallbackUrl(request?: Request): string {
+  const requestOrigin = resolveRequestOrigin(request);
+  const explicit = process.env.X_CALLBACK_URL?.trim()?.replace(/\/$/, "");
+
+  if (explicit) {
+    return alignCallbackWithRequest(explicit, requestOrigin);
+  }
+
+  if (requestOrigin) {
+    return `${upgradeProductionOrigin(requestOrigin)}/api/x/callback`;
+  }
+
+  return `${resolveAppOrigin()}/api/x/callback`;
+}
+
+export function isSecureOAuthCookieContext(request?: Request): boolean {
+  if (process.env.NODE_ENV === "production") return true;
+  const origin = resolveRequestOrigin(request) || envAppOrigin();
+  return origin?.startsWith("https://") ?? false;
 }
 
 export function isXOAuthConfigured(): boolean {

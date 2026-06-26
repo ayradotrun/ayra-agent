@@ -5,7 +5,7 @@ import {
 } from "@/lib/x-oauth";
 import { prisma } from "@/lib/prisma";
 import { withTimeout } from "@/lib/with-timeout";
-import { formatXPostError } from "@/lib/x-errors";
+import { formatXLookupError, formatXPostError } from "@/lib/x-errors";
 
 export type AutoPostBlockReason =
   | "account_auto_post_disabled"
@@ -131,29 +131,39 @@ export async function canUserAutoPost(userId: string, agentAutoPostX: boolean): 
 }
 
 export async function lookupXUser(userId: string, username: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { xAuthMethod: true },
+  });
+
   const client = await getTwitterClientForUser(userId);
   if (!client) throw new Error("X account not connected");
 
   const handle = username.replace(/^@/, "");
-  const user = await client.v2.userByUsername(handle, {
-    "user.fields": ["description", "public_metrics", "created_at", "verified", "url"],
-  });
 
-  if (!user.data) {
-    return { found: false, username: handle };
+  try {
+    const result = await client.v2.userByUsername(handle, {
+      "user.fields": ["description", "public_metrics", "created_at", "verified", "url"],
+    });
+
+    if (!result.data) {
+      return { found: false, username: handle };
+    }
+
+    return {
+      found: true,
+      id: result.data.id,
+      username: result.data.username,
+      name: result.data.name,
+      description: result.data.description,
+      url: result.data.url,
+      verified: result.data.verified,
+      metrics: result.data.public_metrics,
+      createdAt: result.data.created_at,
+    };
+  } catch (error) {
+    throw new Error(formatXLookupError(error, user?.xAuthMethod));
   }
-
-  return {
-    found: true,
-    id: user.data.id,
-    username: user.data.username,
-    name: user.data.name,
-    description: user.data.description,
-    url: user.data.url,
-    verified: user.data.verified,
-    metrics: user.data.public_metrics,
-    createdAt: user.data.created_at,
-  };
 }
 
 export async function readXTimeline(

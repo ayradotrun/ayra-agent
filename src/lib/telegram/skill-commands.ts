@@ -139,7 +139,7 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
     command: "x",
     aliases: ["xuser", "twitter"],
     skillSlug: "x-profile-lookup",
-    description: "🐦 X profile lookup",
+    description: "🐦 X profile lookup (requires pay-per-use credits on developer.x.com)",
     usage: "/x [@username]",
     arg: "username",
   },

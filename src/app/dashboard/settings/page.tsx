@@ -68,7 +68,6 @@ interface Settings {
   webhookStatus?: string;
   xConnection?: XConnection;
   xOAuthConfigured?: boolean;
-  xOAuthCallbackUrl?: string;
   hasOpenRouterKey?: boolean;
   hasLlmApiKey?: boolean;
   hasTelegramToken?: boolean;
@@ -608,6 +607,23 @@ function SettingsContent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="rounded-lg border border-border/50 bg-muted/20 p-3 text-xs text-muted-foreground">
+                <p className="font-medium text-foreground/90">Pay-per-use API credits required</p>
+                <p className="mt-1">
+                  Profile lookup (<code className="text-[11px]">/x</code>), timelines, and posting use the X
+                  Developer API on a pay-per-use plan. Keep an active credit balance at{" "}
+                  <a
+                    href="https://developer.x.com/en/portal/dashboard"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#1d9bf0] hover:underline"
+                  >
+                    developer.x.com
+                  </a>{" "}
+                  → Project → <strong>Billing</strong>. Without credits, lookups fail with error 402.
+                </p>
+              </div>
+
               {settings.xConnection?.connected ? (
                 <div
                   className={`rounded-lg border p-4 ${
@@ -663,12 +679,6 @@ function SettingsContent() {
                       Connect with X
                     </Button>
                   </Link>
-                  {settings.xOAuthCallbackUrl && (
-                    <p className="text-xs text-muted-foreground break-all">
-                      Register this callback at developer.x.com → User authentication → Callback URI:{" "}
-                      <strong className="text-foreground">{settings.xOAuthCallbackUrl}</strong>
-                    </p>
-                  )}
                 </div>
               ) : (
                 <div className="space-y-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-sm">
@@ -677,12 +687,6 @@ function SettingsContent() {
                     Admin: set <code className="text-[11px]">X_CLIENT_ID</code> and{" "}
                     <code className="text-[11px]">X_CLIENT_SECRET</code> in <code className="text-[11px]">.env</code>, then restart the server.
                   </p>
-                  {settings.xOAuthCallbackUrl && (
-                    <p className="text-xs text-muted-foreground break-all">
-                      Callback URL (register at developer.x.com):{" "}
-                      <span className="text-foreground">{settings.xOAuthCallbackUrl}</span>
-                    </p>
-                  )}
                 </div>
               )}
 

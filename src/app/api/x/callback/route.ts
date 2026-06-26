@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { encryptSafe } from "@/lib/encryption";
-import { createXOAuthClient, getXCallbackUrl } from "@/lib/x-oauth";
+import { createXOAuthClient, getXCallbackUrl, resolveAppOrigin } from "@/lib/x-oauth";
 
-function redirectSettings(params: Record<string, string>) {
-  const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
+function redirectSettings(request: NextRequest, params: Record<string, string>) {
+  const base = resolveAppOrigin(request);
   const qs = new URLSearchParams(params).toString();
   return NextResponse.redirect(`${base.replace(/\/$/, "")}/dashboard/settings?${qs}`);
 }
@@ -21,11 +21,12 @@ export async function GET(request: NextRequest) {
     cookieStore.delete("x_oauth_verifier");
     cookieStore.delete("x_oauth_state");
     cookieStore.delete("x_oauth_user");
+    cookieStore.delete("x_oauth_callback");
   };
 
   if (error) {
     clearCookies();
-    return redirectSettings({ x_error: error });
+    return redirectSettings(request, { x_error: error });
   }
 
   const savedState = cookieStore.get("x_oauth_state")?.value;
@@ -34,12 +35,13 @@ export async function GET(request: NextRequest) {
 
   if (!code || !state || !codeVerifier || !userId || state !== savedState) {
     clearCookies();
-    return redirectSettings({ x_error: "invalid_oauth_state" });
+    return redirectSettings(request, { x_error: "invalid_oauth_state" });
   }
 
   try {
     const client = createXOAuthClient();
-    const callbackUrl = getXCallbackUrl();
+    const savedCallback = cookieStore.get("x_oauth_callback")?.value;
+    const callbackUrl = savedCallback || getXCallbackUrl(request);
 
     const { client: userClient, accessToken, refreshToken, expiresIn } =
       await client.loginWithOAuth2({
@@ -69,10 +71,10 @@ export async function GET(request: NextRequest) {
     });
 
     clearCookies();
-    return redirectSettings({ x: "connected", handle: me.data.username ?? "" });
+    return redirectSettings(request, { x: "connected", handle: me.data.username ?? "" });
   } catch (err) {
     clearCookies();
     const message = err instanceof Error ? err.message : "oauth_failed";
-    return redirectSettings({ x_error: message.slice(0, 120) });
+    return redirectSettings(request, { x_error: message.slice(0, 120) });
   }
 }

@@ -58,11 +58,11 @@ Run **only one worker** per deployment.
 
 ```bash
 # Platform only — e.g. database name platform_db
-DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
-DIRECT_DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/platform_db
+DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1/platform_db
+DIRECT_DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1/platform_db
 ```
 
-Users paste private URL in Settings, e.g. `postgresql://postgres:PASSWORD@127.0.0.1:5432/private_db` — same host, zero cross-region latency.
+Users paste a private connection string in Settings (same host, separate database name) — zero cross-region latency.
 
 > **Never** run `prisma db push --force-reset` against production. It wipes the platform DB in `.env`.
 

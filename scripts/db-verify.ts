@@ -66,8 +66,8 @@ async function main() {
     console.log(`
 Fix checklist:
 1. Supabase → Project Settings → Database → Connect
-2. Copy Session pooler URI → DIRECT_DATABASE_URL (port 5432)
-3. Copy Transaction pooler URI → DATABASE_URL (port 6543)
+2. Copy Session pooler URI → DIRECT_DATABASE_URL
+3. Copy Transaction pooler URI → DATABASE_URL
 4. Add ?sslmode=require to both URLs
 5. Username must be postgres.YOUR_PROJECT_REF (not just postgres)
 6. Remove conflicting Windows User env var DATABASE_URL if set

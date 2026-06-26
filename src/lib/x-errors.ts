@@ -35,6 +35,78 @@ export function parseXApiError(error: unknown): {
   };
 }
 
+export function isXApiBillingError(error: unknown): boolean {
+  const { httpCode, detail, type } = parseXApiError(error);
+  const text = `${detail} ${type ?? ""}`.toLowerCase();
+  return (
+    httpCode === 402 ||
+    /402|payment required|usage-capped|usage capped|billing|credit|insufficient/i.test(text)
+  );
+}
+
+export function isXApiBillingMessage(message: string): boolean {
+  const text = message.toLowerCase();
+  return (
+    /402|payment required|usage-capped|usage capped|pay-per-use credits|insufficient.*credit/i.test(
+      text
+    )
+  );
+}
+
+export function formatXBillingError(mode: "lookup" | "write" = "lookup"): string {
+  if (mode === "lookup") {
+    return (
+      "Insufficient X API pay-per-use credits (error 402). " +
+      "Add credits at developer.x.com → your Project → Billing. " +
+      "Profile lookup and timelines consume credits on the pay-per-use plan."
+    );
+  }
+
+  return (
+    "X API write is blocked — insufficient pay-per-use credits (error 402). " +
+    "Open developer.x.com → your Project → Billing and top up credits."
+  );
+}
+
+export function formatXLookupError(
+  error: unknown,
+  authMethod: string | null | undefined
+): string {
+  const { httpCode, detail, type } = parseXApiError(error);
+  const text = `${detail} ${type ?? ""}`.toLowerCase();
+
+  if (isXApiBillingError(error)) {
+    return formatXBillingError("lookup");
+  }
+
+  if (
+    httpCode === 403 ||
+    /403|forbidden|client-forbidden|not authorized|read.only|read only|453/i.test(text)
+  ) {
+    if (authMethod === "oauth1") {
+      return (
+        "X rejected the lookup (403). Confirm app permissions are Read and write, regenerate Access Token + Secret, " +
+        "and check pay-per-use credits at developer.x.com → Billing."
+      );
+    }
+
+    return (
+      "X rejected the lookup (403). Disconnect and reconnect X in Settings, or check developer.x.com billing/credits."
+    );
+  }
+
+  if (httpCode === 401 || /401|unauthorized|invalid.*token|expired/i.test(text)) {
+    if (authMethod === "oauth2") {
+      return (
+        "X token expired or invalid. Disconnect and reconnect via Connect with X in Settings."
+      );
+    }
+    return "X token invalid (401). Regenerate keys in developer.x.com and save again in Settings.";
+  }
+
+  return detail.slice(0, 350);
+}
+
 export function formatXPostError(
   error: unknown,
   authMethod: string | null | undefined
@@ -42,14 +114,8 @@ export function formatXPostError(
   const { httpCode, detail, type } = parseXApiError(error);
   const text = `${detail} ${type ?? ""}`.toLowerCase();
 
-  if (
-    httpCode === 402 ||
-    /402|payment required|usage-capped|usage capped|billing|credit/i.test(text)
-  ) {
-    return (
-      "X API write is blocked (billing). Open developer.x.com → your Project → Billing / pay-per-use credits. " +
-      "Posting requires an active write package — the free read-only tier cannot create tweets."
-    );
+  if (isXApiBillingError(error)) {
+    return formatXBillingError("write");
   }
 
   if (

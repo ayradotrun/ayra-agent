@@ -267,7 +267,7 @@ export function formatPrivateDatabaseConnectError(
     return (
       "Supabase Session pooler connection limit reached (max ~15). " +
       "Restart the app, wait 1–2 minutes for idle connections to close, then reconnect in Settings " +
-      "(AYRA saves Transaction pooler port 6543 after connect to prevent this)."
+      "(AYRA saves the Transaction pooler URL after connect to prevent this)."
     );
   }
 
