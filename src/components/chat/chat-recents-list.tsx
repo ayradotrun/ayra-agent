@@ -63,9 +63,9 @@ function DeleteChatDialog({
   const title = session.title || "New chat";
 
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 pointer-events-none">
       <div
-        className="absolute inset-0 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200"
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto"
         onClick={deleting ? undefined : onClose}
         aria-hidden
       />
@@ -74,16 +74,21 @@ function DeleteChatDialog({
         aria-labelledby="delete-chat-title"
         aria-describedby="delete-chat-desc"
         className={cn(
-          "relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-white/[0.1]",
+          "relative z-10 w-full max-w-[400px] overflow-hidden rounded-2xl border border-white/[0.1] pointer-events-auto",
           "bg-[hsl(220,18%,8%)] shadow-2xl shadow-black/50",
           "animate-in fade-in zoom-in-95 duration-200"
         )}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-red-500/[0.08] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-0 h-24 bg-gradient-to-b from-red-500/[0.08] to-transparent" />
         <button
           type="button"
-          className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-50"
-          onClick={onClose}
+          className="absolute right-3 top-3 z-20 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-50"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!deleting) onClose();
+          }}
           disabled={deleting}
           aria-label="Close"
         >

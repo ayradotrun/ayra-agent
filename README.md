@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  Wallet tracking · on-chain research · X workflows · Telegram · skill marketplace · private database per user
+  Wallet analyzer · token research · X workflows · Telegram · 82 skills · private database per user
 </p>
 
 <p align="center">
@@ -46,10 +46,11 @@ If the chart does not load in a preview, open the link above or paste `ayradotru
 | Area | What you get |
 |------|----------------|
 | **Agents** | Office templates (Ayra, Aria, Marcus, Nova…) — locked behavior profiles, skill toggles for custom agents |
-| **Commands** | 30+ slash commands in chat & Telegram — [full reference](./docs/slash-commands.md) |
-| **Solana** | Wallet watch, token research, RPC monitor, AYRA scan |
+| **Skills** | **82** built-in skills across 9 categories — research, crypto, social, DevOps, brain tasks |
+| **Commands** | **19** slash commands in chat & Telegram — [full reference](./docs/slash-commands.md) |
+| **Solana** | Wallet analyzer (`/w`), token research, AYRA scan, trending + MC, yield compare |
 | **Social** | X drafts, threads, optional auto-post (double opt-in) |
-| **Chat** | Full dashboard chat with sessions, pins, slash commands, image uploads |
+| **Chat** | Full dashboard chat with sessions, pins, slash command picker, image uploads |
 | **Brain** | Scheduled tweets, reminders, content calendars — AYRA Brain worker |
 | **Privacy** | Required private Postgres (BYOD) for chat + brain |
 | **Ops** | Usage analytics, run logs, token usage, Telegram notifications, cron worker |
@@ -473,8 +474,10 @@ storage/              # Generated images, uploads, local brain SQLite fallback
 ## Adding skills
 
 1. Create `src/lib/skills/my-skill.ts` implementing `SkillDefinition`
-2. Register in `src/lib/skills/index.ts`
+2. Register in `src/lib/skills/index.ts` and add an entry to `src/lib/skills/catalog.ts`
 3. Run `npm run prisma:seed`
+
+The catalog currently ships **82 enabled skills**. Optional: add a slash command in `src/lib/telegram/skill-commands.ts` for fast chat/Telegram access.
 
 See existing skills in `src/lib/skills/` for patterns (Zod input schema, `ctx.log`, permissions).
 
@@ -504,7 +507,7 @@ See existing skills in `src/lib/skills/` for patterns (Zod input schema, `ctx.lo
 
 `npm install` automatically runs `prisma generate` via `postinstall`.
 
-**Docs:** [Slash commands](./docs/slash-commands.md) · [Getting started](./docs/getting-started.md) · [Troubleshooting](./docs/troubleshooting.md)
+**Docs:** [Slash commands](./docs/slash-commands.md) (19 chat commands · 82 skills) · [Getting started](./docs/getting-started.md) · [Troubleshooting](./docs/troubleshooting.md)
 
 ---
 

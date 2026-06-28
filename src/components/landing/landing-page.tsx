@@ -35,6 +35,10 @@ import { LandingHeroBg } from "@/components/landing/landing-hero-bg";
 import { LandingAgentTerminal } from "@/components/landing/landing-agent-terminal";
 import { LandingArchitectureDiagram } from "@/components/landing/landing-architecture-diagram";
 import { ScrollReveal, ScrollStagger, ScrollStaggerItem, ScrollStaggerList, ScrollStaggerListItem } from "@/components/landing/landing-scroll-reveal";
+import { getLandingSkillCatalog } from "@/lib/landing-skills";
+import { getSkillIcon } from "@/lib/skill-icons";
+
+const skillCatalog = getLandingSkillCatalog();
 
 const iconMap: Record<string, React.ElementType> = {
   wallet: Wallet,
@@ -52,10 +56,19 @@ const iconMap: Record<string, React.ElementType> = {
 
 
 const stats = [
-  { value: "14+", label: "Built-in skills" },
-  { value: "6", label: "Agent personas" },
+  { value: String(skillCatalog.total), label: "Built-in skills" },
+  { value: String(skillCatalog.categories.length), label: "Skill categories" },
   { value: "BYOD", label: "Private database" },
   { value: "24/7", label: "Scheduled runs" },
+];
+
+const slashHighlights = [
+  { cmd: "/w", desc: "Wallet analyzer — balance, funding, bundle flags" },
+  { cmd: "/p", desc: "Token price + safety snapshot" },
+  { cmd: "/trending", desc: "Hot Solana tokens with MC" },
+  { cmd: "/q", desc: "AYRA quality report + verdict" },
+  { cmd: "/audit", desc: "Security audit & rug scan" },
+  { cmd: "/yield", desc: "DeFi yield pool compare" },
 ];
 
 const features = [
@@ -91,14 +104,7 @@ const features = [
   },
 ];
 
-const previewSkills = [
-  { name: "Wallet Tracker", category: "Solana", icon: "wallet", enabled: true },
-  { name: "Token Research", category: "Solana", icon: "coins", enabled: true },
-  { name: "X Post & Draft", category: "Social", icon: "send", enabled: true },
-  { name: "Viral Topic Finder", category: "Social", icon: "trending-up", enabled: true },
-  { name: "Solana RPC Monitor", category: "Crypto", icon: "activity", enabled: true },
-  { name: "X Thread Drafter", category: "Social", icon: "pen-line", enabled: true },
-];
+const previewSkills = skillCatalog.featured;
 
 const personas = [
   { name: "Aria", role: "Research Analyst", focus: "On-chain research & token briefings" },
@@ -174,8 +180,9 @@ export function LandingPage() {
             </h1>
 
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
-              Privacy-first autonomous agents — wallet tracking, token research, X drafts,
-              Telegram alerts, and scheduled brain tasks.
+              Privacy-first autonomous agents with{" "}
+              <span className="font-medium text-foreground/90">{skillCatalog.total} built-in skills</span> —
+              wallet analysis, token research, X drafts, Telegram alerts, and scheduled brain tasks.
             </p>
 
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center lg:justify-start">
@@ -429,33 +436,83 @@ export function LandingPage() {
       <section id="skills" className={`relative z-10 border-t border-border/40 bg-secondary/15 py-16 md:py-24 ${SITE_SECTION_ANCHOR}`}>
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <ScrollReveal variant="fadeUp">
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">Skills for devs & token teams</h2>
-            <p className="mt-2 max-w-xl text-muted-foreground">
-              14+ working skills today. Mix and match per agent. X auto-post is opt-in at account and agent level.
+            <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl">
+                <Badge variant="secondary" className="mb-4 gap-1.5 border-primary/20 bg-primary/10 text-primary">
+                  <Sparkles className="h-3 w-3" />
+                  {skillCatalog.total} skills ready to attach
+                </Badge>
+                <h2 className="text-2xl font-semibold tracking-tight sm:text-4xl">
+                  AYRA skill library
+                </h2>
+                <p className="mt-3 text-muted-foreground leading-relaxed">
+                  Mix and match {skillCatalog.total} production skills across {skillCatalog.categories.length}{" "}
+                  categories — from Solana wallet analysis to X threads, DevOps monitors, and brain scheduling.
+                  Use slash commands in chat or let agents pick tools automatically.
+                </p>
+              </div>
+              <div className="glass-panel shrink-0 rounded-2xl px-5 py-4 text-center md:text-right">
+                <p className="text-3xl font-bold text-gradient">{skillCatalog.total}</p>
+                <p className="text-xs text-muted-foreground">active skills in AYRA</p>
+              </div>
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal variant="fadeUp" delay={0.05} className="mt-8">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Quick slash commands
+            </p>
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0 [&::-webkit-scrollbar]:hidden">
+              {slashHighlights.map((item) => (
+                <div
+                  key={item.cmd}
+                  className="min-w-[220px] shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 sm:min-w-0 sm:flex-1 sm:basis-[calc(33.333%-0.5rem)]"
+                >
+                  <p className="font-mono text-sm font-semibold text-emerald-400">{item.cmd}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </ScrollReveal>
+
+          <ScrollReveal variant="fadeUp" delay={0.08} className="mt-10">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Featured skills
             </p>
           </ScrollReveal>
-          <ScrollStagger className="mt-10 grid gap-4 sm:mt-14 sm:grid-cols-2 lg:grid-cols-3" stagger={0.06}>
+          <ScrollStagger className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" stagger={0.05}>
             {previewSkills.map((skill) => {
-              const Icon = iconMap[skill.icon] || Bot;
+              const Icon = getSkillIcon(skill.icon);
               return (
-                <ScrollStaggerItem key={skill.name}>
+                <ScrollStaggerItem key={skill.slug}>
                   <motion.div
-                    whileHover={{ y: -3 }}
-                    className="group h-full glass-panel rounded-xl p-5 transition-colors hover:border-primary/30"
+                    whileHover={{ y: -4, transition: { type: "spring", stiffness: 320 } }}
+                    className="group h-full glass-panel rounded-xl p-5 transition-colors hover:border-primary/30 hover:shadow-[0_0_28px_-12px_rgba(52,211,153,0.22)]"
                   >
-                    <div className="flex items-start justify-between">
-                      <Icon className="h-5 w-5 text-primary" />
-                      <Badge variant={skill.enabled ? "success" : "secondary"}>
-                        {skill.enabled ? "Available" : "Soon"}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="inline-flex rounded-lg border border-primary/20 bg-primary/10 p-2.5 transition-transform duration-300 group-hover:scale-105">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">
+                        {skill.category}
                       </Badge>
                     </div>
-                    <h3 className="mt-3 font-medium">{skill.name}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{skill.category}</p>
+                    <h3 className="mt-4 font-semibold">{skill.name}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{skill.description}</p>
                   </motion.div>
                 </ScrollStaggerItem>
               );
             })}
           </ScrollStagger>
+
+          <ScrollReveal variant="fadeUp" delay={0.1} className="mt-10 text-center">
+            <Link href="/docs/slash-commands">
+              <Button variant="outline" className="gap-2">
+                <BookOpen className="h-4 w-4" />
+                View all slash commands
+              </Button>
+            </Link>
+          </ScrollReveal>
         </div>
       </section>
 
@@ -484,7 +541,7 @@ export function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="relative z-10 border-t border-border/40 py-16 pb-28 md:py-24 md:pb-24">
+      <section className="relative z-10 border-t border-border/40 py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <ScrollReveal variant="scale" amount={0.2}>
             <div className="glass-panel glow-emerald rounded-2xl px-5 py-10 text-center sm:px-12 sm:py-14">
@@ -522,11 +579,9 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Mobile bottom navigation */}
+      <LandingFooter />
       <MobileBottomSpacer />
       <PublicBottomNav />
-
-      <LandingFooter />
     </div>
   );
 }

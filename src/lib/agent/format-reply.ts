@@ -238,7 +238,6 @@ export function formatToolResult(data: unknown, context?: FormatToolResultContex
       }
     }
 
-    lines.push("_Helius walletanalyzer-style — DYOR._");
     return lines.join("\n");
   }
 

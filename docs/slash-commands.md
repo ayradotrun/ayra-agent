@@ -4,6 +4,8 @@ AYRA exposes the same slash commands in **Dashboard → Chat**, **Telegram**, an
 
 Type **`/help`** anytime for the live list. This page is the full reference.
 
+**Skill library:** **82** built-in skills across 9 categories — agents pick tools automatically; slash commands call the most common skills directly. See [Agents & skills](/docs/agents-and-skills).
+
 ---
 
 ## Quick tips
@@ -13,8 +15,9 @@ Type **`/help`** anytime for the live list. This page is the full reference.
 | **Paste a CA** | Drop a Solana mint address without a command — instant price + safety lookup |
 | **Follow-ups** | Ask "is it good?", "bagus ga?", "should I buy?" — the agent uses recent context |
 | **Command picker** | In dashboard chat, type `/` to browse commands with descriptions |
-| **Aliases** | Many commands have short aliases (e.g. `/price` → `/p`) |
+| **Aliases** | Many commands have short aliases (e.g. `/price` → `/p`, `/network` → `/n`) |
 | **Worker required** | Telegram commands need `npm run worker` running |
+| **Solana RPC** | Wallet/on-chain commands use **your** RPC from **Settings → Solana** — not the server `.env` URL |
 
 ---
 
@@ -38,23 +41,31 @@ Type **`/help`** anytime for the live list. This page is the full reference.
 /f pepe
 ```
 
-### Wallet & portfolio
+### Wallet analyzer
 
 | Command | Aliases | Usage | Description |
 |---------|---------|-------|-------------|
-| `/w` | `/wallet`, `/analyze` | `/w [address] [token_CA]` | Wallet analyzer — balance, Helius funding source, bundle flags, optional token transfer analysis |
-| `/n` | `/networth`, `/nw` | `/n [address]` | Estimated USD net worth (SOL + major holdings) |
-| `/mw` | `/batch` | `/mw [addr1 addr2 …]` | Multi-wallet SOL balance check (read-only, max 10) |
+| `/w` | `/wallet`, `/analyze` | `/w [address] [token_CA]` | Wallet analyzer — SOL balance, token holdings, top 3 holdings, Helius funding source, bundle/sybil flags; optional token transfer analysis when a mint CA is provided |
+
+**Example output (summary)**
+
+- SOL balance
+- Token holdings count
+- Top 3 holdings (token name + amount)
+- Funding source (funder name or wallet address, amount, date, tx link)
+- Bundle warnings when detected
 
 **Examples**
 
 ```
 /w 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuCFosgV
-/w 7xKX… addr EPjF…   (wallet + optional token CA)
-/mw addr1 addr2 addr3
+/w 7xKX… addr EPjF…   (wallet + optional token CA for transfer/bundle analysis)
 ```
 
-**Note:** `/w` uses your **Settings → Solana RPC** (or public mainnet if unset). Funding/bundle analysis requires `HELIUS_API_KEY` on the server.
+**Notes**
+
+- Balance & SPL tokens use **Settings → Solana RPC** (or public mainnet fallback).
+- Funding/bundle analysis needs a **Helius RPC URL or API key** in **Settings → Solana** (user-scoped — not server `.env`).
 
 ### Safety & quality
 
@@ -78,9 +89,8 @@ Type **`/help`** anytime for the live list. This page is the full reference.
 
 | Command | Aliases | Usage | Description |
 |---------|---------|-------|-------------|
-| `/trending` | `/tr` | `/trending` | Top trending Solana tokens (DexScreener) |
-| `/network` | — | `/network` | Solana TPS, epoch, validator version |
-| `/oc` | `/chain` | `/oc [wallet\|tx\|CA]` | Real-time on-chain data — wallet activity, tx details, or token supply |
+| `/trending` | `/tr` | `/trending` | Top trending Solana tokens (DexScreener) with price, **market cap**, and 24h change |
+| `/n` | `/network` | `/n` | Solana network status — TPS, epoch progress, validator version |
 | `/news` | `/sent` | `/news [topic]` | Crypto news aggregation + bullish/bearish sentiment |
 | `/yield` | `/yld` | `/yield [token]` | Compare Solana DeFi yield pools (APY, TVL, IL risk) |
 | `/sim` | — | `/sim [CA] [burn=10 stake=20]` | Tokenomics simulator (burn, staking rewards) |
@@ -91,8 +101,7 @@ Type **`/help`** anytime for the live list. This page is the full reference.
 
 ```
 /trending
-/network
-/oc 7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuCFosgV
+/n
 /news Solana
 /yield SOL
 /sim [CA] burn=10 stake=20 months=12
@@ -106,7 +115,7 @@ Type **`/help`** anytime for the live list. This page is the full reference.
 | Command | Aliases | Usage | Description |
 |---------|---------|-------|-------------|
 | `/search` | — | `/search [query]` | Web search (Jina → Bing → DuckDuckGo). Optional Jina key in Settings |
-| `/rpc` | — | `/rpc` | Solana RPC health check |
+| `/rpc` | — | `/rpc` | Solana RPC health check (uses your Settings RPC) |
 | `/x` | `/xuser`, `/twitter` | `/x [@username]` | X profile lookup (requires X API credits on developer.x.com) |
 
 **Examples**
@@ -182,10 +191,10 @@ These work without a command when the message is short and unambiguous:
 | Solana mint address (CA only) | Token price + safety card |
 | `@username` or "X account …" | X profile lookup |
 | "sol price" / "harga sol" | SOL/USD price |
-| "trending" / "hot tokens" | Trending Solana tokens |
+| "trending" / "hot tokens" | Trending Solana tokens (with MC) |
 | "rug check [CA]" with mint in message | Rugcheck scan |
 
-For everything else, use natural language in chat — the agent picks tools automatically based on enabled skills.
+For everything else, use natural language in chat — the agent picks from **82 skills** based on what you enabled on the agent.
 
 ---
 
@@ -198,6 +207,7 @@ For everything else, use natural language in chat — the agent picks tools auto
 | **Deep thinking** | Toggle for longer reasoning (slower, more thorough) |
 | **Image upload** | Attach images for vision-capable models |
 | **Pinned sessions** | Pin important chats from the sidebar |
+| **Delete chat** | Centered confirmation modal (sidebar recents) |
 
 ---
 
@@ -208,6 +218,15 @@ For everything else, use natural language in chat — the agent picks tools auto
 3. Production: prefer webhook mode — see [Telegram bot](/docs/telegram)
 
 If `/help` is slow, align platform and private Postgres regions — [Private database](/docs/private-database).
+
+---
+
+## Removed / deprecated commands
+
+| Command | Status | Use instead |
+|---------|--------|-------------|
+| `/oc` | Removed | `/w` (wallet analyzer) or `/mintinfo` (mint supply) |
+| `/mw` | Removed | `/w` per wallet |
 
 ---
 

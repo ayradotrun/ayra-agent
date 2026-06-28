@@ -158,8 +158,6 @@ export const solanaWalletTracker: SkillDefinition = {
         heliusConfigured: !!heliusKey,
         heliusError,
         rpcError,
-        source: "Solana RPC + Helius (walletanalyzer)",
-        note: "Funding/bundle analysis needs a Helius RPC or API key in Dashboard → Settings → Solana. Not financial advice.",
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";

@@ -44,11 +44,11 @@ export function LegalPageLayout({ title, lastUpdated, children }: LegalPageLayou
               {children}
             </div>
           </article>
-          <MobileBottomSpacer />
         </div>
       </main>
 
       <LandingFooter />
+      <MobileBottomSpacer />
       <PublicBottomNav />
     </div>
   );

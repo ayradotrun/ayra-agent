@@ -44,13 +44,18 @@ export function ConfirmDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, loading, onClose]);
 
+  function handleClose() {
+    if (loading) return;
+    onClose();
+  }
+
   if (!open || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 pointer-events-none">
       <div
-        className="absolute inset-0 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200"
-        onClick={loading ? undefined : onClose}
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200 pointer-events-auto"
+        onClick={handleClose}
         aria-hidden
       />
       <div
@@ -58,27 +63,32 @@ export function ConfirmDialog({
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-desc"
         className={cn(
-          "relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-white/[0.1]",
+          "relative z-10 w-full max-w-[400px] overflow-hidden rounded-2xl border border-white/[0.1] pointer-events-auto",
           "bg-[hsl(220,18%,8%)] shadow-2xl shadow-black/50",
           "animate-in fade-in zoom-in-95 duration-200"
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <div
           className={cn(
-            "pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b to-transparent",
+            "pointer-events-none absolute inset-x-0 top-0 z-0 h-24 bg-gradient-to-b to-transparent",
             destructive ? "from-red-500/[0.08]" : "from-primary/[0.08]"
           )}
         />
         <button
           type="button"
-          className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-50"
-          onClick={onClose}
+          className="absolute right-3 top-3 z-20 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-50"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleClose();
+          }}
           disabled={loading}
           aria-label="Close"
         >
           <X className="h-4 w-4" />
         </button>
-        <div className="relative px-6 pb-6 pt-8 text-center">
+        <div className="relative z-10 px-6 pb-6 pt-8 text-center">
           <div
             className={cn(
               "mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border",
@@ -105,7 +115,7 @@ export function ConfirmDialog({
               type="button"
               variant="outline"
               className="h-10 flex-1 border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={loading}
             >
               {cancelLabel}
