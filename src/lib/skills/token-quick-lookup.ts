@@ -70,6 +70,8 @@ export const trendingTokens: SkillDefinition = {
             priceUsd?: string;
             priceChange?: { h24?: number };
             liquidity?: { usd?: number };
+            marketCap?: number;
+            fdv?: number;
             url?: string;
           }>;
         };
@@ -84,6 +86,7 @@ export const trendingTokens: SkillDefinition = {
           priceUsd: best?.priceUsd ? parseFloat(best.priceUsd) : null,
           change24h: best?.priceChange?.h24 ?? null,
           liquidityUsd: best?.liquidity?.usd ?? null,
+          marketCap: best?.marketCap ?? best?.fdv ?? null,
           url: best?.url ?? b.url,
           description: b.description,
         };

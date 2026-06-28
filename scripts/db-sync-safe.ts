@@ -3,7 +3,7 @@
  * Apply additive schema patches without destructive db push.
  * Usage: npm run db:sync
  */
-import { readFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { execSync } from "child_process";
 
@@ -24,9 +24,21 @@ function loadDotEnv() {
 loadDotEnv();
 
 const SAFE_MIGRATIONS = [
+  "20250622120000_add_agent_image_model/migration.sql",
+  "20250622130000_add_user_default_image_model/migration.sql",
+  "20250622150000_add_llm_base_url/migration.sql",
+  "20250622170000_chat_model_thinking/migration.sql",
+  "20250622180000_chat_pinned/migration.sql",
+  "20250622_meme_alerts/migration.sql",
+  "20250622_telegram_dedup/migration.sql",
+  "20250622200000_brain_tasks/migration.sql",
+  "20250622210000_brain_tasks_to_sqlite/migration.sql",
+  "20250622220000_user_brain_database_url/migration.sql",
   "20250622240000_user_fallback_agentmemory/migration.sql",
   "20250622250000_user_fallback_rpc_urls/migration.sql",
   "20250622260000_custom_models_encrypted_secrets/migration.sql",
+  "20250622270000_user_fallback_image_models/migration.sql",
+  "20250622280000_agent_run_usage_tokens/migration.sql",
 ];
 
 async function main() {
@@ -39,10 +51,14 @@ async function main() {
       continue;
     }
     console.log(`→ Applying ${rel}`);
-    execSync(`npx prisma db execute --file "${file}"`, {
-      stdio: "inherit",
-      env: process.env,
-    });
+    try {
+      execSync(`npx prisma db execute --file "${file}"`, {
+        stdio: "inherit",
+        env: process.env,
+      });
+    } catch {
+      console.warn(`⚠️  Skipped or already applied: ${rel}`);
+    }
   }
 
   console.log("\n✅ Safe sync complete.");

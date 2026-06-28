@@ -11,7 +11,11 @@ export type SkillCommandArg =
   | "query"
   | "url"
   | "domain"
-  | "username";
+  | "username"
+  | "multi_wallet"
+  | "optional_query"
+  | "program"
+  | "sim";
 
 export interface TelegramSkillCommandDef {
   command: string;
@@ -42,27 +46,19 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
   },
   {
     command: "w",
-    aliases: ["wallet"],
+    aliases: ["wallet", "analyze"],
     skillSlug: "wallet-tracker",
-    description: "👛 Wallet balance",
-    usage: "/w [address]",
+    description: "🕵️ Wallet analyzer (balance + funding + bundle)",
+    usage: "/w [address] [token_CA]",
     arg: "wallet",
   },
   {
     command: "n",
-    aliases: ["networth", "nw"],
-    skillSlug: "wallet-networth",
-    description: "💎 Wallet net worth",
-    usage: "/n [address]",
-    arg: "wallet",
-  },
-  {
-    command: "whale",
-    aliases: ["wh"],
-    skillSlug: "whale-tracker",
-    description: "🐋 Whale check",
-    usage: "/whale [address]",
-    arg: "wallet",
+    aliases: ["network"],
+    skillSlug: "network-stats",
+    description: "🌐 Network status (TPS, epoch)",
+    usage: "/n",
+    arg: "none",
   },
   {
     command: "q",
@@ -110,15 +106,8 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
     command: "trending",
     aliases: ["tr"],
     skillSlug: "trending-tokens",
-    description: "📈 Trending tokens",
+    description: "📈 Trending tokens + MC",
     usage: "/trending",
-    arg: "none",
-  },
-  {
-    command: "network",
-    skillSlug: "network-stats",
-    description: "🌐 Network stats",
-    usage: "/network",
     arg: "none",
   },
   {
@@ -149,6 +138,44 @@ export const TELEGRAM_SKILL_COMMANDS: TelegramSkillCommandDef[] = [
     description: "⚡ RPC health",
     usage: "/rpc",
     arg: "none",
+  },
+  {
+    command: "audit",
+    aliases: ["sec"],
+    skillSlug: "security-audit",
+    description: "🔒 Security audit + alert level",
+    usage: "/audit [CA]",
+    arg: "mint",
+  },
+  {
+    command: "prog",
+    skillSlug: "program-monitor",
+    description: "🚀 Program deploy health",
+    usage: "/prog [program_id]",
+    arg: "program",
+  },
+  {
+    command: "news",
+    aliases: ["sent"],
+    skillSlug: "market-sentiment",
+    description: "📰 News + market sentiment",
+    usage: "/news [topic]",
+    arg: "optional_query",
+  },
+  {
+    command: "sim",
+    skillSlug: "tokenomics-sim",
+    description: "🧮 Tokenomics simulator",
+    usage: "/sim [CA]",
+    arg: "sim",
+  },
+  {
+    command: "yield",
+    aliases: ["yld"],
+    skillSlug: "yield-optimizer",
+    description: "🌾 DeFi yield compare",
+    usage: "/yield [token]",
+    arg: "optional_query",
   },
 ];
 
@@ -181,10 +208,19 @@ export function parseSkillCommand(
       if (args) return { error: `Usage: ${def.usage}` };
       break;
     case "wallet":
-      if (!args || !WALLET_OR_MINT.test(args)) {
-        return { error: `Usage: ${def.usage}` };
+      if (!args) return { error: `Usage: ${def.usage}` };
+      {
+        const parts = args.trim().split(/\s+/);
+        if (!parts[0] || !WALLET_OR_MINT.test(parts[0])) {
+          return { error: `Usage: ${def.usage}` };
+        }
+        input.wallet = parts[0];
+        if (parts[1] && isSolanaMint(parts[1])) {
+          input.mint = parts[1];
+        } else if (parts[1]) {
+          return { error: `Usage: ${def.usage}` };
+        }
       }
-      input.wallet = args;
       break;
     case "mint":
       if (!args || !isSolanaMint(args)) {
@@ -210,31 +246,75 @@ export function parseSkillCommand(
       if (!args) return { error: `Usage: ${def.usage}` };
       input.username = args.replace(/^@/, "");
       break;
+    case "program":
+      if (!args || !WALLET_OR_MINT.test(args.trim())) {
+        return { error: `Usage: ${def.usage}` };
+      }
+      input.programId = args.trim();
+      break;
+    case "optional_query":
+      if (args) input.query = args;
+      if (def.skillSlug === "market-sentiment" && args) input.topic = args;
+      break;
+    case "multi_wallet": {
+      if (!args) return { error: `Usage: ${def.usage}` };
+      const parts = args.split(/[\s,]+/).filter(Boolean);
+      const wallets = parts.filter((p) => WALLET_OR_MINT.test(p));
+      if (wallets.length === 0) return { error: `Usage: ${def.usage}` };
+      if (wallets.length > 10) return { error: "Max 10 wallets per request." };
+      input.wallets = wallets;
+      break;
+    }
+    case "sim": {
+      if (!args) return { error: `Usage: ${def.usage}` };
+      const parts = args.trim().split(/\s+/);
+      const mint = parts[0];
+      if (!isSolanaMint(mint)) return { error: `Usage: ${def.usage}` };
+      input.mint = mint;
+      for (const p of parts.slice(1)) {
+        const [k, v] = p.split("=");
+        const num = Number(v);
+        if (!Number.isFinite(num)) continue;
+        if (k === "burn") input.burnPct = num;
+        else if (k === "stake") input.stakeApr = num;
+        else if (k === "ratio") input.stakeRatio = num;
+        else if (k === "months") input.months = num;
+      }
+      break;
+    }
   }
 
   return { def, input };
 }
 
-const TOOL_COMMANDS = new Set(["search", "rpc", "x"]);
+const TOOL_COMMANDS = new Set(["search", "rpc", "x", "news", "sent"]);
 
 export function formatSkillCommandsHelp(format: "telegram" | "plain" = "telegram"): string {
   const crypto = TELEGRAM_SKILL_COMMANDS.filter((c) => !TOOL_COMMANDS.has(c.command));
   const tools = TELEGRAM_SKILL_COMMANDS.filter((c) => TOOL_COMMANDS.has(c.command));
 
-  const fmt = (c: TelegramSkillCommandDef) => `${c.usage} — ${c.description}`;
-  const lines: string[] = format === "plain" ? ["Skill commands", ""] : ["*Skill commands*", ""];
+  const bold = (s: string) => (format === "plain" ? s : `*${s}*`);
+  const dim = (s: string) => (format === "plain" ? s : `_${s}_`);
 
-  lines.push(format === "plain" ? "Crypto" : "*Crypto*");
-  lines.push(...crypto.map(fmt));
-  lines.push("");
-  lines.push(format === "plain" ? "Tools" : "*Tools*");
-  lines.push(...tools.map(fmt));
-  lines.push("");
-  lines.push(
-    format === "plain"
-      ? "💡 Paste a CA mint, or /p [token|CA] — also works for SOL & Jupiter price."
-      : "_💡 Paste a CA mint, or /p \\[token|CA\\] — also works for SOL & Jupiter price._"
-  );
+  const fmt = (c: TelegramSkillCommandDef) => {
+    const alias =
+      c.aliases && c.aliases.length > 0
+        ? dim(` · also /${c.aliases.join(", /")}`)
+        : "";
+    return `${c.usage}\n${c.description}${alias}`;
+  };
+
+  const lines: string[] = [
+    bold("⚡ AYRA skill commands"),
+    "",
+    bold("💎 Crypto"),
+    ...crypto.map(fmt),
+    "",
+    bold("🛠 Tools"),
+    ...tools.map(fmt),
+    "",
+    dim("💡 Paste a Solana CA mint, or /p [token|CA] for instant price + safety."),
+  ];
 
   return lines.join("\n");
 }

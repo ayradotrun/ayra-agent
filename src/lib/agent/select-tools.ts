@@ -36,9 +36,7 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
       "dex-monitor",
       "token-tracker",
       "wallet-tracker",
-      "wallet-networth",
       "token-recommendation",
-      "whale-tracker",
       "new-token-monitor",
       "meme-coin-scanner",
       "token-quality-report",
@@ -111,7 +109,7 @@ const KEYWORD_TOOLS: Array<{ pattern: RegExp; slugs: string[] }> = [
   },
   {
     pattern: /\b(wallet|address|balance)\b/i,
-    slugs: ["wallet-tracker", "portfolio-tracker", "whale-tracker"],
+    slugs: ["wallet-tracker", "portfolio-tracker"],
   },
 ];
 

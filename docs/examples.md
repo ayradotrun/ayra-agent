@@ -2,26 +2,39 @@
 
 Practical workflows you can run today in **Dashboard → Chat** or **Telegram**.
 
+Full command reference: **[Slash commands](/docs/slash-commands)**
+
 ## Token research
 
 ```
 /p BONK
 /q <SOLANA_CA_MINT>
+/audit <SOLANA_CA_MINT>
 /ayrascan
 /trending
+/yield SOL
 ```
 
-Enable **web-search**, **token-quality-report**, and **meme-coin-scanner** on your agent.
+Enable crypto skills on your agent (or use the **Ayra** template).
 
 ## Wallet watch
 
 ```
 /w <WALLET_ADDRESS>
 /n <WALLET_ADDRESS>
-/whale <WALLET_ADDRESS>
+/mw <ADDR1> <ADDR2>
+/oc <WALLET_ADDRESS>
 ```
 
-Configure **Settings → Solana RPC** for reliable reads.
+Configure **Settings → Solana RPC** for reliable reads. `/w` uses your user RPC, not server `.env`.
+
+## On-chain & sentiment
+
+```
+/network
+/news Solana
+/sim <CA> burn=10 stake=20
+```
 
 ## Web research
 
@@ -33,7 +46,7 @@ Optional Jina key in Settings — [Web search guide](/docs/jina-web-search).
 
 ## X draft (no auto-post)
 
-Ask in chat: “Draft a thread about AYRA private database for builders.” Enable **x-draft** skill. Review before posting.
+Ask in chat: “Draft a thread about AYRA private database for builders.” Enable **x-draft-generator** skill. Review before posting.
 
 ## Post to X (auto-post on)
 
@@ -57,8 +70,16 @@ View queue: `/tasks` in Telegram or chat.
 
 Set image model in **Settings → LLM**.
 
+## Switch model in chat
+
+```
+/model gemma
+/status
+```
+
 ## More
 
+- [Slash commands](/docs/slash-commands)
 - [Agents & skills](/docs/agents-and-skills)
-- [Telegram slash commands](/docs/telegram)
+- [Telegram](/docs/telegram)
 - [Best practices](/docs/best-practices)

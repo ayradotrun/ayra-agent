@@ -2,6 +2,8 @@
 
 Connect a Telegram bot to chat with your agents and receive notifications from **Dashboard → Settings → Telegram**.
 
+For the **complete command reference** (every slash command, aliases, and examples), see **[Slash commands](/docs/slash-commands)**.
+
 ## 1. Create a bot
 
 1. Open [@BotFather](https://t.me/BotFather) in Telegram.
@@ -34,60 +36,20 @@ npm run worker
 
 Production: run **one** worker instance (PM2) — multiple workers can duplicate replies.
 
-## Slash commands
+## Slash commands (summary)
 
-Type **`/help`** (or `/start`) anytime for the full list. Commands work in **Telegram** and **Dashboard → Chat**.
+Type **`/help`** anytime for the live list. Commands work in **Telegram** and **Dashboard → Chat**.
 
-### Skill commands — crypto
-
-| Command | Action |
-|---------|--------|
-| `/p [token\|CA]` | Token price (alias: `/price`) |
-| `/t [token\|CA]` | Token info + safety (alias: `/token`) |
-| `/w [address]` | Wallet balance (alias: `/wallet`) |
-| `/n [address]` | Wallet net worth (alias: `/networth`, `/nw`) |
-| `/whale [address]` | Whale check (alias: `/wh`) |
-| `/q [CA]` | AYRA quality report + buy/skip verdict |
-| `/rug [CA]` | Rug check (alias: `/rugcheck`, `/r`) |
-| `/f [name]` | Find token by name (alias: `/find`) |
-| `/mintinfo [CA]` | On-chain mint info (alias: `/mi`) |
-| `/ayrascan` | AYRA meme scan (alias: `/y`, `/scan`) |
-| `/trending` | Trending tokens (alias: `/tr`) |
-| `/network` | Solana network stats |
-| `/sns [name]` | Resolve `.sol` domain |
-
-### Skill commands — tools
-
-| Command | Action |
-|---------|--------|
-| `/search [query]` | Web search (Jina → Bing → DuckDuckGo) |
-| `/rpc` | Solana RPC health |
-
-### Agent commands
-
-| Command | Action |
-|---------|--------|
-| `/help` | Full command list (same as `/start`) |
-| `/agents` | List your agents |
-| `/use [name]` | Switch default agent |
-| `/status` | Active agent, chat/image models, account |
-| `/tasks` | Pending brain tasks (tweets, reminders, calendar) |
-| `/post [text]` | Post to X (auto-post must be enabled) |
-| `/image [prompt]` | Generate an image |
-
-### Model commands
-
-| Command | Action |
-|---------|--------|
-| `/model [name]` | Switch chat model |
-| `/models` | List chat + image models |
-| `/models chat` | List chat models only |
-| `/models image` | List image models only |
-| `/custommodel [provider/model]` | Set custom chat model ID |
-| `/imagemodel [name]` | Switch image model |
-| `/customimagemodel [provider/model]` | Set custom image model ID |
+| Category | Examples |
+|----------|----------|
+| **Crypto** | `/p`, `/w`, `/q`, `/rug`, `/audit`, `/trending`, `/oc`, `/yield` |
+| **Tools** | `/search`, `/rpc`, `/x` |
+| **Agent** | `/help`, `/agents`, `/use`, `/status`, `/tasks`, `/post`, `/image` |
+| **Models** | `/model`, `/models`, `/imagemodel`, `/custommodel` |
 
 **Tip:** paste a Solana **contract address (CA)** directly — AYRA runs a quick token lookup without a slash command.
+
+→ **[Full slash commands reference](/docs/slash-commands)**
 
 ## Production: webhook vs polling
 
@@ -107,4 +69,4 @@ Operators: see [Deployment](/docs/deployment) for PM2 and HTTPS.
 | Invalid token | Regenerate in BotFather; re-save in Settings |
 | Wrong chat | Verify chat ID from `getUpdates` after messaging the bot |
 
-More: [FAQ](/docs/faq).
+More: [FAQ](/docs/faq) · [Troubleshooting](/docs/troubleshooting).

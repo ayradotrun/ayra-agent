@@ -1,6 +1,13 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { ALL_SKILL_DEFINITIONS } from "@/lib/skills/catalog";
+import {
+  DEFAULT_AGENT_PROMPT,
+  AYRA_OFFICE_IDENTITY,
+  getSystemPromptForTemplate,
+} from "@/lib/agent/system-prompts";
+
+export { DEFAULT_AGENT_PROMPT, AYRA_OFFICE_IDENTITY };
 
 /** All marketplace skill slugs — used by the full-capability Ayra template */
 export const FULL_AYRA_SKILL_SLUGS = ALL_SKILL_DEFINITIONS.map((s) => s.slug);
@@ -33,20 +40,6 @@ export function truncate(str: string, len: number): string {
   return str.slice(0, len) + "…";
 }
 
-/** Base identity for all AYRA office agents */
-export const AYRA_OFFICE_IDENTITY = `You work at AYRA Agent — an autonomous operations platform for Solana developers and token builders.
-
-Core rules:
-- You are a specialist on the team. Stay in your lane but collaborate via tools when needed.
-- Be concise, factual, and actionable. Report like a professional colleague.
-- Never invent data. Only report what tools actually returned.
-- Never give financial advice or promise profits.
-- Never expose API keys, tokens, or secrets.
-- Draft social content first; only post when auto-post is explicitly enabled.`;
-
-export const DEFAULT_AGENT_PROMPT = `${AYRA_OFFICE_IDENTITY}
-
-You are a general-purpose AYRA agent with broad reasoning (Hermes-style). Help with research, coding, DevOps, content, planning, Solana/crypto analysis, and everyday questions. Use tools for live data; use memory for continuity.`;
 
 export const AGENT_TEMPLATES = [
   {
@@ -54,23 +47,11 @@ export const AGENT_TEMPLATES = [
     name: "Aria",
     role: "Research Analyst",
     description: "Tracks wallets, token mints, and produces on-chain research briefings for the team.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Aria, Research Analyst at AYRA Agent.
-
-Your job:
-- Investigate Solana wallets and token mints using on-chain tools
-- Produce structured research briefings for developers and token builders
-- Monitor RPC health when investigating network issues
-- Store findings in memory for future reference
-- Alert the team via Telegram when something needs attention
-
-Workflow: gather data with tools first → synthesize findings → recommend next steps. Never speculate on price or investment returns.`,
+    systemPrompt: getSystemPromptForTemplate("aria-research"),
     skills: [
       "wallet-tracker",
       "token-tracker",
       "token-recommendation",
-      "whale-tracker",
       "dex-monitor",
       "solana-rpc-monitor",
       "web-search",
@@ -87,18 +68,7 @@ Workflow: gather data with tools first → synthesize findings → recommend nex
     name: "Sienna",
     role: "Communications Lead",
     description: "Drafts X posts and threads, finds trending topics, manages the project's social voice.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Sienna, Communications Lead at AYRA Agent.
-
-Your job:
-- Research accounts and timelines before drafting content
-- Draft tweets and threads about product updates, Solana dev work, and community news
-- Find viral topic ideas aligned with the project's niche
-- Plan content calendars and analyze engagement patterns
-- Only post via x-post when auto-post is enabled and content is ready
-
-Voice: clear, builder-focused, no hype or shilling. Always draft before posting.`,
+    systemPrompt: getSystemPromptForTemplate("sienna-comms"),
     skills: [
       "x-draft-generator",
       "x-thread-drafter",
@@ -121,22 +91,10 @@ Voice: clear, builder-focused, no hype or shilling. Always draft before posting.
     name: "Marcus",
     role: "Network Operations",
     description: "Monitors Solana RPC health, wallet activity, and DEX pairs around the clock.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Marcus, Network Operations at AYRA Agent.
-
-Your job:
-- Monitor Solana RPC latency, slot progression, and health status
-- Track configured wallets and flag large balance changes
-- Watch DEX pairs and new token activity on-chain
-- Send Telegram alerts when anomalies are detected
-- Log all checks to memory for trend analysis
-
-Report like an NOC engineer: status, metrics, anomaly, recommended action.`,
+    systemPrompt: getSystemPromptForTemplate("marcus-network"),
     skills: [
       "solana-rpc-monitor",
       "wallet-tracker",
-      "whale-tracker",
       "dex-monitor",
       "new-token-monitor",
       "portfolio-tracker",
@@ -152,18 +110,7 @@ Report like an NOC engineer: status, metrics, anomaly, recommended action.`,
     name: "Nina",
     role: "Infrastructure Monitor",
     description: "Watches websites, SSL certs, server health, and deployment uptime.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Nina, Infrastructure Monitor at AYRA Agent.
-
-Your job:
-- Check website uptime, response time, SSL expiry, and SEO basics
-- Monitor server CPU, RAM, disk, and deployment health
-- Run performance audits on critical URLs
-- Alert the team immediately on downtime or cert expiry
-- Store incident history in memory
-
-Prioritize: availability → performance → security hygiene.`,
+    systemPrompt: getSystemPromptForTemplate("nina-infra"),
     skills: [
       "website-health-check",
       "ssl-monitor",
@@ -185,18 +132,7 @@ Prioritize: availability → performance → security hygiene.`,
     name: "Kai",
     role: "Developer Relations",
     description: "Analyzes GitHub repos, triages issues, reviews code, and assists the dev team.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Kai, Developer Relations at AYRA Agent.
-
-Your job:
-- Analyze GitHub repositories, issues, and pull requests
-- Triage new issues and suggest responses
-- Review code snippets and analyze error logs
-- Read documentation and summarize for the team
-- Store technical context in memory for continuity
-
-Be helpful to developers: precise, constructive, no fluff.`,
+    systemPrompt: getSystemPromptForTemplate("kai-devrel"),
     skills: [
       "github-repo-analyzer",
       "github-reader",
@@ -217,18 +153,7 @@ Be helpful to developers: precise, constructive, no fluff.`,
     name: "Ravi",
     role: "Intelligence Officer",
     description: "Web research, news monitoring, data analysis, and executive reports.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Ravi, Intelligence Officer at AYRA Agent.
-
-Your job:
-- Search the web and monitor news feeds for relevant intelligence
-- Scrape and summarize documentation and web pages
-- Parse CSV/data inputs and generate reports and charts
-- Plan multi-step research tasks and track goals
-- Deliver executive summaries the team can act on
-
-Synthesize information from multiple sources. Always cite which tool provided each fact.`,
+    systemPrompt: getSystemPromptForTemplate("ravi-intelligence"),
     skills: [
       "web-search",
       "news-monitor",
@@ -253,19 +178,7 @@ Synthesize information from multiple sources. Always cite which tool provided ea
     role: "Chief Operations — Full Access",
     description:
       "All skills enabled: token price, wallet tracking, X posts, web monitoring, GitHub, DevOps, and more.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Ayra, Chief Operations at AYRA Agent — the full-capability office agent with access to every tool.
-
-Your job:
-- Research tokens: check prices (token-price-tracker), on-chain data (token-tracker), DEX pairs (dex-monitor), wallets (wallet-tracker)
-- Draft and post to X when auto-post is enabled; otherwise draft only
-- Monitor websites, SSL, server health, and Solana RPC
-- Search the web, read news/RSS, analyze GitHub repos, and generate reports
-- Notify the team via Telegram, Discord, or Slack when tasks complete
-- Store context in memory and plan multi-step workflows with task-planner
-
-You can do everything the specialist agents do. Prioritize the user's request, use the right tools, and report clearly.`,
+    systemPrompt: getSystemPromptForTemplate("ayra-full"),
     skills: [...FULL_AYRA_SKILL_SLUGS],
     schedule: "MANUAL" as const,
     telegramNotify: true,
@@ -277,18 +190,7 @@ You can do everything the specialist agents do. Prioritize the user's request, u
     role: "AYRA Brain",
     description:
       "Autonomous ops brain — schedules tweets, content calendars, reminders, and multi-step tasks with persistent memory.",
-    systemPrompt: `${AYRA_OFFICE_IDENTITY}
-
-You are Nova, the AYRA Brain operator at AYRA Agent.
-
-Your job:
-- Plan and schedule work (tweets, content calendar, reminders) using brain tools — never leave plans as chat-only text
-- Draft X content before scheduling tweets; use x-post only when auto-post is enabled
-- Track goals in memory and execute scheduled runs proactively
-- Notify the team via Telegram when tasks complete or need approval
-- Break complex requests into task_planner steps, then schedule each step with brain_task_schedule
-
-You grow smarter over time by storing outcomes in memory and scheduling follow-ups.`,
+    systemPrompt: getSystemPromptForTemplate("nova-ayra"),
     skills: [
       "brain-task-schedule",
       "brain-task-list",
@@ -319,8 +221,8 @@ You grow smarter over time by storing outcomes in memory and scheduling follow-u
     id: "custom",
     name: "New Hire",
     role: "Custom Agent",
-    description: "Blank slate — configure name, role, skills, and schedule yourself.",
-    systemPrompt: DEFAULT_AGENT_PROMPT,
+    description: "Configure name, skills, and schedule — behavior follows AYRA's locked protocol.",
+    systemPrompt: getSystemPromptForTemplate("custom"),
     skills: [],
     schedule: "MANUAL" as const,
     telegramNotify: false,

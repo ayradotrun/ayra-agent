@@ -23,9 +23,10 @@ import { LlmSettingsSection } from "@/components/settings/llm-settings-section";
 import { SecretField } from "@/components/settings/secret-field";
 import { StringListEditor } from "@/components/settings/string-list-editor";
 import { XManualKeysGuide } from "@/components/settings/x-manual-keys-guide";
-import { DEFAULT_SOLANA_RPC } from "@/lib/solana";
+import { CommandsReferenceGrid } from "@/components/settings/commands-reference-grid";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DEFAULT_SOLANA_RPC, extractRpcApiKeyFromUrl } from "@/lib/solana";
 import { getLlmProviderPreset } from "@/lib/llm-providers";
-import { TELEGRAM_COMMANDS_UI } from "@/lib/telegram/commands";
 
 const DEFAULT_AGENTMEMORY_URL = "http://127.0.0.1:3111";
 
@@ -87,6 +88,12 @@ interface Settings {
   allowPlatformBrainDb?: boolean;
 }
 
+interface SettingsValidationError {
+  field: string;
+  label: string;
+  message: string;
+}
+
 async function fetchSettingsData(): Promise<Settings> {
   const res = await fetch("/api/settings");
   const contentType = res.headers.get("content-type") ?? "";
@@ -124,6 +131,11 @@ function SettingsContent() {
   const [fallbackImageModels, setFallbackImageModels] = useState<string[]>([]);
   const [fallbackRpcUrls, setFallbackRpcUrls] = useState<string[]>([]);
   const [message, setMessage] = useState("");
+  const [messageIsError, setMessageIsError] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<SettingsValidationError[]>([]);
+  const [disconnectXOpen, setDisconnectXOpen] = useState(false);
+  const [deleteAccountOpen, setDeleteAccountOpen] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     const xStatus = searchParams.get("x");
@@ -131,6 +143,8 @@ function SettingsContent() {
     const handle = searchParams.get("handle");
     if (xStatus === "connected") {
       setMessage(`X connected as @${handle || "user"}`);
+      setMessageIsError(false);
+      setValidationErrors([]);
     } else if (xError) {
       const hints: Record<string, string> = {
         access_denied: "You declined authorization on X.",
@@ -139,6 +153,8 @@ function SettingsContent() {
       setMessage(
         `X login failed: ${hints[xError] ?? xError}. Check callback URL in Settings matches developer.x.com exactly.`
       );
+      setMessageIsError(true);
+      setValidationErrors([]);
     }
   }, [searchParams]);
 
@@ -152,27 +168,33 @@ function SettingsContent() {
       })
       .catch((err) => {
         setMessage(err instanceof Error ? err.message : "Failed to load settings");
+        setMessageIsError(true);
       })
       .finally(() => setLoading(false));
   }, []);
 
   async function disconnectX() {
-    if (!confirm("Disconnect X account from AYRA Agent?")) return;
     setDisconnectingX(true);
     await fetch("/api/x/disconnect", { method: "POST" });
     const refreshed = await fetchSettingsData();
     setSettings(refreshed);
     setMessage("X account disconnected");
+    setMessageIsError(false);
+    setValidationErrors([]);
     setDisconnectingX(false);
+    setDisconnectXOpen(false);
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setMessage("");
+    setMessageIsError(false);
+    setValidationErrors([]);
 
     if (!settings.hasBrainDatabaseUrl) {
       setMessage("Connect your private database first using the Connect button above.");
+      setMessageIsError(true);
       setSaving(false);
       return;
     }
@@ -231,6 +253,8 @@ function SettingsContent() {
     setSaving(false);
     if (res.ok) {
       setMessage("Settings saved");
+      setMessageIsError(false);
+      setValidationErrors([]);
       setLlmApiKey("");
       setTelegramToken("");
       setXApiKey("");
@@ -245,8 +269,23 @@ function SettingsContent() {
       setFallbackImageModels(refreshed.fallbackImageModels ?? []);
       setFallbackRpcUrls(refreshed.fallbackRpcUrls ?? []);
     } else {
-      const err = await res.json().catch(() => ({}));
+      const err = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        errors?: SettingsValidationError[];
+      };
+      setValidationErrors(err.errors ?? []);
       setMessage(err.error || "Failed to save settings");
+      setMessageIsError(true);
+    }
+  }
+
+  async function deleteAccount() {
+    setDeletingAccount(true);
+    try {
+      await fetch("/api/settings", { method: "DELETE" });
+      signOut({ callbackUrl: "/" });
+    } finally {
+      setDeletingAccount(false);
     }
   }
 
@@ -300,6 +339,8 @@ function SettingsContent() {
                   }));
                   setBrainDatabaseUrl("");
                   setMessage(result.message || "Private database connected");
+                  setMessageIsError(false);
+                  setValidationErrors([]);
                 }}
               />
               <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 text-xs text-muted-foreground space-y-2">
@@ -510,6 +551,22 @@ function SettingsContent() {
           </Card>
 
           <Card>
+            <CardHeader className="border-b border-border/40 bg-emerald-500/[0.04]">
+              <CardTitle className="text-base">Slash commands</CardTitle>
+              <CardDescription>
+                Same commands in{" "}
+                <Link href="/dashboard/chat" className="text-emerald-400/90 hover:underline">
+                  Dashboard Chat
+                </Link>{" "}
+                and Telegram — type <code className="text-[11px]">/</code> to see descriptions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <CommandsReferenceGrid />
+            </CardContent>
+          </Card>
+
+          <Card>
             <CardHeader>
               <CardTitle className="text-base">Telegram</CardTitle>
               <CardDescription>
@@ -575,25 +632,19 @@ function SettingsContent() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-muted-foreground space-y-2">
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.05] p-4 text-xs space-y-2">
                 <p className="font-medium text-foreground">How to use</p>
-                <p>Send any message to your bot → agent runs and replies.</p>
-                <div>
-                  <p className="font-medium text-foreground/90 mb-1">Commands</p>
-                  <ul className="space-y-0.5">
-                    {TELEGRAM_COMMANDS_UI.map((item) => (
-                      <li key={item.cmd}>
-                        <code className="text-[11px] text-foreground/80">{item.cmd}</code>
-                        {" — "}
-                        {item.desc}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                <p className="text-muted-foreground">
+                  Send any message to your bot → agent runs and replies. Type{" "}
+                  <code className="text-[11px]">/help</code> for the formatted command list (same
+                  as above).
+                </p>
                 {settings.telegramPollingMode ? (
-                  <p className="text-amber-400/90">Local dev: run `npm run worker` in a separate terminal (TELEGRAM_POLLING=true)</p>
+                  <p className="text-amber-400/90">
+                    Local dev: run `npm run worker` in a separate terminal (TELEGRAM_POLLING=true)
+                  </p>
                 ) : settings.webhookUrl ? (
-                  <p className="break-all">Webhook: {settings.webhookUrl}</p>
+                  <p className="break-all text-muted-foreground">Webhook: {settings.webhookUrl}</p>
                 ) : null}
               </div>
             </CardContent>
@@ -664,7 +715,7 @@ function SettingsContent() {
                     size="sm"
                     className="mt-3 ml-0 sm:ml-2"
                     disabled={disconnectingX}
-                    onClick={disconnectX}
+                    onClick={() => setDisconnectXOpen(true)}
                   >
                     {disconnectingX ? "Disconnecting..." : "Disconnect X"}
                   </Button>
@@ -771,16 +822,75 @@ function SettingsContent() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Solana</CardTitle>
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b border-border/40 bg-emerald-500/[0.04] pb-4">
+              <CardTitle className="text-base">Solana RPC</CardTitle>
               <CardDescription>
-                RPC for wallet & token skills. Premium providers (Helius, QuickNode) need an API key.
+                Used by <span className="font-mono text-[11px]">/w</span>,{" "}
+                <span className="font-mono text-[11px]">/n</span>, and on-chain skills. Your RPC
+                only — never the server <span className="font-mono text-[11px]">.env</span>.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-5">
+              {(() => {
+                const rpcValue =
+                  settings.solanaDefaultRpc?.trim() ||
+                  settings.effectiveSolanaDefaultRpc ||
+                  DEFAULT_SOLANA_RPC;
+                const isPublic =
+                  !settings.solanaDefaultRpc?.trim() ||
+                  rpcValue.replace(/\/$/, "") === DEFAULT_SOLANA_RPC.replace(/\/$/, "");
+                const keyInUrl = !!extractRpcApiKeyFromUrl(rpcValue);
+                return (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                        isPublic
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-emerald-500/15 text-emerald-400"
+                      }`}
+                    >
+                      {isPublic ? "Public mainnet RPC" : "Custom RPC configured"}
+                    </span>
+                    {keyInUrl && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-400/90">
+                        API key embedded in URL ✓
+                      </span>
+                    )}
+                    {settings.hasSolanaRpcApiKey && !keyInUrl && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[11px] text-emerald-400/90">
+                        Separate API key saved ✓
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.06] px-3 py-2.5 text-xs leading-relaxed text-muted-foreground">
+                <p className="font-medium text-foreground/90">One field is enough</p>
+                <p className="mt-1">
+                  Paste the <strong>full URL</strong> from Helius/QuickNode (with{" "}
+                  <code className="text-[10px]">?api-key=…</code>) — leave{" "}
+                  <strong>RPC API Key</strong> empty. No RPC set → public{" "}
+                  <code className="text-[10px]">{DEFAULT_SOLANA_RPC}</code>.
+                </p>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="solana-rpc">Primary RPC URL</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="solana-rpc">Primary RPC URL</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[11px] text-muted-foreground"
+                    onClick={() =>
+                      setSettings({ ...settings, solanaDefaultRpc: DEFAULT_SOLANA_RPC })
+                    }
+                  >
+                    Reset to public
+                  </Button>
+                </div>
                 <Input
                   id="solana-rpc"
                   value={
@@ -794,19 +904,14 @@ function SettingsContent() {
                   placeholder={DEFAULT_SOLANA_RPC}
                   className="font-mono text-xs"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Default:{" "}
-                  <code className="text-[11px]">{DEFAULT_SOLANA_RPC}</code> (Solana public mainnet).
-                  Override with Helius, QuickNode, or Alchemy for higher limits.
-                </p>
               </div>
               <SecretField
                 id="solana-rpc-key"
-                label="RPC API Key"
+                label="RPC API Key (optional)"
                 value={solanaRpcApiKey}
                 onChange={setSolanaRpcApiKey}
                 configured={settings.hasSolanaRpcApiKey}
-                placeholder="Helius / QuickNode API key"
+                placeholder="Only if URL has no ?api-key=…"
                 secretScope="solana"
                 secretName="rpc_api_key"
                 onDeleted={() => {
@@ -814,8 +919,9 @@ function SettingsContent() {
                 }}
               />
               <p className="text-xs text-muted-foreground">
-                When an API key is saved, it is applied to your primary RPC and fallback RPCs first
-                (premium providers). Public endpoints are used last without a key.
+                Optional second field for base URLs only (e.g.{" "}
+                <code className="text-[10px]">https://mainnet.helius-rpc.com</code> without query).
+                Fallback RPCs share this key when set.
               </p>
               <StringListEditor
                 label="Fallback RPC URLs"
@@ -878,7 +984,24 @@ function SettingsContent() {
             </CardContent>
           </Card>
 
-          {message && <p className="text-sm text-primary">{message}</p>}
+          {validationErrors.length > 0 && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
+              <p className="font-medium">Could not save — fix these fields:</p>
+              <ul className="mt-1.5 list-inside list-disc space-y-0.5">
+                {validationErrors.map((e) => (
+                  <li key={`${e.field}-${e.message}`}>
+                    <span className="font-medium">{e.label}</span>: {e.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {message && validationErrors.length === 0 && (
+            <p className={messageIsError ? "text-sm text-destructive" : "text-sm text-primary"}>
+              {message}
+            </p>
+          )}
 
           <Button type="submit" disabled={saving}>
             {saving ? "Saving..." : "Save settings"}
@@ -911,17 +1034,36 @@ function SettingsContent() {
           <CardContent>
             <Button
               variant="destructive"
-              onClick={async () => {
-                if (confirm("Delete your account? All agents, runs, and data will be permanently removed.")) {
-                  await fetch("/api/settings", { method: "DELETE" });
-                  signOut({ callbackUrl: "/" });
-                }
-              }}
+              onClick={() => setDeleteAccountOpen(true)}
             >
               Delete account
             </Button>
           </CardContent>
         </Card>
+
+      <ConfirmDialog
+        open={disconnectXOpen}
+        title="Disconnect X account?"
+        description="Your X connection will be removed from AYRA Agent. You can reconnect later."
+        confirmLabel="Disconnect"
+        loading={disconnectingX}
+        onClose={() => {
+          if (!disconnectingX) setDisconnectXOpen(false);
+        }}
+        onConfirm={() => void disconnectX()}
+      />
+
+      <ConfirmDialog
+        open={deleteAccountOpen}
+        title="Delete your account?"
+        description="All agents, runs, and data will be permanently removed. This cannot be undone."
+        confirmLabel="Delete account"
+        loading={deletingAccount}
+        onClose={() => {
+          if (!deletingAccount) setDeleteAccountOpen(false);
+        }}
+        onConfirm={() => void deleteAccount()}
+      />
     </div>
   );
 }

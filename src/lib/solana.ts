@@ -19,36 +19,67 @@ export interface SolanaRpcUserSettings {
   fallbackRpcUrls?: string[] | null;
 }
 
-export function resolveSolanaPrimaryRpc(user?: SolanaRpcUserSettings | null): string {
-  return (
-    user?.solanaDefaultRpc?.trim() ||
-    process.env.SOLANA_RPC_URL?.trim() ||
-    DEFAULT_SOLANA_RPC
-  );
-}
-
-export function getSolanaRpcOptions(user?: SolanaRpcUserSettings | null): {
+export interface SolanaRpcCallOptions {
   rpcUrl?: string;
   apiKey?: string;
   fallbackRpcUrls?: string[];
-} {
+  /** User/account RPC — never inject SOLANA_RPC_* from server .env */
+  userScoped?: boolean;
+}
+
+export function resolveSolanaPrimaryRpc(user?: SolanaRpcUserSettings | null): string {
+  return user?.solanaDefaultRpc?.trim() || DEFAULT_SOLANA_RPC;
+}
+
+/** Per-user RPC for wallet/token skills (/w, /n, etc.) — Settings → Solana, else public mainnet. */
+function resolveUserRpcApiKey(
+  user?: SolanaRpcUserSettings | null,
+  rpcUrl?: string
+): string | undefined {
+  const stored = user?.solanaRpcApiKey ? decryptSafe(user.solanaRpcApiKey) : undefined;
+  if (stored?.trim()) return stored.trim();
+  if (rpcUrl) return extractRpcApiKeyFromUrl(rpcUrl);
+  return undefined;
+}
+
+export function getSolanaRpcOptions(user?: SolanaRpcUserSettings | null): SolanaRpcCallOptions {
   const rpcUrl = resolveSolanaPrimaryRpc(user);
+  return {
+    rpcUrl,
+    apiKey: resolveUserRpcApiKey(user, rpcUrl),
+    fallbackRpcUrls: (user?.fallbackRpcUrls ?? []).map((u) => u.trim()).filter(Boolean),
+    userScoped: true,
+  };
+}
 
-  const apiKey =
-    (user?.solanaRpcApiKey ? decryptSafe(user.solanaRpcApiKey) : undefined) ||
-    process.env.SOLANA_RPC_API_KEY?.trim() ||
-    undefined;
-
-  const fallbackRpcUrls = (user?.fallbackRpcUrls ?? []).map((u) => u.trim()).filter(Boolean);
-
-  return { rpcUrl, apiKey, fallbackRpcUrls };
+/** Server ops monitor — may use SOLANA_RPC_URL from .env */
+export function getServerSolanaRpcOptions(): SolanaRpcCallOptions {
+  return {
+    rpcUrl: process.env.SOLANA_RPC_URL?.trim() || DEFAULT_SOLANA_RPC,
+    apiKey: process.env.SOLANA_RPC_API_KEY?.trim() || undefined,
+    userScoped: false,
+  };
 }
 
 function urlHasEmbeddedKey(url: string): boolean {
-  return (
-    /api[-_]?key=/i.test(url) ||
-    /\/[a-f0-9]{32,}\/?$/i.test(new URL(url).pathname)
-  );
+  return !!extractRpcApiKeyFromUrl(url);
+}
+
+/** Read api-key from query string or path segment (Helius, QuickNode, etc.). */
+export function extractRpcApiKeyFromUrl(rpcUrl: string): string | undefined {
+  try {
+    const parsed = new URL(rpcUrl.trim());
+    const fromQuery =
+      parsed.searchParams.get("api-key") ||
+      parsed.searchParams.get("api_key") ||
+      parsed.searchParams.get("key");
+    if (fromQuery?.trim()) return fromQuery.trim();
+    const pathMatch = parsed.pathname.match(/\/([a-f0-9]{32,})\/?$/i);
+    if (pathMatch?.[1]) return pathMatch[1];
+  } catch {
+    /* ignore */
+  }
+  return undefined;
 }
 
 export function buildSolanaRpcRequest(
@@ -93,17 +124,15 @@ function maskRpcUrl(url: string): string {
   }
 }
 
-export function getSolanaRpcRequests(options?: {
-  rpcUrl?: string;
-  apiKey?: string;
-  fallbackRpcUrls?: string[];
-}): SolanaRpcRequest[] {
+export function getSolanaRpcRequests(options?: SolanaRpcCallOptions): SolanaRpcRequest[] {
+  const userScoped = options?.userScoped === true;
   const primaryUrl =
     options?.rpcUrl?.trim() ||
-    process.env.SOLANA_RPC_URL?.trim() ||
-    DEFAULT_SOLANA_RPC;
+    (userScoped ? DEFAULT_SOLANA_RPC : process.env.SOLANA_RPC_URL?.trim() || DEFAULT_SOLANA_RPC);
 
-  const apiKey = options?.apiKey?.trim() || process.env.SOLANA_RPC_API_KEY?.trim();
+  const apiKey = userScoped
+    ? options?.apiKey?.trim() || undefined
+    : options?.apiKey?.trim() || process.env.SOLANA_RPC_API_KEY?.trim() || undefined;
   const userFallbacks = (options?.fallbackRpcUrls ?? []).map((u) => u.trim()).filter(Boolean);
   const seen = new Set<string>();
   const requests: SolanaRpcRequest[] = [];
@@ -124,8 +153,12 @@ export function getSolanaRpcRequests(options?: {
     add(url, apiKey, `fallback-${i + 1}`);
   });
 
-  // 3) Server env RPC if different
-  if (process.env.SOLANA_RPC_URL && process.env.SOLANA_RPC_URL !== primaryUrl) {
+  // 3) Server env RPC if different (ops / monitor only — not user-scoped)
+  if (
+    !userScoped &&
+    process.env.SOLANA_RPC_URL &&
+    process.env.SOLANA_RPC_URL !== primaryUrl
+  ) {
     add(process.env.SOLANA_RPC_URL, process.env.SOLANA_RPC_API_KEY, "env");
   }
 
@@ -141,8 +174,7 @@ function rpcAuthHint(status: number): string {
   if (status === 401 || status === 403) {
     return (
       " RPC rejected the request (missing or invalid API key). " +
-      "Set a full URL with your key in Dashboard → Settings → Solana, " +
-      "or add SOLANA_RPC_API_KEY in .env (Helius/QuickNode/Alchemy)."
+      "Set a full URL with your key in Dashboard → Settings → Solana."
     );
   }
   return "";
@@ -180,7 +212,7 @@ async function solanaRpcOnce<T>(
 export async function solanaRpc<T>(
   method: string,
   params: unknown[],
-  options?: { rpcUrl?: string; apiKey?: string; fallbackRpcUrls?: string[] }
+  options?: SolanaRpcCallOptions
 ): Promise<T> {
   const requests = getSolanaRpcRequests(options);
   let lastError: Error | null = null;
@@ -212,32 +244,65 @@ export function lamportsToSol(lamports: number): number {
   return lamports / 1_000_000_000;
 }
 
-export async function getSolBalance(
-  wallet: string,
-  options?: { rpcUrl?: string; apiKey?: string }
-) {
-  const lamports = await solanaRpc<number>("getBalance", [wallet], options);
+function parseLamportsResult(raw: unknown): number {
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (raw && typeof raw === "object" && "value" in raw) {
+    const value = (raw as { value: unknown }).value;
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
+  }
+  return 0;
+}
+
+export async function getSolBalance(wallet: string, options?: SolanaRpcCallOptions) {
+  const raw = await solanaRpc<unknown>("getBalance", [wallet], options);
+  const lamports = parseLamportsResult(raw);
   return { lamports, sol: lamportsToSol(lamports) };
 }
 
-export async function getTokenAccounts(
+const SPL_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
+const SPL_TOKEN_2022_PROGRAM = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb";
+
+function parseTokenUiAmount(info: {
+  tokenAmount?: {
+    uiAmount?: number | null;
+    uiAmountString?: string;
+    amount?: string;
+    decimals?: number;
+  };
+}): number {
+  const ui = info.tokenAmount?.uiAmount;
+  if (typeof ui === "number" && Number.isFinite(ui)) return ui;
+
+  const uiString = info.tokenAmount?.uiAmountString;
+  if (typeof uiString === "string" && uiString.length > 0) {
+    const parsed = Number(uiString);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  const raw = info.tokenAmount?.amount;
+  const decimals = info.tokenAmount?.decimals ?? 0;
+  if (typeof raw === "string" && /^\d+$/.test(raw)) {
+    return Number(raw) / Math.pow(10, decimals);
+  }
+  return 0;
+}
+
+async function getTokenAccountsByProgram(
   wallet: string,
-  options?: { rpcUrl?: string; apiKey?: string }
+  programId: string,
+  options?: SolanaRpcCallOptions
 ) {
   const result = await solanaRpc<{
     value: Array<{
       pubkey: string;
       account: {
-        data: { parsed?: { info?: { mint?: string; tokenAmount?: { uiAmount?: number; decimals?: number } } } };
+        data: { parsed?: { info?: { mint?: string; tokenAmount?: { uiAmount?: number | null; amount?: string; decimals?: number } } } };
       };
     }>;
   }>(
     "getTokenAccountsByOwner",
-    [
-      wallet,
-      { programId: "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
-      { encoding: "jsonParsed" },
-    ],
+    [wallet, { programId }, { encoding: "jsonParsed" }],
     options
   );
 
@@ -247,7 +312,7 @@ export async function getTokenAccounts(
       if (!info?.mint) return null;
       return {
         mint: info.mint,
-        amount: info.tokenAmount?.uiAmount ?? 0,
+        amount: parseTokenUiAmount(info),
         decimals: info.tokenAmount?.decimals ?? 0,
         account: item.pubkey,
       };
@@ -255,10 +320,24 @@ export async function getTokenAccounts(
     .filter(Boolean) as Array<{ mint: string; amount: number; decimals: number; account: string }>;
 }
 
-export async function getMintInfo(
-  mint: string,
-  options?: { rpcUrl?: string; apiKey?: string }
-) {
+export async function getTokenAccounts(wallet: string, options?: SolanaRpcCallOptions) {
+  const [legacy, token2022] = await Promise.all([
+    getTokenAccountsByProgram(wallet, SPL_TOKEN_PROGRAM, options),
+    getTokenAccountsByProgram(wallet, SPL_TOKEN_2022_PROGRAM, options),
+  ]);
+
+  const byMint = new Map<string, { mint: string; amount: number; decimals: number; account: string }>();
+  for (const token of [...legacy, ...token2022]) {
+    const existing = byMint.get(token.mint);
+    if (!existing || token.amount > existing.amount) {
+      byMint.set(token.mint, token);
+    }
+  }
+
+  return Array.from(byMint.values()).sort((a, b) => b.amount - a.amount);
+}
+
+export async function getMintInfo(mint: string, options?: SolanaRpcCallOptions) {
   const result = await solanaRpc<{ value: { data?: { parsed?: { info?: Record<string, unknown> } } } | null }>(
     "getAccountInfo",
     [mint, { encoding: "jsonParsed" }],

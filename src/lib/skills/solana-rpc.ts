@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SkillDefinition } from "./base";
-import { getSolanaRpcRequests } from "@/lib/solana";
+import { getSolanaRpcRequests, getSolanaRpcOptions } from "@/lib/solana";
+import { prisma } from "@/lib/prisma";
 
 export const solanaRpcMonitor: SkillDefinition = {
   id: "solana-rpc-monitor",
@@ -15,9 +16,14 @@ export const solanaRpcMonitor: SkillDefinition = {
     rpcUrl: z.string().url().optional().describe("Solana RPC URL"),
   }),
   async execute(input, ctx) {
-    const requests = getSolanaRpcRequests(
-      input.rpcUrl ? { rpcUrl: input.rpcUrl } : undefined
-    );
+    const user = await prisma.user.findUnique({ where: { id: ctx.userId } });
+    const userRpc = getSolanaRpcOptions(user);
+    const requests = getSolanaRpcRequests({
+      rpcUrl: input.rpcUrl || userRpc.rpcUrl,
+      apiKey: userRpc.apiKey,
+      fallbackRpcUrls: userRpc.fallbackRpcUrls,
+      userScoped: true,
+    });
     const primary = requests[0];
     await ctx.log("INFO", `Checking Solana RPC: ${primary.label}`, "solana-rpc-monitor");
 
@@ -49,12 +55,25 @@ export const solanaRpcMonitor: SkillDefinition = {
       const health = latency < 1000 ? "healthy" : latency < 3000 ? "degraded" : "slow";
 
       await ctx.log("INFO", `Slot: ${slot}, latency: ${latency}ms`, "solana-rpc-monitor");
-      return { currentSlot: slot, latencyMs: latency, health, ok: true };
+      return {
+        currentSlot: slot,
+        latencyMs: latency,
+        health,
+        endpoint: primary.label,
+        ok: true,
+      };
     } catch (error) {
       const latency = Date.now() - start;
       const message = error instanceof Error ? error.message : "Unknown error";
       await ctx.log("ERROR", `Solana RPC check failed: ${message}`, "solana-rpc-monitor");
-      return { currentSlot: null, latencyMs: latency, health: "error", ok: false, error: message };
+      return {
+        currentSlot: null,
+        latencyMs: latency,
+        health: "error",
+        endpoint: primary.label,
+        ok: false,
+        error: message,
+      };
     }
   },
 };

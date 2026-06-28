@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SkillDefinition } from "./base";
-import { solanaRpc, getSolanaRpcOptions, lamportsToSol } from "@/lib/solana";
+import { solanaRpc, getSolBalance, getSolanaRpcOptions } from "@/lib/solana";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -298,8 +298,8 @@ export const walletNetWorth: SkillDefinition = {
     const user = await prisma.user.findUnique({ where: { id: ctx.userId } });
     const rpc = getSolanaRpcOptions(user);
 
-    const lamports = await solanaRpc<number>("getBalance", [input.wallet], rpc);
-    const sol = lamportsToSol(lamports);
+    const balance = await getSolBalance(input.wallet, rpc);
+    const sol = balance.sol;
 
     const SOL_MINT = "So11111111111111111111111111111111111111112";
     const priceRes = await fetch(`https://lite-api.jup.ag/price/v3?ids=${SOL_MINT}`, {

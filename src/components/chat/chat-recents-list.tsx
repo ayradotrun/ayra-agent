@@ -5,13 +5,16 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   MessageSquarePlus,
   MoreHorizontal,
   Pin,
   PinOff,
   Pencil,
   Trash2,
+  X,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   CHAT_SESSIONS_CHANGED,
@@ -25,6 +28,104 @@ interface ChatRecentsListProps {
   className?: string;
   maxItems?: number;
   showNewChat?: boolean;
+}
+
+function DeleteChatDialog({
+  session,
+  open,
+  deleting,
+  onClose,
+  onConfirm,
+}: {
+  session: ChatSessionSummary;
+  open: boolean;
+  deleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !deleting) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, deleting, onClose]);
+
+  if (!open || !mounted) return null;
+
+  const title = session.title || "New chat";
+
+  return createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200"
+        onClick={deleting ? undefined : onClose}
+        aria-hidden
+      />
+      <div
+        role="alertdialog"
+        aria-labelledby="delete-chat-title"
+        aria-describedby="delete-chat-desc"
+        className={cn(
+          "relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-white/[0.1]",
+          "bg-[hsl(220,18%,8%)] shadow-2xl shadow-black/50",
+          "animate-in fade-in zoom-in-95 duration-200"
+        )}
+      >
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-red-500/[0.08] to-transparent" />
+        <button
+          type="button"
+          className="absolute right-3 top-3 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground disabled:opacity-50"
+          onClick={onClose}
+          disabled={deleting}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        <div className="relative px-6 pb-6 pt-8 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+            <AlertTriangle className="h-7 w-7 text-red-400" />
+          </div>
+          <h3 id="delete-chat-title" className="text-lg font-semibold tracking-tight text-foreground">
+            Delete this chat?
+          </h3>
+          <p id="delete-chat-desc" className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            <span className="font-medium text-foreground/90">&ldquo;{title}&rdquo;</span> and all
+            messages in it will be permanently removed. This cannot be undone.
+          </p>
+          <div className="mt-6 flex gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 flex-1 border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+              onClick={onClose}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="h-10 flex-1 gap-2"
+              onClick={onConfirm}
+              disabled={deleting}
+            >
+              <Trash2 className="h-4 w-4" />
+              {deleting ? "Deleting…" : "Delete chat"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 function SessionContextMenu({
@@ -120,8 +221,14 @@ function SessionRow({
 }) {
   const router = useRouter();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const skipRenameBlurRef = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameDraft, setRenameDraft] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function openMenu(e: React.MouseEvent) {
     e.preventDefault();
@@ -152,11 +259,31 @@ function SessionRow({
     return true;
   }
 
-  async function handleRename() {
+  function startRename() {
     closeMenu();
-    const next = prompt("Rename chat", session.title || "New chat");
-    if (!next?.trim()) return;
-    await patchSession({ title: next.trim() });
+    setRenameDraft(session.title || "New chat");
+    setIsRenaming(true);
+    requestAnimationFrame(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    });
+  }
+
+  async function commitRename() {
+    if (skipRenameBlurRef.current) {
+      skipRenameBlurRef.current = false;
+      return;
+    }
+    const next = renameDraft.trim();
+    setIsRenaming(false);
+    if (!next || next === (session.title || "New chat")) return;
+    await patchSession({ title: next });
+  }
+
+  function cancelRename() {
+    skipRenameBlurRef.current = true;
+    setIsRenaming(false);
+    setRenameDraft(session.title || "New chat");
   }
 
   async function handlePin() {
@@ -164,58 +291,104 @@ function SessionRow({
     await patchSession({ pinned: !session.pinned });
   }
 
-  async function handleDelete() {
+  function handleDeleteRequest() {
     closeMenu();
-    if (!confirm("Delete this chat?")) return;
+    setDeleteOpen(true);
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
     const res = await fetch(`/api/chat/sessions/${session.id}`, { method: "DELETE" });
     if (!res.ok) {
+      setDeleting(false);
       window.alert("Could not delete chat");
       return;
     }
     notifyChatSessionsChanged();
+    setDeleteOpen(false);
+    setDeleting(false);
     if (isActive) router.push("/dashboard/chat");
     await onMutate();
   }
 
   return (
     <div className="group relative">
-      <Link
-        href={chatSessionHref(session.id)}
-        onClick={onNavigate}
-        className={cn(
-          "flex items-center gap-2 rounded-lg px-2.5 py-2 pr-8 text-left transition-colors",
-          active
-            ? "bg-white/[0.08] text-foreground"
-            : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
-        )}
-      >
-        {session.pinned && <Pin className="h-3 w-3 shrink-0 opacity-50" />}
-        <span className="min-w-0 flex-1 truncate text-[13px]">
-          {session.title || "New chat"}
-        </span>
-      </Link>
-      <div className="absolute right-1 top-1/2 -translate-y-1/2">
-        <button
-          ref={menuButtonRef}
-          type="button"
+      {isRenaming ? (
+        <div
           className={cn(
-            "rounded-md p-1 text-muted-foreground transition-opacity hover:bg-white/[0.06] hover:text-foreground",
-            menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            "flex items-center gap-2 rounded-lg px-2.5 py-1.5 pr-8",
+            active ? "bg-white/[0.08]" : "bg-white/[0.04]"
           )}
-          onClick={openMenu}
-          aria-label="Chat options"
         >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-      </div>
+          {session.pinned && <Pin className="h-3 w-3 shrink-0 opacity-50" />}
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameDraft}
+            onChange={(e) => setRenameDraft(e.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void commitRename();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                cancelRename();
+              }
+            }}
+            className="min-w-0 flex-1 rounded-md border border-emerald-500/30 bg-background/80 px-2 py-1 text-[13px] text-foreground outline-none ring-emerald-500/20 focus:ring-2"
+            aria-label="Chat name"
+          />
+        </div>
+      ) : (
+        <Link
+          href={chatSessionHref(session.id)}
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-2.5 py-2 pr-8 text-left transition-colors",
+            active
+              ? "bg-white/[0.08] text-foreground"
+              : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+          )}
+        >
+          {session.pinned && <Pin className="h-3 w-3 shrink-0 opacity-50" />}
+          <span className="min-w-0 flex-1 truncate text-[13px]">
+            {session.title || "New chat"}
+          </span>
+        </Link>
+      )}
+      {!isRenaming && (
+        <div className="absolute right-1 top-1/2 -translate-y-1/2">
+          <button
+            ref={menuButtonRef}
+            type="button"
+            className={cn(
+              "rounded-md p-1 text-muted-foreground transition-opacity hover:bg-white/[0.06] hover:text-foreground",
+              menuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+            )}
+            onClick={openMenu}
+            aria-label="Chat options"
+          >
+            <MoreHorizontal className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
       <SessionContextMenu
         open={menuOpen}
         anchorRect={menuRect}
         session={session}
         onClose={closeMenu}
         onPin={handlePin}
-        onRename={handleRename}
-        onDelete={handleDelete}
+        onRename={startRename}
+        onDelete={handleDeleteRequest}
+      />
+      <DeleteChatDialog
+        session={session}
+        open={deleteOpen}
+        deleting={deleting}
+        onClose={() => !deleting && setDeleteOpen(false)}
+        onConfirm={() => void confirmDelete()}
       />
     </div>
   );
@@ -267,7 +440,7 @@ function ChatRecentsListInner({
         </Link>
       )}
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-visible pr-0.5">
+      <div className="scrollbar-hide min-h-0 flex-1 space-y-4 overflow-y-auto overflow-x-visible pr-0.5">
         {loading && (
           <p className="px-2 py-2 text-[11px] text-muted-foreground">Loading…</p>
         )}

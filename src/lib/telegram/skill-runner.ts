@@ -41,6 +41,15 @@ export async function runSkillFast(
       select: { name: true },
     });
     const result = await skill.execute(input, { agentId, userId, runId: run.id, log: logFn });
+    const record = result && typeof result === "object" ? (result as Record<string, unknown>) : null;
+    if (record?.ok === false && typeof record.error === "string") {
+      const errMsg = record.error;
+      await prisma.agentRun.update({
+        where: { id: run.id },
+        data: { status: "FAILED", completedAt: new Date(), error: errMsg, summary: errMsg },
+      });
+      return { handled: true, message: `❌ ${errMsg}` };
+    }
     const message =
       formatToolResult(result, { agentName: agent?.name ?? undefined, skillSlug: slug }) ||
       fallbackMsg;

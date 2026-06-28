@@ -6,6 +6,7 @@ import { getDecryptedUserKey } from "@/lib/user-keys";
 import { getSkill } from "@/lib/skills";
 import { zodToJsonSchema } from "@/lib/skills/base";
 import { buildAgentPrompt, buildRunPrompt, buildScheduledRunPrompt } from "@/lib/agent/prompts";
+import { getSystemPromptForAgent } from "@/lib/agent/system-prompts";
 import {
   loadBrainContext,
   formatBrainContextForPrompt,
@@ -22,6 +23,7 @@ import { loadAgentMemoryContext } from "@/lib/agent/load-memories";
 import { IterationBudget } from "@/lib/agent/iteration-budget";
 import { ToolLoopGuard } from "@/lib/agent/tool-loop-guard";
 import { skillBundlesForSlugs } from "@/lib/skills/skill-md-loader";
+import { estimateTokenCostUsd } from "@/lib/usage/cost-estimate";
 
 const MAX_TOOL_CALLS = parseInt(process.env.MAX_TOOL_CALLS_PER_RUN || "6", 10);
 const CHAT_HISTORY_TURNS = parseInt(process.env.CHAT_HISTORY_TURNS || "8", 10);
@@ -125,7 +127,7 @@ export async function runAgent(
 
     const systemPrompt =
       buildAgentPrompt({
-        systemPrompt: agent.systemPrompt,
+        systemPrompt: getSystemPromptForAgent(agent),
         agentName: agent.name,
         skills: workingSkills.map((s) => ({ name: s!.name, description: s!.description })),
         memories,
@@ -202,6 +204,8 @@ export async function runAgent(
     }
 
     let totalTokens = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
     const toolBudget = new IterationBudget(MAX_TOOL_CALLS);
     const toolLoopGuard = new ToolLoopGuard();
     let finalOutput = "";
@@ -236,6 +240,8 @@ export async function runAgent(
       });
 
       totalTokens += response.usage?.total_tokens ?? 0;
+      inputTokens += response.usage?.prompt_tokens ?? 0;
+      outputTokens += response.usage?.completion_tokens ?? 0;
       const choice = response.choices[0];
       if (!choice) break;
 
@@ -391,6 +397,9 @@ export async function runAgent(
           },
         });
         finalOutput = synth.choices[0]?.message?.content?.trim() || "";
+        totalTokens += synth.usage?.total_tokens ?? 0;
+        inputTokens += synth.usage?.prompt_tokens ?? 0;
+        outputTokens += synth.usage?.completion_tokens ?? 0;
       }
     }
 
@@ -432,6 +441,8 @@ export async function runAgent(
     const status = timedOut ? "TIMEOUT" : "COMPLETED";
     const summary = finalOutput.slice(0, 500) || (timedOut ? "Run timed out" : "Run completed");
 
+    const estimatedCostUsd = estimateTokenCostUsd(inputTokens, outputTokens, activeModel);
+
     await prisma.agentRun.update({
       where: { id: run.id },
       data: {
@@ -439,6 +450,9 @@ export async function runAgent(
         completedAt: new Date(),
         durationMs,
         tokenUsage: totalTokens,
+        inputTokens,
+        outputTokens,
+        estimatedCostUsd,
         toolCalls: toolCallCount,
         output: finalOutput,
         summary,

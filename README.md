@@ -16,6 +16,7 @@
 <p align="center">
   <a href="https://github.com/ayradotrun/ayra-agent">GitHub</a> ·
   <a href="#quick-start">Quick start</a> ·
+  <a href="./docs/slash-commands.md">Commands</a> ·
   <a href="#performance">Performance</a> ·
   <a href="#private-database-byod">Private database</a> ·
   <a href="#star-history">Star History</a> ·
@@ -44,13 +45,14 @@ If the chart does not load in a preview, open the link above or paste `ayradotru
 
 | Area | What you get |
 |------|----------------|
-| **Agents** | Office templates (Aria, Sienna, Marcus, Nova, Ayra), custom prompts, skill toggles |
+| **Agents** | Office templates (Ayra, Aria, Marcus, Nova…) — locked behavior profiles, skill toggles for custom agents |
+| **Commands** | 30+ slash commands in chat & Telegram — [full reference](./docs/slash-commands.md) |
 | **Solana** | Wallet watch, token research, RPC monitor, AYRA scan |
 | **Social** | X drafts, threads, optional auto-post (double opt-in) |
 | **Chat** | Full dashboard chat with sessions, pins, slash commands, image uploads |
 | **Brain** | Scheduled tweets, reminders, content calendars — AYRA Brain worker |
 | **Privacy** | Required private Postgres (BYOD) for chat + brain |
-| **Ops** | Run logs, token usage, Telegram notifications, cron worker |
+| **Ops** | Usage analytics, run logs, token usage, Telegram notifications, cron worker |
 | **Auth** | Email verification on sign up, username login, password reset via email |
 | **Admin** | Platform stats & user directory (`/dashboard/admin`, `ADMIN_EMAILS`) |
 
@@ -152,23 +154,38 @@ See [.env.example](./.env.example) for Telegram, X OAuth, Redis, worker, and per
 
 ```bash
 npm install
+cp .env.example .env   # if not done in step 1 — edit DATABASE_URL + secrets first
 npm run setup
 ```
 
 | Command | What it does |
 |---------|----------------|
 | `npm install` | Installs dependencies + runs `prisma generate` (via `postinstall`) |
-| `npm run setup` | Generates Prisma client, syncs platform schema, seeds skills, installs Python runtime |
+| `npm run setup` | Validates `.env`, syncs platform schema safely, seeds skills, installs Python runtime |
+
+**Critical install notes:**
+
+| Issue | Fix |
+|-------|-----|
+| **No `.env`** | `npm run setup` copies `.env.example` — fill `DATABASE_URL`, `NEXTAUTH_SECRET`, `ENCRYPTION_KEY`, then re-run setup |
+| **`db push` data-loss warning** | Normal on upgraded DBs with legacy `chat_*` tables. Setup runs **safe additive patches** instead — never use `--accept-data-loss` on production without a backup |
+| **P3005 (migrate deploy)** | Existing database without migration history — setup falls back to `db push` or `npm run db:sync` |
+| **Python setup fails** | Optional for chat; required for cron/blueprints. Skip with `AYRA_SKIP_PYTHON_SETUP=true npm run setup` |
+| **Connection refused** | Run `npm run db:verify` — check Supabase pooler URLs and `?sslmode=require` |
 
 Manual equivalent:
 
 ```bash
 npx prisma generate
-npx prisma db push
+npm run db:verify
+npx prisma migrate deploy   # fresh DBs
+# OR on existing DBs:
+npm run db:sync             # safe additive SQL only
 npm run prisma:seed
+npm run python:setup        # optional
 ```
 
-> **Note:** If `prisma migrate deploy` fails with **P3005** (database already populated), use `npx prisma db push` for the platform database instead.
+> Chat history lives in each user's **private database** (Settings), not platform Postgres. See [docs/private-database.md](./docs/private-database.md).
 
 ### 3. Run locally
 
@@ -472,17 +489,22 @@ See existing skills in `src/lib/skills/` for patterns (Zod input schema, `ctx.lo
 | `npm run start` | Production server |
 | `npm run worker` | Scheduler, Telegram, brain worker |
 | `npm run agentmemory` | AgentMemory semantic memory server (:3111) |
-| `npm run setup` | First-time setup: generate + db push + seed |
-| `npm run db:push` | Sync platform schema (`prisma db push`) |
+| `npm run setup` | Safe first-time setup (schema + seed + Python) |
+| `npm run db:push` | Sync platform schema (`prisma db push` — may warn on legacy DBs) |
+| `npm run db:sync` | Safe additive SQL patches (no destructive db push) |
 | `npm run db:verify` | Verify platform DB connection |
 | `npm run prisma:generate` | Regenerate Prisma client |
 | `npm run prisma:seed` | Seed skill catalog |
 | `npm run prisma:studio` | Database GUI |
 | `npm run auth:backfill` | Backfill `username` + `emailVerified` for legacy users |
+| `npm run auth:check` | Verify auth-related DB columns |
 | `npm run auth:reset-password` | CLI password reset (dev/recovery) |
+| `npm run python:setup` | Install Python runtime sidecar |
 | `npm run lint` | ESLint |
 
 `npm install` automatically runs `prisma generate` via `postinstall`.
+
+**Docs:** [Slash commands](./docs/slash-commands.md) · [Getting started](./docs/getting-started.md) · [Troubleshooting](./docs/troubleshooting.md)
 
 ---
 

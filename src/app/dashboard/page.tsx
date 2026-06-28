@@ -1,61 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bot, Play, Bell, Zap, Plus, BookOpen } from "lucide-react";
+import { Bot, Bell, Zap, Plus, BookOpen } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { StatCard, EmptyState, ErrorState } from "@/components/dashboard/stat-card";
-import { SkillCard } from "@/components/skills/skill-card";
-import { RunsList } from "@/components/agents/runs-list";
+import { StatCard, ErrorState } from "@/components/dashboard/stat-card";
+import {
+  UsageAnalytics,
+  type UsageAnalyticsData,
+} from "@/components/dashboard/usage-analytics";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch, ApiError } from "@/lib/api-client";
+import type { UsageRangeDays } from "@/lib/usage/analytics";
 
 interface DashboardData {
   totalAgents: number;
   activeAgents: number;
   runsToday: number;
   unreadAlerts: number;
-  recentRuns: Array<{
-    id: string;
-    status: string;
-    trigger?: string | null;
-    startedAt: string;
-    durationMs?: number | null;
-    tokenUsage: number;
-    toolCalls: number;
-    summary?: string | null;
-    agent: { name: string; id: string };
-  }>;
-  featuredSkills: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    category: string;
-    description: string;
-    icon: string;
-    isEnabled: boolean;
-  }>;
+  analytics: UsageAnalyticsData;
 }
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [days, setDays] = useState<UsageRangeDays>(7);
+  const isFirstLoad = useRef(true);
+
+  const loadDashboard = useCallback(async (range: UsageRangeDays, initial = false) => {
+    if (initial) setLoading(true);
+    else setAnalyticsLoading(true);
+
+    try {
+      const result = await apiFetch<DashboardData>(`/api/dashboard?days=${range}`);
+      setData(result);
+      setError(null);
+    } catch (err) {
+      setError((err as ApiError).message);
+    } finally {
+      setLoading(false);
+      setAnalyticsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    apiFetch<DashboardData>("/api/dashboard")
-      .then(setData)
-      .catch((err: ApiError) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+    void loadDashboard(days, isFirstLoad.current);
+    isFirstLoad.current = false;
+  }, [days, loadDashboard]);
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Overview"
         title="Command center"
-        description="Monitor agents, review recent runs, and attach skills to your workflow."
+        description="Monitor agents, track usage, and manage your AYRA workflow."
         action={
           <Link href="/dashboard/agents/new">
             <Button className="h-9 rounded-lg px-4 text-[13px]">
@@ -87,7 +88,7 @@ export default function DashboardPage() {
         <ErrorState
           description={error}
           action={
-            <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+            <Button size="sm" variant="outline" onClick={() => void loadDashboard(days, true)}>
               Retry
             </Button>
           }
@@ -103,70 +104,18 @@ export default function DashboardPage() {
       ) : data ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total agents" value={data.totalAgents} icon={Bot} />
-          <StatCard title="Active agents" value={data.activeAgents} icon={Play} subtitle="Ready to run" />
+          <StatCard title="Active agents" value={data.activeAgents} icon={Zap} subtitle="Ready to run" />
           <StatCard title="Runs today" value={data.runsToday} icon={Zap} />
           <StatCard title="Alerts" value={data.unreadAlerts} icon={Bell} subtitle="Unread" />
         </div>
       ) : null}
 
-      <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[13px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Recent runs
-            </h2>
-            <Link href="/dashboard/agents" className="text-[12px] text-emerald-400/90 hover:text-emerald-300">
-              View agents
-            </Link>
-          </div>
-          {loading ? (
-            <Skeleton className="h-48 rounded-xl" />
-          ) : data?.recentRuns.length ? (
-            <RunsList runs={data.recentRuns} />
-          ) : (
-            <EmptyState
-              icon={Play}
-              title="No runs yet"
-              description="Create an agent and run from dashboard or Telegram to see activity here."
-              action={
-                <Link href="/dashboard/agents/new">
-                  <Button size="sm">Create agent</Button>
-                </Link>
-              }
-            />
-          )}
-        </section>
-
-        <section>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-[13px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-              Featured skills
-            </h2>
-            <Link href="/dashboard/skills" className="text-[12px] text-emerald-400/90 hover:text-emerald-300">
-              Browse all
-            </Link>
-          </div>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-32 rounded-xl" />
-              ))}
-            </div>
-          ) : data?.featuredSkills.length ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {data.featuredSkills.map((skill) => (
-                <SkillCard key={skill.id} skill={skill} compact />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              icon={Bot}
-              title="Skills not loaded"
-              description="Run npm run prisma:seed to populate the skill marketplace."
-            />
-          )}
-        </section>
-      </div>
+      <UsageAnalytics
+        data={data?.analytics ?? null}
+        loading={loading || analyticsLoading}
+        days={days}
+        onDaysChange={setDays}
+      />
     </div>
   );
 }

@@ -10,9 +10,9 @@ import { z } from "zod";
 import { scheduleToCron, getNextRunTime } from "@/lib/agent/scheduler";
 import {
   isCustomAgentTemplate,
-  wrapCustomSystemPrompt,
 } from "@/lib/agent/template-config";
 import { enrichAgentWithUserModels } from "@/lib/agent/enrich-agent-models";
+import { omitSystemPrompt } from "@/lib/agent/system-prompts";
 import { healAllAgentModelsFromUser } from "@/lib/user-models";
 import { healStaleAgentRuns } from "@/lib/agent/heal-stale-runs";
 import type { ScheduleInterval } from "@prisma/client";
@@ -57,13 +57,14 @@ export async function GET(
     return notFoundResponse("Agent not found");
   }
 
-  return NextResponse.json(enrichAgentWithUserModels(refreshed, dbUser ?? {}));
+  return NextResponse.json(
+    omitSystemPrompt(enrichAgentWithUserModels(refreshed, dbUser ?? {}))
+  );
 }
 
 const updateAgentSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().optional(),
-  systemPrompt: z.string().optional(),
   status: z.enum(["ACTIVE", "PAUSED", "ERROR"]).optional(),
   memoryEnabled: z.boolean().optional(),
   schedule: z.enum(["MANUAL", "EVERY_5_MIN", "EVERY_15_MIN", "HOURLY", "DAILY"]).optional(),
@@ -90,14 +91,13 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { skillSlugs, schedule, name, description, systemPrompt, ...rest } = parsed.data;
+    const { skillSlugs, schedule, name, description, ...rest } = parsed.data;
     const isCustom = isCustomAgentTemplate(existing.template);
 
     if (!isCustom) {
       const blocked =
         name !== undefined ||
         description !== undefined ||
-        systemPrompt !== undefined ||
         schedule !== undefined ||
         skillSlugs !== undefined ||
         rest.memoryEnabled !== undefined ||
@@ -116,9 +116,6 @@ export async function PATCH(
         ...rest,
         ...(isCustom && name !== undefined ? { name } : {}),
         ...(isCustom && description !== undefined ? { description } : {}),
-        ...(isCustom && systemPrompt !== undefined
-          ? { systemPrompt: wrapCustomSystemPrompt(systemPrompt) }
-          : {}),
         ...(isCustom && schedule ? { schedule: schedule as ScheduleInterval } : {}),
         ...(isCustom && rest.memoryEnabled !== undefined ? { memoryEnabled: rest.memoryEnabled } : {}),
         ...(isCustom && rest.telegramNotify !== undefined
@@ -159,7 +156,16 @@ export async function PATCH(
     }
 
     const full = await getAgentForUser(params.id, user.id);
-    return NextResponse.json(full);
+    if (!full || full === "forbidden") {
+      return notFoundResponse("Agent not found");
+    }
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { defaultModel: true, defaultImageModel: true },
+    });
+    return NextResponse.json(
+      omitSystemPrompt(enrichAgentWithUserModels(full, dbUser ?? {}))
+    );
   } catch {
     return NextResponse.json({ error: "Failed to update agent" }, { status: 500 });
   }

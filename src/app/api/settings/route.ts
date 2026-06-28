@@ -17,6 +17,10 @@ import { allowPlatformBrainDatabase } from "@/lib/brain/brain-db-url";
 import { DEFAULT_SOLANA_RPC } from "@/lib/solana";
 import { listSecretFlags, upsertEncryptedSecret } from "@/lib/secrets/secret-store";
 import { detectLlmProviderId } from "@/lib/llm-providers";
+import {
+  formatSettingsValidationErrors,
+  formatSettingsValidationMessage,
+} from "@/lib/settings-validation";
 import { z } from "zod";
 
 export async function GET() {
@@ -205,7 +209,11 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const parsed = updateSettingsSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+      const errors = formatSettingsValidationErrors(parsed.error.issues);
+      return NextResponse.json(
+        { error: formatSettingsValidationMessage(errors), errors },
+        { status: 400 }
+      );
     }
 
     const data = parsed.data;

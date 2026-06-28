@@ -67,6 +67,14 @@ export const DOC_PAGES: DocPageMeta[] = [
     category: "Setup",
   },
   {
+    slug: "slash-commands",
+    title: "Slash commands",
+    description: "Full reference for crypto, agent, and model commands in chat and Telegram.",
+    icon: Bot,
+    file: "slash-commands",
+    category: "Integrations",
+  },
+  {
     slug: "telegram",
     title: "Telegram bot",
     description: "Connect your bot, chat ID, and slash commands.",
@@ -133,7 +141,7 @@ export const DOC_PAGES: DocPageMeta[] = [
   {
     slug: "templates",
     title: "Agent templates",
-    description: "Ayra, Aria, Marcus, Nova, and custom prompts.",
+    description: "Ayra, Aria, Marcus, Nova, and custom agents.",
     icon: LayoutTemplate,
     file: "templates",
     category: "Resources",

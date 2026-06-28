@@ -1,32 +1,42 @@
 # Agent templates
 
-Office templates ship with curated prompts and default skill sets. Create one via **Dashboard → Agents → New agent**.
+Office templates ship with **locked behavior profiles** — skills, schedule, and AI protocol are pre-configured. Create one via **Dashboard → Agents → New agent**.
+
+System prompts are **not editable** from the dashboard. AYRA applies role-specific workflows server-side.
 
 ## Templates
 
-| Template | Focus | Suggested skills |
-|----------|--------|------------------|
-| **Ayra** | Full toolkit | Research, Solana, X, scheduling |
-| **Aria** | Content & social | x-draft, viral-topic-finder |
-| **Sienna** | Research & analysis | web-search, news-digest |
-| **Marcus** | On-chain monitoring | wallet-tracker, solana-rpc-monitor |
-| **Nova** | Automation & brain | brain tasks, x-draft |
+| Template | Role | Focus |
+|----------|------|--------|
+| **Ayra** | Chief Operations | Full toolkit — crypto, research, X, DevOps, scheduling |
+| **Aria** | Research Analyst | Wallets, mints, on-chain briefings |
+| **Sienna** | Communications Lead | X drafts, threads, content calendar |
+| **Marcus** | Network Operations | RPC health, wallet watch, DEX monitoring |
+| **Nina** | Infrastructure Monitor | Websites, SSL, server health |
+| **Kai** | Developer Relations | GitHub, code review, error analysis |
+| **Ravi** | Intelligence Officer | Web research, news, reports |
+| **Nova** | AYRA Brain | Scheduled tasks, brain calendar, automation |
+| **New Hire** | Custom agent | You pick name, skills, schedule — behavior still follows AYRA protocol |
 
-## Custom agents
+## Custom agents (New Hire)
 
-1. Choose **Custom** when creating an agent.
-2. Write a clear system prompt (role, tone, constraints).
-3. Enable only skills you need — fewer tools = faster replies.
-4. Test in **Chat** before enabling Telegram or cron.
+1. Choose **New Hire** when creating an agent.
+2. Set **name**, **description**, **skills**, and **schedule**.
+3. Behavior (tool rules, safety, output format) is managed by AYRA — not user-editable.
+4. Test in **Dashboard → Chat** before enabling Telegram or cron.
 
-## Model overrides
+## Model configuration
 
-Per-agent model overrides are optional. Default chat/image models come from **Settings → LLM**.
+Chat and image models come from **Settings → LLM** (account-wide). Per-agent model overrides are optional in agent settings.
 
-## Template tips
+## Tips
 
-- Start with **3–5 skills**, add more after testing.
-- Use `/status` in chat to confirm model and agent ID.
-- Duplicate an agent by creating a new one with the same prompt if you need variants.
+- Start with **3–5 skills** — fewer tools = faster replies.
+- Use `/status` in chat to confirm active agent and models.
+- See [Slash commands](/docs/slash-commands) for all `/p`, `/w`, `/q`, etc.
 
-See [Agents & skills](/docs/agents-and-skills) and [Examples](/docs/examples).
+## Related
+
+- [Agents & skills](/docs/agents-and-skills)
+- [Slash commands](/docs/slash-commands)
+- [Examples](/docs/examples)

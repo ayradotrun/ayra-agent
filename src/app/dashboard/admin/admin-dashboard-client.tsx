@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Users,
@@ -15,6 +15,10 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard, ErrorState } from "@/components/dashboard/stat-card";
+import {
+  UsageAnalytics,
+  type UsageAnalyticsData,
+} from "@/components/dashboard/usage-analytics";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +27,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { apiFetch, ApiError } from "@/lib/api-client";
 import { formatRelativeTime } from "@/lib/utils";
 import { formatRunTrigger } from "@/lib/run-trigger";
+import type { UsageRangeDays } from "@/lib/usage/analytics";
 
 interface AdminStats {
   totalUsers: number;
@@ -65,13 +70,16 @@ interface AdminUsersResponse {
 
 export function AdminDashboardClient() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [analytics, setAnalytics] = useState<UsageAnalyticsData | null>(null);
   const [usersData, setUsersData] = useState<AdminUsersResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [usersLoading, setUsersLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [days, setDays] = useState<UsageRangeDays>(7);
 
   useEffect(() => {
     setLoading(true);
@@ -80,6 +88,25 @@ export function AdminDashboardClient() {
       .catch((err: ApiError) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const loadAnalytics = useCallback(async (range: UsageRangeDays) => {
+    setAnalyticsLoading(true);
+    try {
+      const result = await apiFetch<{ analytics: UsageAnalyticsData }>(
+        `/api/admin/analytics?days=${range}`
+      );
+      setAnalytics(result.analytics);
+      setError(null);
+    } catch (err) {
+      setError((err as ApiError).message);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAnalytics(days);
+  }, [days, loadAnalytics]);
 
   useEffect(() => {
     setUsersLoading(true);
@@ -186,6 +213,14 @@ export function AdminDashboardClient() {
           )}
         </>
       ) : null}
+
+      <UsageAnalytics
+        data={analytics}
+        loading={analyticsLoading}
+        days={days}
+        onDaysChange={setDays}
+        scope="platform"
+      />
 
       <section>
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -312,6 +347,7 @@ export function AdminDashboardClient() {
           <li>• Platform stats — total users, active users (7d), new signups (30d)</li>
           <li>• Agent metrics — total agents and active agents across all accounts</li>
           <li>• Run analytics — runs today, failures, breakdown by source (Telegram, Chat, Manual)</li>
+          <li>• Platform usage — combined tokens, cost, request activity, and model usage (all users)</li>
           <li>• Telegram adoption — how many users linked their chat ID</li>
           <li>• User directory — search by email, username, or name; paginated results</li>
         </ul>

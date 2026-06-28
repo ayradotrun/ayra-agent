@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser, unauthorizedResponse } from "@/lib/auth-helpers";
 import {
   deleteEncryptedSecret,
+  getDecryptedSecret,
   type SecretName,
   type SecretScope,
 } from "@/lib/secrets/secret-store";
@@ -14,6 +15,30 @@ const VALID: Record<string, SecretName[]> = {
   discord: ["bot_token"],
   jina: ["api_key"],
 };
+
+export async function GET(request: NextRequest) {
+  const user = await getSessionUser();
+  if (!user) return unauthorizedResponse();
+
+  const provider = request.nextUrl.searchParams.get("provider") as SecretScope | null;
+  const name = request.nextUrl.searchParams.get("name") as SecretName | null;
+
+  if (!provider || !name) {
+    return NextResponse.json({ error: "provider and name required" }, { status: 400 });
+  }
+
+  const allowed = VALID[provider];
+  if (!allowed?.includes(name)) {
+    return NextResponse.json({ error: "Invalid secret" }, { status: 400 });
+  }
+
+  const value = await getDecryptedSecret(user.id, provider, name);
+  if (!value) {
+    return NextResponse.json({ error: "Secret not configured" }, { status: 404 });
+  }
+
+  return NextResponse.json({ value });
+}
 
 export async function DELETE(request: NextRequest) {
   const user = await getSessionUser();

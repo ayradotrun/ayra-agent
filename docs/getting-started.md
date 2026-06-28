@@ -59,6 +59,7 @@ Keep both in the **same region** as the app server. See [Private database](/docs
 
 ## Next steps
 
+- [Slash commands](/docs/slash-commands) — full command reference with examples
 - [Agents & skills](/docs/agents-and-skills) — templates and tool toggles
 - [Telegram bot](/docs/telegram) — connect your bot
 - [Deployment](/docs/deployment) — VPS, PM2, Docker

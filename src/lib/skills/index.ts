@@ -35,7 +35,7 @@ import {
   nginxMonitor,
   dockerMonitor,
 } from "./devops-skills";
-import { whaleTracker, dexMonitor, newTokenMonitor, portfolioTracker } from "./crypto-skills-extra";
+import { dexMonitor, newTokenMonitor, portfolioTracker } from "./crypto-skills-extra";
 import { csvReader, excelReader, databaseQuery, reportGenerator, chartGenerator } from "./data-skills";
 import { discordNotify, slackNotify, emailNotify } from "./notification-skills-extra";
 import { taskPlanner, goalTracker, scheduledTasks } from "./agent-core-skills";
@@ -54,6 +54,7 @@ import { AYRA_ALERT_SKILLS } from "./ayra-alerts";
 import { AYRA_RESEARCH_SKILLS } from "./ayra-research-skills";
 import { HERMES_RESEARCH_SKILLS } from "./hermes-research-skills";
 import { HERMES_GITHUB_SKILLS } from "./hermes-github-skills";
+import { CRYPTO_ADVANCED_SKILLS } from "./crypto-advanced-skills";
 import { ALL_SKILL_DEFINITIONS, SKILL_CATEGORIES } from "./catalog";
 
 export { ALL_SKILL_DEFINITIONS, SKILL_CATEGORIES };
@@ -99,7 +100,6 @@ export const WORKING_SKILLS: SkillDefinition[] = [
   pm2Monitor,
   nginxMonitor,
   dockerMonitor,
-  whaleTracker,
   dexMonitor,
   newTokenMonitor,
   portfolioTracker,
@@ -128,6 +128,7 @@ export const WORKING_SKILLS: SkillDefinition[] = [
   ...AYRA_RESEARCH_SKILLS,
   ...HERMES_RESEARCH_SKILLS,
   ...HERMES_GITHUB_SKILLS,
+  ...CRYPTO_ADVANCED_SKILLS,
 ];
 
 export const SKILL_REGISTRY = new Map<string, SkillDefinition>(

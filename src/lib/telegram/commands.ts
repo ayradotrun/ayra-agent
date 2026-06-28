@@ -68,27 +68,25 @@ export function getAllTelegramBotCommands(): Array<{ command: string; descriptio
 }
 
 function formatMetaCommandsHelp(format: "telegram" | "plain"): string {
-  const heading = (label: string) => (format === "plain" ? label : `*${label}*`);
-  const lines: string[] = [heading("Agent"), ""];
+  const bold = (s: string) => (format === "plain" ? s : `*${s}*`);
+  const dim = (s: string) => (format === "plain" ? s : `_${s}_`);
+  const fmt = (cmd: string, desc: string) => `${cmd}\n${desc}`;
 
+  const lines: string[] = [bold("🤖 Agent"), ""];
   for (const c of AGENT_META_COMMANDS_UI) {
-    lines.push(`${c.cmd} — ${c.desc}`);
+    lines.push(fmt(c.cmd, c.desc));
   }
 
   lines.push("");
-  lines.push(heading("Models"));
+  lines.push(bold("🧠 Models"));
   lines.push("");
 
   for (const c of MODEL_COMMANDS_UI) {
-    lines.push(`${c.cmd} — ${c.desc}`);
+    lines.push(fmt(c.cmd, c.desc));
   }
 
   lines.push("");
-  lines.push(
-    format === "plain"
-      ? "💡 Paste a Solana CA mint for a quick lookup, or use /p [token|CA]."
-      : "_💡 Paste a Solana CA mint for a quick lookup, or /p \\[token|CA\\]._"
-  );
+  lines.push(dim("💡 Paste a Solana CA mint for a quick lookup, or /p [token|CA]."));
 
   return lines.join("\n");
 }
@@ -101,15 +99,15 @@ export const TELEGRAM_HELP_TEXT = `${formatSkillCommandsHelp("telegram")}
 
 ${formatMetaCommandsHelp("telegram")}`;
 
-/** Quick-insert chips on empty dashboard chat */
+/** @deprecated use CHAT_QUICK_COMMANDS from command-catalog */
 export const CHAT_COMMAND_HINTS = [
   "/help",
-  "/search",
   "/p",
+  "/w",
   "/q",
   "/ayrascan",
   "/trending",
-  "/agents",
+  "/search",
   "/status",
   "/image",
 ] as const;

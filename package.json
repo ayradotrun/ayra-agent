@@ -1,18 +1,32 @@
 {
   "name": "ayra-agent",
   "version": "0.1.0",
+  "description": "Self-hostable AI agent platform for Solana research, slash commands, Telegram, and X workflows",
   "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ayradotrun/ayra-agent.git"
+  },
+  "keywords": [
+    "solana",
+    "ai-agent",
+    "telegram-bot",
+    "openrouter",
+    "crypto-research",
+    "nextjs",
+    "self-hosted"
+  ],
   "engines": {
     "node": ">=18.18.0"
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "setup": "prisma generate && prisma db push && tsx prisma/seed.ts && npm run python:setup",
+    "setup": "tsx scripts/setup.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

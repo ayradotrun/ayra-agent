@@ -1,11 +1,12 @@
-import { AGENT_TEMPLATES, AYRA_OFFICE_IDENTITY, DEFAULT_AGENT_PROMPT } from "@/lib/utils";
+import { AGENT_TEMPLATES } from "@/lib/utils";
+import {
+  getSystemPromptForTemplate,
+  normalizeTemplateId,
+  wrapCustomSystemPrompt,
+} from "@/lib/agent/system-prompts";
 import type { ScheduleInterval } from "@prisma/client";
 
-export function normalizeTemplateId(templateId?: string | null): string {
-  if (!templateId) return "custom";
-  if (templateId === "nova-hermes") return "nova-ayra";
-  return templateId;
-}
+export { normalizeTemplateId, wrapCustomSystemPrompt };
 
 export function getAgentTemplate(templateId?: string | null) {
   const id = normalizeTemplateId(templateId);
@@ -14,19 +15,6 @@ export function getAgentTemplate(templateId?: string | null) {
 
 export function isCustomAgentTemplate(templateId?: string | null): boolean {
   return normalizeTemplateId(templateId) === "custom";
-}
-
-/** Custom agents still operate under AYRA — prepend office identity if missing */
-export function wrapCustomSystemPrompt(userPrompt?: string | null): string {
-  const trimmed = (userPrompt ?? "").trim();
-  if (!trimmed) return DEFAULT_AGENT_PROMPT;
-  if (
-    trimmed.includes("You work at AYRA Agent") ||
-    trimmed.includes("AYRA Agent — an autonomous operations platform")
-  ) {
-    return trimmed;
-  }
-  return `${AYRA_OFFICE_IDENTITY}\n\n${trimmed}`;
 }
 
 export interface ResolvedAgentCreateFields {
@@ -46,7 +34,6 @@ export function resolveAgentCreateFields(
   input: {
     name?: string;
     description?: string;
-    systemPrompt?: string;
     schedule?: string;
     skillSlugs?: string[];
     telegramNotify?: boolean;
@@ -56,12 +43,13 @@ export function resolveAgentCreateFields(
 ): ResolvedAgentCreateFields {
   const template = getAgentTemplate(templateId);
   const resolvedTemplateId = template?.id ?? "custom";
+  const systemPrompt = getSystemPromptForTemplate(resolvedTemplateId);
 
   if (resolvedTemplateId !== "custom" && template) {
     return {
       name: template.name,
       description: template.description,
-      systemPrompt: template.systemPrompt,
+      systemPrompt,
       schedule: template.schedule as ScheduleInterval,
       skillSlugs: [...template.skills],
       telegramNotify: template.telegramNotify ?? false,
@@ -74,7 +62,7 @@ export function resolveAgentCreateFields(
   return {
     name: (input.name ?? "").trim() || "New Hire",
     description: (input.description ?? "").trim(),
-    systemPrompt: wrapCustomSystemPrompt(input.systemPrompt),
+    systemPrompt,
     schedule: (input.schedule ?? "MANUAL") as ScheduleInterval,
     skillSlugs: input.skillSlugs ?? [],
     telegramNotify: input.telegramNotify ?? false,

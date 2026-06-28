@@ -94,6 +94,15 @@
       0 0 48px -16px rgba(52, 211, 153, 0.28);
   }
 
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .text-gradient-animate {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(

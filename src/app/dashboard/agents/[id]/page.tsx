@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import Link from "next/link";
 import {
   Clock,
   ArrowLeft,
+  Lock,
+  Shield,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import {
@@ -41,7 +42,6 @@ interface Agent {
   effectiveImageModel?: string;
   imageModel?: string | null;
   schedule: string;
-  systemPrompt: string;
   memoryEnabled: boolean;
   telegramNotify: boolean;
   autoPostX: boolean;
@@ -67,7 +67,6 @@ export default function AgentDetailPage() {
   const [profileDraft, setProfileDraft] = useState({
     name: "",
     description: "",
-    systemPrompt: "",
   });
   const [profileDirty, setProfileDirty] = useState(false);
 
@@ -80,7 +79,6 @@ export default function AgentDetailPage() {
       setProfileDraft({
         name: data.name ?? "",
         description: data.description ?? "",
-        systemPrompt: data.systemPrompt ?? "",
       });
       setProfileDirty(false);
       setSkillsDirty(false);
@@ -341,13 +339,28 @@ export default function AgentDetailPage() {
               <CardContent className="space-y-4 p-6">
                 {!isCustom && (
                   <p className="rounded-lg border border-border/60 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
-                    This is a fixed office template. To customize name, prompt, or skills, create a{" "}
+                    Fixed office template — name, skills, and behavior are locked. Create a{" "}
                     <Link href="/dashboard/agents/new" className="text-primary underline-offset-2 hover:underline">
                       custom agent (New Hire)
-                    </Link>
-                    .
+                    </Link>{" "}
+                    to pick your own skills and schedule.
                   </p>
                 )}
+
+                <div className="rounded-lg border border-emerald-500/15 bg-emerald-500/[0.05] px-3 py-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-foreground/90">
+                    {isCustom ? (
+                      <Shield className="h-3.5 w-3.5 text-emerald-400/80" />
+                    ) : (
+                      <Lock className="h-3.5 w-3.5 text-emerald-400/80" />
+                    )}
+                    {isCustom ? "AYRA protocol (locked)" : "Behavior profile (locked)"}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    System prompt is managed server-side — tool rules, safety guardrails, and role workflows
+                    cannot be edited from the dashboard.
+                  </p>
+                </div>
 
                 {isCustom ? (
                   <>
@@ -373,21 +386,6 @@ export default function AgentDetailPage() {
                         }}
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="agent-prompt">System prompt</Label>
-                      <Textarea
-                        id="agent-prompt"
-                        value={profileDraft.systemPrompt}
-                        onChange={(e) => {
-                          setProfileDraft((p) => ({ ...p, systemPrompt: e.target.value }));
-                          setProfileDirty(true);
-                        }}
-                        rows={8}
-                      />
-                      <p className="text-[11px] text-muted-foreground">
-                        Operates under AYRA identity — office rules are enforced automatically.
-                      </p>
-                    </div>
                     {profileDirty && (
                       <div className="flex justify-end gap-2">
                         <Button
@@ -396,7 +394,6 @@ export default function AgentDetailPage() {
                             setProfileDraft({
                               name: agent.name,
                               description: agent.description ?? "",
-                              systemPrompt: agent.systemPrompt,
                             });
                             setProfileDirty(false);
                           }}
@@ -416,10 +413,8 @@ export default function AgentDetailPage() {
                       <p className="font-medium">{agent.name}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-2">System prompt</p>
-                      <pre className="max-h-48 overflow-y-auto rounded-lg bg-secondary/50 p-4 text-xs whitespace-pre-wrap">
-                        {agent.systemPrompt}
-                      </pre>
+                      <p className="text-xs text-muted-foreground">Role</p>
+                      <p className="font-medium capitalize">{(agent.template ?? "template").replace(/-/g, " ")}</p>
                     </div>
                   </>
                 )}

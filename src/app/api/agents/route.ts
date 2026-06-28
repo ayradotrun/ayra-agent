@@ -8,6 +8,7 @@ import { resolveAgentCreateFields } from "@/lib/agent/template-config";
 import { normalizeChatModel } from "@/lib/models";
 import { enrichAgentWithUserModels } from "@/lib/agent/enrich-agent-models";
 import { healAllAgentModelsFromUser } from "@/lib/user-models";
+import { omitSystemPrompt } from "@/lib/agent/system-prompts";
 import { healStaleRunsForUser } from "@/lib/agent/heal-stale-runs";
 import type { ScheduleInterval } from "@prisma/client";
 
@@ -34,14 +35,13 @@ export async function GET() {
   });
 
   return NextResponse.json(
-    agents.map((agent) => enrichAgentWithUserModels(agent, dbUser ?? {}))
+    agents.map((agent) => omitSystemPrompt(enrichAgentWithUserModels(agent, dbUser ?? {})))
   );
 }
 
 const createAgentSchema = z.object({
   name: z.string().max(100).optional(),
   description: z.string().optional(),
-  systemPrompt: z.string().optional(),
   template: z.string().optional(),
   memoryEnabled: z.boolean().optional(),
   schedule: z.enum(["MANUAL", "EVERY_5_MIN", "EVERY_15_MIN", "HOURLY", "DAILY"]).optional(),
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
       include: { skills: { include: { skill: true } } },
     });
 
-    return NextResponse.json(full, { status: 201 });
+    return NextResponse.json(omitSystemPrompt(full!), { status: 201 });
   } catch {
     return NextResponse.json({ error: "Failed to create agent" }, { status: 500 });
   }

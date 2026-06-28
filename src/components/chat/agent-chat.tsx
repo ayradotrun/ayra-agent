@@ -22,7 +22,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { CHAT_COMMAND_HINTS, AGENT_META_COMMANDS_UI, MODEL_COMMANDS_UI, SKILL_COMMANDS_UI } from "@/lib/telegram/commands";
+import {
+  AGENT_META_COMMANDS_UI,
+  MODEL_COMMANDS_UI,
+  SKILL_COMMANDS_UI,
+} from "@/lib/telegram/commands";
+import { CHAT_QUICK_COMMANDS } from "@/lib/telegram/command-catalog";
+import {
+  shouldShowSlashCommandMenu,
+  filterSlashCommands,
+  groupSlashCommands,
+} from "@/lib/telegram/command-catalog";
+import type { SlashCommandItem } from "@/lib/telegram/command-catalog";
+import { SlashCommandMenu } from "@/components/chat/slash-command-menu";
+import { CommandQuickChip, CommandReferenceAccordion } from "@/components/chat/command-quick-chip";
 import { ChatRecentsDrawer } from "@/components/chat/chat-sidebar";
 import { chatSessionHref, notifyChatSessionsChanged } from "@/lib/chat/recents";
 
@@ -122,6 +135,7 @@ export function AgentChat() {
   const [pendingImages, setPendingImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [recentsOpen, setRecentsOpen] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -302,10 +316,49 @@ export function AgentChat() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const slashOpen = shouldShowSlashCommandMenu(input);
+    const flatSlash = slashOpen
+      ? groupSlashCommands(filterSlashCommands(input)).flatMap((g) => g.items)
+      : [];
+
+    if (slashOpen && flatSlash.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % flatSlash.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + flatSlash.length) % flatSlash.length);
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        pickCommand(flatSlash[slashIndex] ?? flatSlash[0]);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setInput("");
+        return;
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
+  }
+
+  const slashMenuVisible = shouldShowSlashCommandMenu(input);
+
+  useEffect(() => {
+    setSlashIndex(0);
+  }, [input]);
+
+  function pickCommand(item: SlashCommandItem) {
+    setInput(item.insert);
+    textareaRef.current?.focus();
   }
 
   if (loading) {
@@ -398,53 +451,44 @@ export function AgentChat() {
               </div>
               <h2 className="text-lg font-medium">Chat with your agent</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Slash commands — type /help or browse skills below
+                Type <span className="font-mono text-emerald-400/90">/</span> for commands with
+                descriptions — same as Telegram
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                {CHAT_COMMAND_HINTS.map((hint) => (
-                  <button
-                    key={hint}
-                    type="button"
-                    className="rounded-full border border-border/60 px-3 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                    onClick={() => setInput(hint)}
-                  >
-                    {hint}
-                  </button>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                {CHAT_QUICK_COMMANDS.map((item) => (
+                  <CommandQuickChip key={item.command} item={item} onPick={pickCommand} />
                 ))}
               </div>
-              <div className="mx-auto mt-6 grid max-w-md gap-3 text-left">
-                {[
-                  { title: "Skill commands", items: SKILL_COMMANDS_UI },
-                  { title: "Agent commands", items: AGENT_META_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })) },
-                  { title: "Model commands", items: MODEL_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })) },
-                ].map((section) => (
-                  <details key={section.title} className="rounded-lg border border-border/60">
-                    <summary className="cursor-pointer px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-                      {section.title}
-                    </summary>
-                    <ul className="max-h-48 space-y-1.5 overflow-y-auto border-t border-border/40 p-3 text-xs text-muted-foreground">
-                      {section.items.map((c) => (
-                        <li key={c.cmd}>
-                          <button
-                            type="button"
-                            className="flex w-full items-start gap-2 text-left hover:text-foreground"
-                            onClick={() =>
-                              setInput(
-                                c.cmd.includes("[") ? `${c.cmd.split(" [")[0]} ` : c.cmd
-                              )
-                            }
-                          >
-                            <span className="shrink-0 font-mono text-[11px] text-foreground/90">
-                              {c.cmd}
-                            </span>
-                            <span>{c.desc}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </details>
-                ))}
-              </div>
+              <CommandReferenceAccordion
+                className="mx-auto mt-6 max-w-lg text-left"
+                onPick={(cmd) => setInput(cmd)}
+                sections={[
+                  {
+                    id: "crypto",
+                    title: "💎 Crypto commands",
+                    items: SKILL_COMMANDS_UI.filter(
+                      (c) => !["/search", "/rpc", "/x"].some((p) => c.cmd.startsWith(p))
+                    ),
+                  },
+                  {
+                    id: "tools",
+                    title: "🛠 Tools",
+                    items: SKILL_COMMANDS_UI.filter((c) =>
+                      ["/search", "/rpc", "/x"].some((p) => c.cmd.startsWith(p))
+                    ),
+                  },
+                  {
+                    id: "agent",
+                    title: "🤖 Agent",
+                    items: AGENT_META_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })),
+                  },
+                  {
+                    id: "models",
+                    title: "🧠 Models",
+                    items: MODEL_COMMANDS_UI.map((c) => ({ cmd: c.cmd, desc: c.desc })),
+                  },
+                ]}
+              />
             </div>
           )}
 
@@ -464,9 +508,16 @@ export function AgentChat() {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-white/[0.06] bg-background/95 p-3 backdrop-blur-sm sm:p-4 md:bg-transparent md:backdrop-blur-none">
+        <div className="relative shrink-0 border-t border-white/[0.06] bg-background/60 p-3 backdrop-blur-md sm:p-4 max-md:bg-[hsl(220,20%,4%)]/60 md:bg-transparent md:backdrop-blur-none">
           {error && <p className="mb-2 text-center text-xs text-destructive">{error}</p>}
-          <div className="mx-auto w-full max-w-3xl">
+          <div className="relative mx-auto w-full max-w-3xl">
+            <SlashCommandMenu
+              input={input}
+              visible={slashMenuVisible && !sending}
+              activeIndex={slashIndex}
+              onSelect={pickCommand}
+              className="absolute bottom-full left-0 right-0 z-30 mb-2 max-md:mb-2.5"
+            />
             {pendingImages.length > 0 && (
               <div className="mb-2 flex flex-wrap gap-2 px-1">
                 {pendingImages.map((url) => (
@@ -504,7 +555,7 @@ export function AgentChat() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything…"
+                placeholder="Ask anything… type / for commands"
                 rows={1}
                 disabled={sending}
                 className="min-h-[48px] max-h-40 resize-none border-0 bg-transparent px-4 pb-1 pt-3.5 text-sm shadow-none placeholder:text-muted-foreground/70 focus-visible:ring-0"

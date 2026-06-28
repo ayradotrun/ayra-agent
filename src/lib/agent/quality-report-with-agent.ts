@@ -1,3 +1,4 @@
+import { getSystemPromptForAgent } from "@/lib/agent/system-prompts";
 import { prisma } from "@/lib/prisma";
 import { getSkill } from "@/lib/skills";
 import {
@@ -137,7 +138,7 @@ export async function runQualityReportWithAgent(
   try {
     const agent = await prisma.agent.findUnique({
       where: { id: agentId },
-      select: { name: true, systemPrompt: true, memoryEnabled: true },
+      select: { name: true, template: true, memoryEnabled: true },
     });
     const agentName = agent?.name?.trim() || "AYRA Agent";
 
@@ -164,7 +165,11 @@ export async function runQualityReportWithAgent(
 
     await logFn("INFO", "Generating agent chat verdict for /q", "token-quality-report");
 
-    const { system, user } = buildAgentInsightPrompt(agentName, snapshot, agent?.systemPrompt);
+    const { system, user } = buildAgentInsightPrompt(
+      agentName,
+      snapshot,
+      agent ? getSystemPromptForAgent(agent) : null
+    );
     const verdict = await runLlm(userId, system, user, 750);
 
     const verdictBlock = verdict.trim()

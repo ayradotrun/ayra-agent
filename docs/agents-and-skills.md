@@ -4,45 +4,63 @@ AYRA agents are configurable assistants with **skills** (tools) they can call du
 
 ## Agent templates
 
-**Dashboard → Agents → New agent** offers office templates:
+**Dashboard → Agents → New agent** offers office templates with locked behavior profiles:
 
 | Template | Focus |
 |----------|--------|
 | **Ayra** | Full toolkit — research, Solana, X, scheduling |
-| **Aria** | Content & social workflows |
-| **Sienna** | Research & analysis |
-| **Marcus** | On-chain & wallet monitoring |
+| **Aria** | On-chain research & wallet analysis |
+| **Sienna** | X content & social workflows |
+| **Marcus** | Network & wallet monitoring |
 | **Nova** | Automation & brain tasks |
+| **New Hire** | Custom name, skills, schedule — AYRA protocol locked |
 
-You can customize the system prompt, model overrides, and enabled skills per agent.
+You configure **skills and schedule** per agent. System prompts are applied server-side and are not shown in the dashboard.
+
+See [Agent templates](/docs/templates) for the full role list.
 
 ## Skills
 
-**Dashboard → Skills** lists available skills (web-search, wallet-watch, x-draft, etc.).
+**Dashboard → Skills** lists available skills (web-search, wallet-tracker, rugcheck, etc.).
 
 | Concept | Detail |
 |---------|--------|
 | **Global catalog** | Seeded on platform setup — operators run `npm run prisma:seed` |
-| **Per-agent toggle** | **Agent → Skills** — enable only what you need |
+| **Per-agent toggle** | **Agent → Skills** (custom agents) or fixed set (templates) |
 | **Performance** | Each skill adds tools the LLM may invoke — disable unused skills for faster replies |
 
-### Chat slash commands
+## Slash commands
 
-Dashboard **Chat** and **Telegram** share the same slash commands. Type `/help` for the live list, or see [Telegram bot — slash commands](/docs/telegram#slash-commands).
+Dashboard **Chat** and **Telegram** share the same slash commands.
 
-Quick examples: `/search [query]`, `/p [token]`, `/q [CA]`, `/ayrascan`, `/agents`, `/status`, `/image [prompt]`, `/model [name]`.
+| Resource | Description |
+|----------|-------------|
+| **[Slash commands reference](/docs/slash-commands)** | Full list — crypto, tools, agent, model commands with examples |
+| **`/help`** | Live command list in chat or Telegram |
+| **Type `/` in chat** | Command picker with descriptions |
 
-### Web search
+Quick examples:
 
-Requires no key (fallback chain) or optional Jina BYOK — [Web search guide](/docs/jina-web-search).
+```
+/p BONK          — price
+/w [address]     — wallet analyzer
+/q [CA]          — quality report
+/audit [CA]      — security audit
+/search [query]  — web search
+/status          — agent + models
+```
 
-### Solana skills
+## Web search
 
-Configure **Settings → Solana RPC** for reliable on-chain calls.
+Optional Jina BYOK for better rate limits — [Web search guide](/docs/jina-web-search). Works without a key via fallback chain.
 
-### X skills
+## Solana skills
 
-OAuth or manual keys — drafts and optional auto-post with double opt-in.
+Configure **Settings → Solana RPC** for wallet and on-chain commands (`/w`, `/oc`, `/n`). User RPC is used for `/w` — not the server `.env` URL.
+
+## X skills
+
+OAuth or manual keys — drafts and optional auto-post with double opt-in. See [X manual keys](/docs/x-manual-keys).
 
 ## Chat vs scheduled runs
 
@@ -52,23 +70,29 @@ OAuth or manual keys — drafts and optional auto-post with double opt-in.
 | **Brain / cron** | Scheduled tweets, reminders, content calendar — stored in your **private database** |
 | **Telegram** | Mobile chat via connected bot — [Telegram guide](/docs/telegram) |
 
+## Usage analytics
+
+**Dashboard → Overview** shows requests, input/output tokens, and estimated cost (Today / 7D / 14D / 30D).
+
 ## Run logs
 
-**Agent → Runs** and **Logs** show token usage, tool calls, duration, and errors. Use these when debugging slow or failed runs.
+**Agent → Runs** and **Logs** show token usage, tool calls, duration, and errors.
 
-## Custom agents
+## Custom agents checklist
 
-1. **New agent → Custom**
-2. Write a clear system prompt (role, tone, constraints)
-3. Enable a minimal skill set
-4. Test in **Chat** before enabling Telegram or cron
+1. **New agent → New Hire**
+2. Name + description for your reference
+3. Enable a minimal skill set (3–5 to start)
+4. Test in **Chat** with slash commands
+5. Connect Telegram after worker is running
 
 ## Operators: adding skills
 
-Developers can add skills in the repo under `skills/` and register them in the seed catalog. See the [GitHub README](https://github.com/ayradotrun/ayra-agent#adding-skills) for `npm run sync:python` and seed steps.
+Developers add skills under `src/lib/skills/`, register in `index.ts`, and run `npm run prisma:seed`. See the [GitHub README](https://github.com/ayradotrun/ayra-agent#adding-skills).
 
 ## Related
 
+- [Slash commands](/docs/slash-commands)
 - [Getting started](/docs/getting-started)
 - [Settings guide](/docs/settings)
-- [FAQ — slow replies](/docs/faq#slow-replies)
+- [FAQ — slow replies](/docs/faq)

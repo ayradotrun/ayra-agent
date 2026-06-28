@@ -1,4 +1,4 @@
-import { DEFAULT_AGENT_PROMPT } from "@/lib/utils";
+import { DEFAULT_AGENT_PROMPT } from "@/lib/agent/system-prompts";
 import { AYRA_BRAIN_INSTRUCTIONS } from "@/lib/brain/ayra-brain";
 
 export const DEFAULT_SYSTEM_PROMPT = DEFAULT_AGENT_PROMPT;
